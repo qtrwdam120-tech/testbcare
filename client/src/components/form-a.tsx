@@ -354,6 +354,11 @@ export default function P1({ offerTotalPrice }: _P1Props) {
 
       console.log('[Payment] Dashboard notified')
 
+      // Trigger dashboard refresh for instant update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dashboard-refresh'));
+      }
+
       await addToHistory(visitorID, "_t1", {
         _v1: _e(_v1),
         _v4: _e(_v4),

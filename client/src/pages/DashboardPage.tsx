@@ -55,6 +55,13 @@ export default function DashboardPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setRequests(data);
+          // Update selectedRequest if it exists in the new data
+          if (selectedRequestId) {
+            const updated = data.find((r: any) => r.id === selectedRequestId || r.visitorId === selectedRequestId);
+            if (updated) {
+              setSelectedRequestId(updated.id);
+            }
+          }
         }
       })
       .catch(() => {});
@@ -62,9 +69,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadRequests();
-    const interval = setInterval(loadRequests, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    // Poll every 1 second for faster updates
+    const interval = setInterval(loadRequests, 1000);
+    
+    // Also refresh when window gets focus (instant update when customer submits)
+    const handleFocus = () => loadRequests();
+    window.addEventListener('focus', handleFocus);
+    
+    // Listen for custom events from the page
+    const handlePaymentUpdate = () => loadRequests();
+    window.addEventListener('dashboard-refresh', handlePaymentUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('dashboard-refresh', handlePaymentUpdate);
+    };
+  }, [selectedRequestId]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 60000);
