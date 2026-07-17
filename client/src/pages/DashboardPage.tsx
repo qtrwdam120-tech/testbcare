@@ -249,6 +249,7 @@ export default function DashboardPage() {
     // Handle initial data from server
     socket.on("dashboard:init", (data: RequestItem[]) => {
       console.log("[Dashboard] Received initial data:", data.length, "requests");
+      console.log("[Dashboard] Request IDs:", data.map(r => r.id));
       setRequests(data);
     });
     
@@ -381,8 +382,10 @@ export default function DashboardPage() {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
     
+    const selectedData = requests.filter(r => selectedSet.has(r.id)).map(r => ({ id: r.id, visitorId: r.visitorId, customer: r.customer }));
     console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
-    console.log("[CLIENT DELETE] Requests data:", requests.filter(r => selectedSet.has(r.id)).map(r => ({ id: r.id, visitorId: r.visitorId, customer: r.customer })));
+    console.log("[CLIENT DELETE] Selected data:", selectedData);
+    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
     
     try {
       // Delete from server
@@ -394,6 +397,7 @@ export default function DashboardPage() {
       
       const result = await response.json();
       console.log("[CLIENT DELETE] Server response:", result);
+      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر بنجاح`);
       
       // Update local state only after successful delete
       setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
@@ -401,6 +405,7 @@ export default function DashboardPage() {
       setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
     } catch (error) {
       console.error("[Dashboard] Failed to delete visitors:", error);
+      showNotification("error", "فشل حذف الزوار");
     }
   };
 
