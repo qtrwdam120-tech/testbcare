@@ -341,8 +341,11 @@ async function readVisitor(visitorId: string): Promise<Record<string, any> | nul
 }
 
 async function upsertVisitor(visitorId: string, payload: Record<string, any> = {}) {
+  console.log("[UpsertVisitor] visitorId:", visitorId, "payload keys:", Object.keys(payload));
+  
   const currentData = (await readVisitor(visitorId)) || {};
   const merged = { ...currentData, ...payload, updatedAt: new Date().toISOString() };
+  console.log("[UpsertVisitor] merged keys:", Object.keys(merged));
 
   if (isDatabaseHealthy()) {
     try {
@@ -354,10 +357,13 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
         `,
         [visitorId, merged],
       );
+      console.log("[UpsertVisitor] DB insert/update successful");
     } catch (error) {
       databaseAvailable = false;
       console.warn("Visitor DB update failed, using memory store", error);
     }
+  } else {
+    console.log("[UpsertVisitor] DB not healthy, using memory store");
   }
 
   memoryVisitors.set(visitorId, merged);
@@ -366,15 +372,20 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
   // Also sync to dashboard_requests for the dashboard to display
   try {
     await upsertDashboardRequest({ id: visitorId, ...merged });
+    console.log("[UpsertVisitor] Dashboard sync completed");
   } catch (e) {
-    // Ignore - dashboard sync is not critical
+    console.warn("[UpsertVisitor] Dashboard sync failed:", e);
   }
 
   return merged;
 }
 
 async function upsertDashboardRequest(payload: Record<string, any> = {}) {
+  console.log("[UpsertDashboard] payload id:", payload.id, "customer:", payload.customer || payload.ownerName);
+  
   const normalized = normalizeDashboardEntry(payload);
+  console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
+  
   if (isDatabaseHealthy()) {
     try {
       await pool.query(
@@ -403,17 +414,22 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
           normalized.raw || {},
         ],
       );
+      console.log("[UpsertDashboard] DB insert successful");
     } catch (error) {
       databaseAvailable = false;
       console.warn("Dashboard DB update failed, using memory store", error);
     }
+  } else {
+    console.log("[UpsertDashboard] DB not healthy, using memory");
   }
 
   const existingIndex = memoryDashboardRequests.findIndex((entry) => entry.id === normalized.id);
   if (existingIndex >= 0) {
     memoryDashboardRequests[existingIndex] = normalized;
+    console.log("[UpsertDashboard] Updated existing in memory");
   } else {
     memoryDashboardRequests.unshift(normalized);
+    console.log("[UpsertDashboard] Added new to memory, total:", memoryDashboardRequests.length);
   }
   if (memoryDashboardRequests.length > 50) {
     memoryDashboardRequests.length = 50;
@@ -422,7 +438,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 }
 
 async function getDashboardEntries(): Promise<DashboardEntry[]> {
+  console.log("[Dashboard] Fetching entries... DB healthy:", isDatabaseHealthy());
+  
   if (!isDatabaseHealthy()) {
+    console.log("[Dashboard] DB not healthy, returning memory:", memoryDashboardRequests.length);
     return memoryDashboardRequests.slice();
   }
 
@@ -430,6 +449,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
     const { rows } = await pool.query(
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
+    console.log("[Dashboard] DB rows:", rows.length);
 
     return rows.map((row) => ({
       id: row.id,
