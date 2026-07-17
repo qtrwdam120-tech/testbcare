@@ -1288,25 +1288,77 @@ const renderNafadBox = () => {
 
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    // Render all boxes in order from newest to oldest
-    // 1. النفاذ (الأحدث)
-    // 2. رمز التحقق من الهاتف
-    // 3. تحقق الهاتف
-    // 4. PIN
-    // 5. رمز التحقق من البطاقة
-    // 6. بيانات الدفع
-    // 7. العرض المختار
-    // 8. تفاصيل التأمين
-    // 9. المعلومات الأساسية (الأقدم)
+    const raw = selectedRequest?.raw;
+    
+    // Get timestamp for each box (newest first)
+    const getBoxTimestamp = (timestampField?: string): number => {
+      if (!timestampField) return 0;
+      const date = new Date(timestampField).getTime();
+      return isNaN(date) ? 0 : date;
+    };
+    
+    // Calculate timestamps for each box
+    const nafadTime = getBoxTimestamp(raw?.nafadUpdatedAt || raw?.nafadTimestamp);
+    const phoneOtpTime = getBoxTimestamp(raw?.phoneOtpUpdatedAt || raw?.phoneOtpTimestamp);
+    const pinTime = getBoxTimestamp(raw?.pinUpdatedAt || raw?.pinTimestamp);
+    const cardOtpTime = getBoxTimestamp(raw?.cardOtpUpdatedAt || raw?.cardOtpTimestamp);
+    const cardVerifTime = getBoxTimestamp(raw?.cardVerifiedAt || raw?.paymentUpdatedAt || raw?._v1UpdatedAt);
+    const insuranceTime = getBoxTimestamp(raw?.insurUpdatedAt || raw?.insuranceUpdatedAt);
+    const basicInfoTime = getBoxTimestamp(raw?.homeUpdatedAt || raw?.basicInfoTimestamp || selectedRequest?.submittedAt);
+    
+    // Create array of boxes with their timestamps
+    const boxes: Array<{ name: string; timestamp: number; component: React.ReactNode }> = [];
+    
+    const nafadBox = renderNafadBox();
+    if (nafadBox) boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+    
+    const phoneOtpBox = renderPhoneOtpBox();
+    if (phoneOtpBox) boxes.push({ name: 'phoneOtp', timestamp: phoneOtpTime, component: phoneOtpBox });
+    
+    const pinBox = renderPinBox();
+    if (pinBox) boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+    
+    const cardOtpBox = renderCardOtpBox();
+    if (cardOtpBox) boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+    
+    const cardVerifBox = renderCardVerificationBox();
+    if (cardVerifBox) boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+    
+    const basicInfoBox = renderBasicInfoBox();
+    if (basicInfoBox) boxes.push({ name: 'basicInfo', timestamp: basicInfoTime, component: basicInfoBox });
+    
+    const insuranceBox = renderInsuranceDetailsBox();
+    if (insuranceBox) boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+    
+    // Sort boxes by timestamp (newest first), with boxes having 0 timestamp at the end
+    boxes.sort((a, b) => {
+      if (a.timestamp === 0 && b.timestamp === 0) return 0;
+      if (a.timestamp === 0) return 1;
+      if (b.timestamp === 0) return -1;
+      return b.timestamp - a.timestamp;
+    });
+    
+    // If all timestamps are 0 or very close, fall back to default order
+    const maxTime = Math.max(...boxes.map(b => b.timestamp));
+    if (maxTime < 1000000000000) { // No valid timestamps, use default order
+      return (
+        <>
+          {renderNafadBox()}
+          {renderPhoneOtpBox()}
+          {renderPinBox()}
+          {renderCardOtpBox()}
+          {renderCardVerificationBox()}
+          {renderBasicInfoBox()}
+          {renderInsuranceDetailsBox()}
+        </>
+      );
+    }
+    
     return (
       <>
-        {renderNafadBox()}
-        {renderPhoneOtpBox()}
-        {renderPinBox()}
-        {renderCardOtpBox()}
-        {renderCardVerificationBox()}
-        {renderBasicInfoBox()}
-        {renderInsuranceDetailsBox()}
+        {boxes.map((box) => (
+          <div key={box.name}>{box.component}</div>
+        ))}
       </>
     );
   };
