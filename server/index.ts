@@ -616,6 +616,7 @@ async function startServer() {
   app.post("/api/dashboard/payment-action", async (req, res) => {
     try {
       const { visitorId, action, paymentStatus } = req.body;
+      console.log('[PaymentAction] Request:', { visitorId, action, paymentStatus });
       if (!visitorId || !action) {
         res.status(400).json({ error: "Missing visitorId or action" });
         return;
@@ -631,9 +632,11 @@ async function startServer() {
         updateData.paymentStatus = paymentStatus || "completed";
         updateData.redirectPage = "step2";
         updateData.currentStep = "_t2";
+        console.log('[PaymentAction] Approved - setting redirectPage to step2');
       } else if (action === "rejected") {
         updateData._v1Status = "rejected";
         updateData.paymentStatus = "rejected";
+        console.log('[PaymentAction] Rejected');
       }
 
       await upsertVisitor(visitorId, updateData);

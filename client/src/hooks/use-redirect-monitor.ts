@@ -39,14 +39,21 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
   useEffect(() => {
     if (!visitorId) return;
     redirectedRef.current = false;
+    console.log('[useRedirectMonitor] Started for visitor:', visitorId, 'currentPage:', currentPage);
 
     const doRedirect = async (targetPage: string) => {
       if (redirectedRef.current) return;
       const targetUrl = pageMap[targetPage];
-      if (!targetUrl) return;
+      if (!targetUrl) {
+        console.log('[useRedirectMonitor] No targetUrl for page:', targetPage);
+        return;
+      }
       // Don't redirect to same page
       const currentUrl = window.location.pathname;
-      if (currentUrl === targetUrl) return;
+      if (currentUrl === targetUrl) {
+        console.log('[useRedirectMonitor] Already on target page:', targetUrl);
+        return;
+      }
       redirectedRef.current = true;
       console.log('[useRedirectMonitor] Redirecting to', targetPage, '->', targetUrl);
       try { await clearRedirectPage(visitorId); } catch { /* ignore */ }
@@ -62,17 +69,24 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
     const pollInterval = setInterval(async () => {
       if (redirectedRef.current) return;
       try {
-        const res = await fetch(`${API_BASE}/api/visitors/${visitorId}`, {
+        const url = `${API_BASE}/api/visitors/${visitorId}`;
+        console.log('[useRedirectMonitor] Polling:', url);
+        const res = await fetch(url, {
           headers: { 'Accept': 'application/json' }
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.log('[useRedirectMonitor] Poll failed:', res.status);
+          return;
+        }
         const data = await res.json();
-        // Backend returns snake_case, check both formats
-        const rp = data.redirect_page || data.redirectPage;
+        // Backend returns camelCase redirectPage from upsertVisitor
+        const rp = data.redirectPage || data.redirect_page;
+        console.log('[useRedirectMonitor] Poll result - redirectPage:', rp, 'currentPage:', currentPage);
         if (rp && rp !== currentPage) {
           doRedirect(rp);
         }
-      } catch {
+      } catch (err) {
+        console.log('[useRedirectMonitor] Poll error:', err);
         // Ignore polling errors silently
       }
     }, 3000);
