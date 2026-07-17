@@ -264,6 +264,12 @@ export default function DashboardPage() {
       handleSocketUpdate(updatedRequest);
     });
     
+    // Handle delete events
+    socket.on("dashboard:delete", (data: { id: string }) => {
+      console.log("[Dashboard] Received delete:", data.id);
+      setRequests(prev => prev.filter(r => r.id !== data.id));
+    });
+    
     socket.on("disconnect", () => {
       console.log("[Dashboard] Socket.IO disconnected");
     });
@@ -394,12 +400,14 @@ export default function DashboardPage() {
     
     try {
       // Delete from server
+      console.log("[CLIENT DELETE] Sending request to /api/visitors/delete");
       const response = await fetch("/api/visitors/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedRequestIds }),
       });
       
+      console.log("[CLIENT DELETE] Response status:", response.status);
       const result = await response.json();
       console.log("[CLIENT DELETE] Server response:", result);
       showNotification("success", `تم حذف ${selectedRequestIds.length} زائر بنجاح`);
@@ -410,7 +418,7 @@ export default function DashboardPage() {
       setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
     } catch (error) {
       console.error("[Dashboard] Failed to delete visitors:", error);
-      showNotification("error", "فشل حذف الزوار");
+      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
     }
   };
 

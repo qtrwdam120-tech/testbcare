@@ -741,6 +741,7 @@ async function startServer() {
     try {
       const { ids } = req.body;
       console.log("[DELETE] Request to delete visitors:", ids);
+      console.log("[DELETE] Server URL:", req.protocol + "://" + req.get("host"));
       
       if (!Array.isArray(ids) || ids.length === 0) {
         res.status(400).json({ error: "No IDs provided" });
@@ -762,6 +763,11 @@ async function startServer() {
       } else {
         console.log("[DELETE] databaseAvailable=false, only deleted from memory");
       }
+      
+      // Broadcast delete to all connected dashboards
+      ids.forEach(id => {
+        broadcastToDashboard("dashboard:delete", { id });
+      });
       
       res.json({ success: true, message: `${ids.length} visitors deleted` });
     } catch (error) {
