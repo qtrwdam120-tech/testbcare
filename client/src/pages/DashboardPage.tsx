@@ -2112,7 +2112,6 @@ const renderNafadBox = () => {
                   gap: 12,
                 }}
               >
-                {renderCustomerEntrySummary()}
                 {renderActionButtons()}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
                   {/* Basic Info */}
