@@ -392,6 +392,14 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
 
   memoryVisitors.set(visitorId, merged);
   await logVisitorEvent(visitorId, merged);
+
+  // Also sync to dashboard_requests for the dashboard to display
+  try {
+    await upsertDashboardRequest({ id: visitorId, ...merged });
+  } catch (e) {
+    // Ignore - dashboard sync is not critical
+  }
+
   return merged;
 }
 
