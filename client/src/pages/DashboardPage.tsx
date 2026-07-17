@@ -60,7 +60,7 @@ export default function DashboardPage() {
     fetch("/api/dashboard/requests")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setRequests(data);
         }
       })
