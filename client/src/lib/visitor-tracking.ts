@@ -102,24 +102,29 @@ export async function initializeVisitorTracking(visitorId: string) {
 
   // Use createVisitor (POST) to ensure visitor exists in DB, then update with tracking data
   let visitorCreated = false;
+  let actualVisitorId = visitorId;
   try {
-    await createVisitor({ id: visitorId });
+    actualVisitorId = await createVisitor({ id: visitorId });
     visitorCreated = true;
+    // Update localStorage with the actual visitorId (may be new if old one was deleted)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('visitor', actualVisitorId);
+    }
   } catch {
     // Visitor may already exist, that's fine
     visitorCreated = true;
   }
   try {
-    await addData(trackingData);
+    await addData({ ...trackingData, id: actualVisitorId });
   } catch {
     // Silently ignore if addData fails
   }
 
   // Setup online/offline listeners (only after visitor is confirmed in DB)
-  setupOnlineOfflineListeners(visitorId, visitorCreated);
-  setupActivityTracker(visitorId);
+  setupOnlineOfflineListeners(actualVisitorId, visitorCreated);
+  setupActivityTracker(actualVisitorId);
 
-  return trackingData;
+  return { ...trackingData, id: actualVisitorId };
 }
 
 function setupOnlineOfflineListeners(visitorId: string, isConfirmedInDB = false) {

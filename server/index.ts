@@ -708,13 +708,18 @@ async function startServer() {
 
   app.post("/api/visitors", async (req, res) => {
     const payload = req.body || {};
-    const visitorId = payload.id || payload.visitorId || `visitor_${Date.now()}`;
+    let visitorId = payload.id || payload.visitorId;
     
-    // Check if this visitor was previously deleted - if so, reject
-    if (deletedVisitorIds.has(visitorId)) {
-      console.log("[VISITOR] Rejected - was previously deleted:", visitorId);
-      res.status(403).json({ error: "Visitor was deleted and cannot return", visitorId });
-      return;
+    // Check if this visitor was previously deleted - if so, generate new ID
+    if (visitorId && deletedVisitorIds.has(visitorId)) {
+      console.log("[VISITOR] Previously deleted, generating new ID for:", visitorId);
+      // Remove old ID from deleted list (they're starting fresh)
+      deletedVisitorIds.delete(visitorId);
+      // Generate new visitorId
+      visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log("[VISITOR] New visitorId:", visitorId);
+    } else if (!visitorId) {
+      visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
     
     try {

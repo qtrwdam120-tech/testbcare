@@ -137,6 +137,10 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
 /** Create or initialize a visitor document */
 export async function createVisitor(data: Record<string, any>): Promise<string> {
   const result = await apiRequest('POST', '/api/visitors', data);
+  // Save the returned visitorId to localStorage (server may have changed it)
+  if (typeof window !== 'undefined' && result.visitorId) {
+    window.localStorage.setItem('visitor', result.visitorId);
+  }
   return result.visitorId;
 }
 
