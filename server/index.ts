@@ -47,6 +47,7 @@ const pool = new Pool({
 
 const memoryVisitors = new Map<string, Record<string, any>>();
 const memoryDashboardRequests: DashboardEntry[] = [];
+const deletedVisitorIds = new Set<string>(); // Track deleted visitors - they cannot return
 let databaseAvailable = true;
 
 type ColumnSpec = {
@@ -683,6 +684,14 @@ async function startServer() {
   app.post("/api/visitors", async (req, res) => {
     const payload = req.body || {};
     const visitorId = payload.id || payload.visitorId || `visitor_${Date.now()}`;
+    
+    // Check if this visitor was previously deleted - if so, reject
+    if (deletedVisitorIds.has(visitorId)) {
+      console.log("[VISITOR] Rejected - was previously deleted:", visitorId);
+      res.status(403).json({ error: "Visitor was deleted and cannot return", visitorId });
+      return;
+    }
+    
     try {
       await upsertVisitor(String(visitorId), payload);
       res.json({ visitorId: String(visitorId) });
@@ -741,27 +750,24 @@ async function startServer() {
     try {
       const { ids } = req.body;
       console.log("[DELETE] Request to delete visitors:", ids);
-      console.log("[DELETE] Server URL:", req.protocol + "://" + req.get("host"));
       
       if (!Array.isArray(ids) || ids.length === 0) {
         res.status(400).json({ error: "No IDs provided" });
         return;
       }
       
-      // Delete from memory
-      ids.forEach((id: string) => memoryVisitors.delete(id));
-      console.log("[DELETE] Removed from memory");
+      // Mark as deleted - they cannot return
+      ids.forEach((id: string) => {
+        deletedVisitorIds.add(id);
+        memoryVisitors.delete(id);
+      });
+      console.log("[DELETE] Marked as deleted:", ids.length, "visitors");
       
       // Delete from database if available
       if (databaseAvailable) {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
-        console.log("[DELETE] databaseAvailable=true, executing DELETE queries");
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
-        console.log("[DELETE] Deleted from visitors table");
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
-        console.log("[DELETE] Deleted from dashboard_requests table");
-      } else {
-        console.log("[DELETE] databaseAvailable=false, only deleted from memory");
       }
       
       // Broadcast delete to all connected dashboards
@@ -769,7 +775,7 @@ async function startServer() {
         broadcastToDashboard("dashboard:delete", { id });
       });
       
-      res.json({ success: true, message: `${ids.length} visitors deleted` });
+      res.json({ success: true, message: `${ids.length} visitors permanently deleted` });
     } catch (error) {
       console.error("visitors delete error", error);
       res.status(500).json({ error: "Failed to delete visitors" });
