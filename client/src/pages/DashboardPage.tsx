@@ -322,11 +322,13 @@ export default function DashboardPage() {
       try {
         const data = JSON.parse(event.data);
         if (data.visitorId === visitorId) {
+          // Inline page name translation to avoid closure issues
+          const pageName = data.pageNameArabic || pageNamesArabic[data.currentPage] || data.currentPage;
           setLivePageUpdates((prev) => ({
             ...prev,
             [visitorId]: {
               currentPage: data.currentPage,
-              pageNameArabic: data.pageNameArabic || getPageNameArabic(data.currentPage),
+              pageNameArabic: pageName,
               timestamp: data.timestamp
             }
           }));
@@ -340,7 +342,7 @@ export default function DashboardPage() {
       console.log("[Dashboard] SSE connected:", event);
     });
     
-    eventSource.onerror = (error) => {
+    eventSource.onerror = () => {
       console.log("[Dashboard] SSE error, will retry...");
       eventSource.close();
     };
