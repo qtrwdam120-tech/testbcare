@@ -191,7 +191,6 @@ export default function DashboardPage() {
     if (normalized.includes("uae") || normalized.includes("emir")) return "الإمارات";
     if (normalized.includes("egy")) return "مصر";
     if (normalized.includes("oman") || normalized.includes("عمان")) return "سلطنة عمان";
-
     if (normalized.includes("leb")) return "لبنان";
     if (normalized.includes("syr")) return "سوريا";
     return value || "";
@@ -805,7 +804,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <p style={{ marginTop: 10, color: "#8ea4c0" }}>عند إدخال رقم مطابق لرمز محظور، يظهر للعميل: "الدفع غير متاح لبطاقات الراجحي؛ يرجى استخدام طرق دفع مختلفة".</p>
+                <p style={{ marginTop: 10, color: "#8ea4c0" }}>عند إدخال رقم مطابق لرمز محظور، يظهر للعميل: “الدفع غير متاح لبطاقات الراجحي؛ يرجى استخدام طرق دفع مختلفة”.</p>
               </article>
             </section>
           )}
