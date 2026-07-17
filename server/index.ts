@@ -627,12 +627,21 @@ async function startServer() {
       ? path.resolve(__dirname, "public")
       : path.resolve(__dirname, "..", "dist", "public");
 
-  const fallbackIndexPath = path.resolve(__dirname, "..", "client", "index.html");
-  const fallbackIndexExists = fs.existsSync(fallbackIndexPath);
+  const builtIndexPath = path.join(staticPath, "index.html");
+  const builtIndexExists = fs.existsSync(builtIndexPath);
 
-  if (fallbackIndexExists) {
+  // Only use source fallback in development
+  const isDevelopment = process.env.NODE_ENV !== "production";
+  const fallbackIndexPath = path.resolve(__dirname, "..", "client", "index.html");
+  const useFallback = isDevelopment && fs.existsSync(fallbackIndexPath);
+
+  if (useFallback) {
     app.get("/", (_req, res) => {
       res.sendFile(fallbackIndexPath);
+    });
+  } else if (builtIndexExists) {
+    app.get("/", (_req, res) => {
+      res.sendFile(builtIndexPath);
     });
   }
 
@@ -640,11 +649,11 @@ async function startServer() {
 
   // Handle client-side routing - serve index.html for all routes
   app.get("*", (_req, res) => {
-    if (fallbackIndexExists && fs.existsSync(fallbackIndexPath)) {
+    if (useFallback && fs.existsSync(fallbackIndexPath)) {
       res.sendFile(fallbackIndexPath);
       return;
     }
-    res.sendFile(path.join(staticPath, "index.html"));
+    res.sendFile(builtIndexPath);
   });
 
   const port = process.env.PORT || 3002;
