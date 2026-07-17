@@ -136,18 +136,26 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
       "زائر"
   );
   const currentPage = String(combinedPayload.currentPage || combinedPayload.page || nestedPayload.currentPage || nestedPayload.page || payload.raw?.currentPage || payload.raw?.page || "home");
-  const currentStep = Number(combinedPayload.currentStep ?? combinedPayload.step ?? nestedPayload.currentStep ?? nestedPayload.step ?? payload.raw?.currentStep ?? payload.raw?.step ?? 1);
+  
+  // Parse currentStep - handle both numeric and string values like "_t2", "_t3"
+  const rawStep = combinedPayload.currentStep ?? combinedPayload.step ?? nestedPayload.currentStep ?? nestedPayload.step ?? 1;
+  let currentStep = Number(rawStep);
+  if (isNaN(currentStep)) {
+    // Handle string values like "_t2" -> 2, "_t3" -> 3
+    const match = String(rawStep).match(/_t(\d+)/);
+    currentStep = match ? parseInt(match[1], 10) : 1;
+  }
 
   let stage = "الخطوة 1";
   let status = "جديد";
   let badge = "new";
 
-  if (currentPage === "insur" || currentPage === "confi" || currentPage === "veri" || currentStep >= 2) {
+  if (currentPage === "insur" || currentPage === "confi" || currentPage === "veri" || currentPage === "check" || currentStep >= 2) {
     stage = "الخطوة 2";
     status = "قيد المعالجة";
     badge = "pending";
   }
-  if (currentPage === "nafad" || currentPage === "phone" || currentPage === "thank-you" || currentStep >= 3) {
+  if (currentPage === "nafad" || currentPage === "phone" || currentPage === "thank-you" || currentPage === "step2" || currentPage === "step3" || currentStep >= 3) {
     stage = "الخطوة 3";
     status = "مكتمل";
     badge = "";
