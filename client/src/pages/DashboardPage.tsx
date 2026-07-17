@@ -159,6 +159,8 @@ export default function DashboardPage() {
   }, [selectedRequestId]);
 
   const handleSocketUpdate = useCallback((updatedRequest: any) => {
+    console.log("[Socket Update] Received:", updatedRequest.id, "visitorId:", updatedRequest.visitorId);
+    
     const incomingRequest = {
       ...updatedRequest,
       submittedAt: updatedRequest.submittedAt || updatedRequest.updatedAt || undefined,
@@ -169,6 +171,8 @@ export default function DashboardPage() {
       const existingIndex = prevRequests.findIndex(
         (r) => r.id === incomingRequest.id || r.visitorId === incomingRequest.visitorId
       );
+      
+      console.log("[Socket Update] Existing index:", existingIndex, "Current requests:", prevRequests.length);
       
       if (existingIndex >= 0) {
         const existing = prevRequests[existingIndex];
@@ -181,6 +185,7 @@ export default function DashboardPage() {
         };
         return newRequests;
       } else {
+        console.log("[Socket Update] NEW entry - adding to list:", incomingRequest.id);
         return [incomingRequest, ...prevRequests];
       }
     });
