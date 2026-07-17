@@ -1121,40 +1121,51 @@ export default function DashboardPage() {
                   <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>
                     🔄 توجيه العميل يدوياً
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <select
-                      value={redirectPage}
-                      onChange={(e) => setRedirectPage(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        border: "2px solid #e5e7eb",
-                        fontSize: "0.9rem",
-                        background: "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {pageOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleRedirect}
-                      disabled={!redirectPage || actionLoading === "redirect"}
-                      style={{
-                        padding: "10px 20px",
-                        borderRadius: 8,
-                        border: "none",
-                        background: redirectPage ? "#7c3aed" : "#9ca3af",
-                        color: "#fff",
-                        fontWeight: 700,
-                        cursor: redirectPage ? "pointer" : "not-allowed",
-                      }}
-                    >
-                      {actionLoading === "redirect" ? "جاري..." : "📤 توجيه"}
-                    </button>
-                  </div>
+                  <select
+                    value={redirectPage}
+                    onChange={async (e) => {
+                      const selectedPage = e.target.value;
+                      if (!selectedPage) return;
+                      
+                      const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+                      if (!visitorId) return;
+                      
+                      setActionLoading("redirect");
+                      setRedirectPage(selectedPage);
+                      
+                      try {
+                        const res = await fetch("/api/dashboard/redirect", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ visitorId, targetPage: selectedPage }),
+                        });
+                        if (res.ok) {
+                          const pageLabel = pageOptions.find(p => p.value === selectedPage)?.label || selectedPage;
+                          showNotification("success", `تم توجيه العميل إلى: ${pageLabel}`);
+                          loadRequests();
+                        } else {
+                          showNotification("error", "حدث خطأ");
+                        }
+                      } catch {
+                        showNotification("error", "فشل الاتصال");
+                      }
+                      setActionLoading(null);
+                      setRedirectPage(""); // Reset after sending
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "2px solid #e5e7eb",
+                      fontSize: "0.9rem",
+                      background: "#fff",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {pageOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                   <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "#92400e" }}>
                     سيتم توجيه العميل للصفحة المختارة فوراً
                   </p>
