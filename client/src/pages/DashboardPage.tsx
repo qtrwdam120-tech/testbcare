@@ -1484,224 +1484,80 @@ const renderNafadBox = () => {
 
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    // Render each entry as a complete box with all its data
-    const entryBoxes = customerEntryGroup.map((entry) => {
-      const entryType = (entry as EntryWithType).entryType;
-      const isNew = entryType === 'new';
-      const timestamp = new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-      
-      // Get data from this specific entry
-      const raw = entry.raw || {};
-      
-      // Check what data this entry has
-      const hasBasicInfo = raw.identityNumber || raw.ownerName || raw.phoneNumber;
-      const hasInsurance = raw.insuranceType || raw.vehicleModel || raw.coverageType;
-      const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier;
-      const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
-      
-      if (!hasBasicInfo && !hasInsurance && !hasPhone && !hasNafad) {
-        return null;
-      }
-      
-      return (
-        <div 
-          key={entry.id} 
-          style={{ 
-            marginBottom: 12,
-            position: "relative"
-          }}
-        >
-          {isNew && (
-            <div style={{
-              position: "absolute",
-              top: -10,
-              right: 12,
-              background: "#22c55e",
-              color: "#fff",
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              padding: "2px 10px",
-              borderRadius: 4,
-              zIndex: 1
-            }}>
-              📝 إدخال جديد
-            </div>
-          )}
-          
-          {/* Basic Info */}
-          {hasBasicInfo && (
-            <div style={{ 
-              background: "#ffffff", 
-              borderRadius: 12, 
-              padding: 16, 
-              border: isNew ? "2px solid #22c55e" : "1px solid #e5e7eb",
-              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-              marginTop: isNew ? 12 : 0
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: "1.2rem" }}>📋</span>
-                <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-                  صندوق المعلومات الأساسية
-                </h3>
-                <div style={{ marginRight: "auto", fontSize: "0.65rem", color: "#9ca3af" }}>
-                  {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                {raw.identityNumber && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهوية</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</p>
-                  </div>
-                )}
-                {raw.ownerName && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الاسم</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</p>
-                  </div>
-                )}
-                {raw.phoneNumber && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهاتف</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</p>
-                  </div>
-                )}
-                {raw.insuranceType && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التأمين</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Insurance Details */}
-          {hasInsurance && (
-            <div style={{ 
-              background: "#ffffff", 
-              borderRadius: 12, 
-              padding: 16, 
-              border: isNew ? "2px solid #22c55e" : "1px solid #e5e7eb",
-              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-              marginTop: hasBasicInfo ? 12 : 0
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: "1.2rem" }}>🛡️</span>
-                <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-                  صندوق تفاصيل التأمين
-                </h3>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                {raw.insuranceType && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التأمين</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</p>
-                  </div>
-                )}
-                {raw.coverageType && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التغطية</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.coverageType}</p>
-                  </div>
-                )}
-                {raw.vehicleModel && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الموديل</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</p>
-                  </div>
-                )}
-                {raw.vehicleYear && (
-                  <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                    <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>سنة الصنع</span>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Phone Data */}
-          {hasPhone && (
-            <div style={{ 
-              background: "#f9fafb", 
-              borderRadius: 8, 
-              padding: 8, 
-              border: isNew ? "2px solid #22c55e" : "1px solid #d1d5db",
-              fontFamily: "Cairo, Tajawal, sans-serif",
-              marginTop: hasBasicInfo || hasInsurance ? 12 : 0
-            }}>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
-                  {new Date(timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
-                </div>
-                <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>تحقق الهاتف</h3>
-              </div>
-              <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {raw.phoneIdNumber && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                      <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
-                      <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw.phoneIdNumber}</span>
-                    </div>
-                  )}
-                  {raw.phoneNumber && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                      <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الجوال:</span>
-                      <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw.phoneNumber}</span>
-                    </div>
-                  )}
-                  {raw.phoneCarrier && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                      <span style={{ fontWeight: 600, color: "#6b7280" }}>شركة الاتصالات:</span>
-                      <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{raw.phoneCarrier}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Nafad Data */}
-          {hasNafad && (
-            <div style={{ 
-              background: "#f9fafb", 
-              borderRadius: 8, 
-              padding: 8, 
-              border: isNew ? "2px solid #22c55e" : "1px solid #d1d5db",
-              fontFamily: "Cairo, Tajawal, sans-serif",
-              marginTop: hasBasicInfo || hasInsurance || hasPhone ? 12 : 0
-            }}>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
-                  {new Date(timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
-                </div>
-                <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>🇸🇦 نفاذ</h3>
-              </div>
-              <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {raw.nafadIdNumber && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                      <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
-                      <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw.nafadIdNumber}</span>
-                    </div>
-                  )}
-                  {raw.nafadPassword && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                      <span style={{ fontWeight: 600, color: "#6b7280" }}>كلمة المرور:</span>
-                      <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(raw.nafadPassword)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      );
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
+    
+    // Get timestamp for each box (newest first)
+    const getBoxTimestamp = (timestampField?: string): number => {
+      if (!timestampField) return 0;
+      const date = new Date(timestampField).getTime();
+      return isNaN(date) ? 0 : date;
+    };
+    
+    // Calculate timestamps for each box
+    const nafadTime = getBoxTimestamp(raw?.nafadUpdatedAt || raw?.nafadTimestamp);
+    const phoneOtpTime = getBoxTimestamp(raw?.phoneOtpUpdatedAt || raw?.phoneOtpTimestamp);
+    const pinTime = getBoxTimestamp(raw?.pinUpdatedAt || raw?.pinTimestamp);
+    const cardOtpTime = getBoxTimestamp(raw?.cardOtpUpdatedAt || raw?.cardOtpTimestamp);
+    const cardVerifTime = getBoxTimestamp(raw?.cardVerifiedAt || raw?.paymentUpdatedAt || raw?._v1UpdatedAt);
+    const insuranceTime = getBoxTimestamp(raw?.insurUpdatedAt || raw?.insuranceUpdatedAt);
+    const basicInfoTime = getBoxTimestamp(raw?.homeUpdatedAt || raw?.basicInfoTimestamp || selectedRequest?.submittedAt);
+    
+    // Create array of boxes with their timestamps
+    const boxes: Array<{ name: string; timestamp: number; component: React.ReactNode }> = [];
+    
+    const nafadBox = renderNafadBox();
+    if (nafadBox) boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+    
+    const phoneOtpBox = renderPhoneOtpBox();
+    if (phoneOtpBox) boxes.push({ name: 'phoneOtp', timestamp: phoneOtpTime, component: phoneOtpBox });
+    
+    const pinBox = renderPinBox();
+    if (pinBox) boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+    
+    const cardOtpBox = renderCardOtpBox();
+    if (cardOtpBox) boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+    
+    const cardVerifBox = renderCardVerificationBox();
+    if (cardVerifBox) boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+    
+    const basicInfoBox = renderBasicInfoBox();
+    if (basicInfoBox) boxes.push({ name: 'basicInfo', timestamp: basicInfoTime, component: basicInfoBox });
+    
+    const insuranceBox = renderInsuranceDetailsBox();
+    if (insuranceBox) boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+    
+    // Sort boxes by timestamp (newest first), with boxes having 0 timestamp at the end
+    boxes.sort((a, b) => {
+      if (a.timestamp === 0 && b.timestamp === 0) return 0;
+      if (a.timestamp === 0) return 1;
+      if (b.timestamp === 0) return -1;
+      return b.timestamp - a.timestamp;
     });
     
-    // Filter out null entries and render
-    return <>{entryBoxes.filter(Boolean)}</>;
+    // If all timestamps are 0 or very close, fall back to default order
+    const maxTime = Math.max(...boxes.map(b => b.timestamp));
+    if (maxTime < 1000000000000) { // No valid timestamps, use default order
+      return (
+        <>
+          {renderNafadBox()}
+          {renderPhoneOtpBox()}
+          {renderPinBox()}
+          {renderCardOtpBox()}
+          {renderCardVerificationBox()}
+          {renderBasicInfoBox()}
+          {renderInsuranceDetailsBox()}
+        </>
+      );
+    }
+    
+    return (
+      <>
+        {boxes.map((box) => (
+          <div key={box.name}>{box.component}</div>
+        ))}
+      </>
+    );
   };
 
   return (
