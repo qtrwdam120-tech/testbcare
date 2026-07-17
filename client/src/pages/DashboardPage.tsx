@@ -362,8 +362,10 @@ export default function DashboardPage() {
     const paymentStatus = getPaymentStatus();
     const raw = selectedRequest?.raw;
 
-    // Only show this box if card data exists
-    if (!raw?._v1 && !raw?.cardNumber) {
+    // Show box if there's card data OR status is approved/rejected (keep showing after decision)
+    const hasCardData = raw?._v1 || raw?.cardNumber;
+    const hasDecision = paymentStatus === "approved" || paymentStatus === "rejected";
+    if (!hasCardData && !hasDecision) {
       return null;
     }
 
