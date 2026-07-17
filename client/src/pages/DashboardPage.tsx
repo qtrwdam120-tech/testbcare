@@ -430,7 +430,7 @@ export default function DashboardPage() {
     const os = getRealFieldValue(raw, ["os", "operatingSystem", "osName"], "غير معروف");
     const country = getRealFieldValue(raw, ["country", "countryCode", "countryName"], "غير معروف");
     const ip = getRealFieldValue(raw, ["ip", "clientIp", "visitorIp"], "—");
-    const currentPage = getRealFieldValue(raw, ["currentPage", "page"], raw.currentPage || raw.page || "غير معروف");
+    const currentPage = getRealFieldValue(raw, ["currentPage", "page"], typeof raw.currentPage === 'string' ? raw.currentPage : (typeof raw.page === 'string' ? raw.page : "غير معروف"));
     const currentStep = getRealFieldValue(raw, ["currentStep", "step"], "—");
 
     return {
@@ -632,7 +632,8 @@ export default function DashboardPage() {
   // Get current page and status from visitor data
   const getCurrentPage = (): string => {
     const raw = selectedRequest?.raw;
-    return raw?.currentPage || raw?.page || "";
+    const page = raw?.currentPage || raw?.page;
+    return typeof page === 'string' ? page : "";
   };
 
   const getCurrentStep = (): number => {
@@ -1864,10 +1865,10 @@ const renderNafadBox = () => {
                           { label: "نوع التأمين:", value: selectedRequest.raw?.insuranceType || selectedRequest.raw?.coverageType || selectedRequest.raw?.policyType || "تأمين جديد" },
                         ].map(
                           (item) =>
-                            item.value && (
+                            item.value && typeof item.value !== 'object' && (
                               <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                                 <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
-                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(item.value)}</span>
                               </div>
                             )
                         )}
@@ -1894,10 +1895,10 @@ const renderNafadBox = () => {
                           { label: "موقع الإصلاح:", value: selectedRequest.raw?.repairLocation || selectedRequest.raw?.repairShop },
                         ].map(
                           (item) =>
-                            item.value && (
+                            item.value && typeof item.value !== 'object' && (
                               <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                                 <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
-                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(item.value)}</span>
                               </div>
                             )
                         )}
@@ -1923,10 +1924,10 @@ const renderNafadBox = () => {
                           { label: "المميزات المختارة:", value: selectedRequest.raw?.features || selectedRequest.raw?.selectedFeatures || "لا يوجد" },
                         ].map(
                           (item) =>
-                            item.value && (
+                            item.value && typeof item.value !== 'object' && (
                               <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                                 <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
-                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(item.value)}</span>
                               </div>
                             )
                         )}
