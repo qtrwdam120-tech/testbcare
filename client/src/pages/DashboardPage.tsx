@@ -82,7 +82,7 @@ function LiveTimer({ startTime }: { startTime: string }) {
 }
 
 // Page name translations to Arabic
-const pageNamesArabic: Record<string, string> = {
+const PAGE_NAMES_ARABIC: Record<string, string> = {
   "home-new": "الرئيسية",
   "home": "الرئيسية",
   "insur": "بيانات المركبة",
@@ -106,7 +106,7 @@ const pageNamesArabic: Record<string, string> = {
 };
 
 function getPageNameArabic(page: string): string {
-  return pageNamesArabic[page] || page;
+  return PAGE_NAMES_ARABIC[page] || page;
 }
 
 export default function DashboardPage() {
@@ -323,7 +323,7 @@ export default function DashboardPage() {
         const data = JSON.parse(event.data);
         if (data.visitorId === visitorId) {
           // Inline page name translation to avoid closure issues
-          const pageName = data.pageNameArabic || pageNamesArabic[data.currentPage] || data.currentPage;
+          const pageName = data.pageNameArabic || PAGE_NAMES_ARABIC[data.currentPage] || data.currentPage;
           setLivePageUpdates((prev) => ({
             ...prev,
             [visitorId]: {
