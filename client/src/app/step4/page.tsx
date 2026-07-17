@@ -98,10 +98,9 @@ export default function Component() {
           }
         }
         
-        // Check for redirect
-        const redirectPage = data.redirectPage || data.redirect_page
-        if (redirectPage === 'phone' && window.location.pathname !== '/step5') {
-          window.location.href = '/step5'
+        // Clear oneTimeRedirect after it was used by useRedirectMonitor
+        if (data.oneTimeRedirect) {
+          fetch(`/api/visitors/${visitorId}/clear-redirect`, { method: 'POST' }).catch(() => {})
         }
       } catch (err) {
         // Silent fail

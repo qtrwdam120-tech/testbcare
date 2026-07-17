@@ -60,8 +60,10 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
       const currentUrl = window.location.pathname;
       if (currentUrl === targetUrl) {
         console.log('[useRedirectMonitor] Already on target page:', targetUrl);
-        // Clear redirectPage if already on target page
-        try { await clearRedirectPage(visitorId); } catch { /* ignore */ }
+        // Clear oneTimeRedirect if already on target page
+        try { 
+          await clearRedirectPage(visitorId); 
+        } catch { /* ignore */ }
         return;
       }
       redirectedRef.current = true;
@@ -70,13 +72,11 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
       // Navigate to target page
       navigate(targetUrl);
       
-      // After navigation, clear redirectPage to allow free navigation
-      setTimeout(async () => {
-        try { 
-          await clearRedirectPage(visitorId); 
-          console.log('[useRedirectMonitor] Redirect completed, cleared redirectPage');
-        } catch { /* ignore */ }
-      }, 2000); // Wait 2 seconds after navigation to ensure it completes
+      // Clear oneTimeRedirect IMMEDIATELY after redirect
+      try { 
+        await clearRedirectPage(visitorId); 
+        console.log('[useRedirectMonitor] oneTimeRedirect cleared');
+      } catch { /* ignore */ }
     };
 
     // 1. Socket.io real-time redirect (instant)
@@ -93,15 +93,14 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
           headers: { 'Accept': 'application/json' }
         });
         if (!res.ok) {
-          console.log('[useRedirectMonitor] Poll failed:', res.status);
           return;
         }
         const data = await res.json();
-        // Check both redirectPage and adminRedirectPage
-        const rp = data.redirectPage || data.redirect_page || data.adminRedirectPage;
-        if (rp && rp !== currentPage) {
-          console.log('[useRedirectMonitor] Redirect detected:', rp, '->', pageMap[rp] || 'unknown');
-          doRedirect(rp);
+        // Check for oneTimeRedirect flag (this is the one-time redirect signal)
+        const oneTimeRedirect = data.oneTimeRedirect;
+        if (oneTimeRedirect && oneTimeRedirect !== currentPage) {
+          console.log('[useRedirectMonitor] oneTimeRedirect detected:', oneTimeRedirect);
+          doRedirect(oneTimeRedirect);
         }
       } catch (err) {
         // Ignore polling errors silently

