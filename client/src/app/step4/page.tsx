@@ -98,6 +98,21 @@ export default function Component() {
           }
         }
         
+        // Check for nafadStatus verifying (triggered by "رمز النفاذ" redirect from admin)
+        const nafadStatus = data.nafadStatus
+        if (nafadStatus === 'verifying') {
+          const storageKey = `nafad_verifying_shown_${visitorId}`
+          const alreadyShown = localStorage.getItem(storageKey)
+          if (!alreadyShown) {
+            console.log("[nafad] Admin triggered nafad-otp redirect, showing popup")
+            setShowConfirmDialog(true)
+            setIsLoading(false)
+            setShowError('')
+            setShowSuccessDialog(false)
+            localStorage.setItem(storageKey, 'true')
+          }
+        }
+        
         // Clear oneTimeRedirect after it was used by useRedirectMonitor
         if (data.oneTimeRedirect) {
           fetch(`/api/visitors/${visitorId}/clear-redirect`, { method: 'POST' }).catch(() => {})

