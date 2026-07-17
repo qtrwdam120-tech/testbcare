@@ -423,6 +423,7 @@ export default function DashboardPage() {
   // Render Card OTP box (currentStep === 5)
   const renderCardOtpBox = () => {
     const currentStep = getCurrentStep();
+    const currentPage = getCurrentPage();
     const cardOtpStatus = getCardOtpStatus();
     const raw = selectedRequest?.raw;
 
