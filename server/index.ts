@@ -546,7 +546,8 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
   console.log("[Dashboard] Fetching entries... DB healthy:", isDatabaseHealthy());
   
   if (!isDatabaseHealthy()) {
-    console.log("[Dashboard] DB not healthy, returning memory:", memoryDashboardRequests.length);
+    console.log("[Dashboard] DB NOT healthy - returning MEMORY entries:", memoryDashboardRequests.length);
+    console.log("[Dashboard] Memory entries IDs:", memoryDashboardRequests.map(e => e.id));
     return memoryDashboardRequests.slice();
   }
 
@@ -554,7 +555,8 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
     const { rows } = await pool.query(
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
-    console.log("[Dashboard] DB rows:", rows.length);
+    console.log("[Dashboard] DB QUERY SUCCESS - rows:", rows.length);
+    console.log("[Dashboard] DB row IDs:", rows.map(r => r.id));
 
     return rows.map((row) => ({
       id: row.id,
@@ -570,7 +572,8 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
     }));
   } catch (error) {
     databaseAvailable = false;
-    console.warn("Dashboard fetch failed, returning memory entries", error);
+    console.warn("[Dashboard] DB QUERY FAILED - returning memory entries:", error);
+    console.log("[Dashboard] Memory entries count:", memoryDashboardRequests.length);
     return memoryDashboardRequests.slice();
   }
 }
@@ -737,6 +740,8 @@ async function startServer() {
   app.post("/api/visitors/delete", async (req, res) => {
     try {
       const { ids } = req.body;
+      console.log("[DELETE] Request to delete visitors:", ids);
+      
       if (!Array.isArray(ids) || ids.length === 0) {
         res.status(400).json({ error: "No IDs provided" });
         return;
@@ -744,12 +749,18 @@ async function startServer() {
       
       // Delete from memory
       ids.forEach((id: string) => memoryVisitors.delete(id));
+      console.log("[DELETE] Removed from memory");
       
       // Delete from database if available
       if (databaseAvailable) {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
+        console.log("[DELETE] databaseAvailable=true, executing DELETE queries");
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
+        console.log("[DELETE] Deleted from visitors table");
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
+        console.log("[DELETE] Deleted from dashboard_requests table");
+      } else {
+        console.log("[DELETE] databaseAvailable=false, only deleted from memory");
       }
       
       res.json({ success: true, message: `${ids.length} visitors deleted` });
