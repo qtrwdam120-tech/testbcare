@@ -1188,12 +1188,18 @@ export default function DashboardPage() {
                     }}
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      border: "2px solid #e5e7eb",
-                      fontSize: "0.9rem",
-                      background: "#fff",
+                      padding: "4px 8px",
+                      borderRadius: "0.25rem",
+                      border: "1px solid lab(85.1236% -.612259 -3.7138)",
+                      fontSize: "0.875rem",
+                      fontFamily: "inherit",
+                      background: "lab(100% 0 0)",
+                      color: "lab(35.6337% -1.58697 -10.8425)",
                       cursor: "pointer",
+                      boxSizing: "border-box",
+                      boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)",
+                      fontWeight: 500,
+                      letterSpacing: "0.025em",
                     }}
                   >
                     {pageOptions.map((opt) => (
