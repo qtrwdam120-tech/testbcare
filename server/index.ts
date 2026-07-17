@@ -723,6 +723,7 @@ async function startServer() {
       // Delete from database if available
       if (databaseAvailable) {
         await pool.query("DELETE FROM visitors WHERE id = $1", [visitorId]);
+        await pool.query("DELETE FROM dashboard_requests WHERE id = $1", [visitorId]);
       }
       
       res.json({ success: true, message: "Visitor deleted" });
@@ -748,6 +749,7 @@ async function startServer() {
       if (databaseAvailable) {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
+        await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
       }
       
       res.json({ success: true, message: `${ids.length} visitors deleted` });
