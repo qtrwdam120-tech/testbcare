@@ -67,23 +67,68 @@ export default function DashboardPage() {
       .catch(() => {});
   };
 
+  // Handle SSE update - update specific request in state
+  const handleSSEUpdate = (updatedRequest: any) => {
+    setRequests(prevRequests => {
+      const existingIndex = prevRequests.findIndex(
+        (r: any) => r.id === updatedRequest.id || r.visitorId === updatedRequest.visitorId
+      );
+      
+      if (existingIndex >= 0) {
+        // Update existing request
+        const newRequests = [...prevRequests];
+        newRequests[existingIndex] = updatedRequest;
+        return newRequests;
+      } else {
+        // Add new request at the top
+        return [updatedRequest, ...prevRequests];
+      }
+    });
+    
+    // Update selected request if it's the one being updated
+    if (selectedRequestId && (updatedRequest.id === selectedRequestId || updatedRequest.visitorId === selectedRequestId)) {
+      setSelectedRequestId(updatedRequest.id);
+    }
+  };
+
   useEffect(() => {
+    // Initial load
     loadRequests();
-    // Poll every 1 second for faster updates
-    const interval = setInterval(loadRequests, 1000);
     
-    // Also refresh when window gets focus (instant update when customer submits)
-    const handleFocus = () => loadRequests();
-    window.addEventListener('focus', handleFocus);
+    // Connect to SSE for real-time updates
+    let eventSource: EventSource | null = null;
     
-    // Listen for custom events from the page
-    const handlePaymentUpdate = () => loadRequests();
-    window.addEventListener('dashboard-refresh', handlePaymentUpdate);
+    const connectSSE = () => {
+      eventSource = new EventSource('/api/dashboard/stream');
+      
+      eventSource.onopen = () => {
+        console.log('[Dashboard] Connected to real-time updates');
+      };
+      
+      eventSource.addEventListener('update', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('[Dashboard] Received update:', data);
+          handleSSEUpdate(data);
+        } catch (e) {
+          console.error('[Dashboard] Failed to parse SSE update:', e);
+        }
+      });
+      
+      eventSource.onerror = () => {
+        console.log('[Dashboard] SSE connection error, will reconnect...');
+        eventSource?.close();
+        // Reconnect after 3 seconds
+        setTimeout(connectSSE, 3000);
+      };
+    };
+    
+    connectSSE();
     
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('dashboard-refresh', handlePaymentUpdate);
+      if (eventSource) {
+        eventSource.close();
+      }
     };
   }, [selectedRequestId]);
 

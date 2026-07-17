@@ -21,6 +21,21 @@ type DashboardEntry = {
   raw?: Record<string, any>;
 };
 
+// SSE clients for real-time updates
+const sseClients = new Set<express.Response>();
+
+// Broadcast event to all SSE clients
+function broadcastSSE(event: string, data: any) {
+  const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  sseClients.forEach((client) => {
+    try {
+      client.write(message);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  });
+}
+
 const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_R6GQdYoAp8NC@ep-lively-dream-aumirq95-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const pool = new Pool({
@@ -555,6 +570,37 @@ async function startServer() {
 
   app.use(express.json());
 
+  // SSE endpoint for real-time dashboard updates
+  app.get("/api/dashboard/stream", (_req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.flushHeaders();
+
+    // Send initial connection message
+    res.write(`event: connected\ndata: ${JSON.stringify({ message: "Connected to dashboard stream" })}\n\n`);
+
+    // Add client to SSE clients set
+    sseClients.add(res);
+
+    // Keep connection alive with heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: heartbeat\n\n`);
+      } catch (e) {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+      }
+    }, 30000);
+
+    // Remove client on disconnect
+    _req.on("close", () => {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    });
+  });
+
   app.get("/api/dashboard/requests", async (_req, res) => {
     try {
       const entries = await getDashboardEntries();
@@ -574,6 +620,10 @@ async function startServer() {
 
     try {
       const normalized = await upsertDashboardRequest(payload);
+      
+      // Broadcast update to all connected dashboards immediately
+      broadcastSSE("update", normalized);
+      
       res.json(normalized);
     } catch (error) {
       console.error("dashboard request save error", error);
