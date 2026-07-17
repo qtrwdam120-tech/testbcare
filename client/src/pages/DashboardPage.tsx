@@ -42,6 +42,9 @@ export default function DashboardPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [selectedFlowStep, setSelectedFlowStep] = useState("home");
+  const [flowDropdownOpen, setFlowDropdownOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<RequestItem | null>(null);
+  const [filterMode, setFilterMode] = useState<"all" | "cards">("all");
 
   const cardShellStyle: React.CSSProperties = {
     background: "#ffffff",
