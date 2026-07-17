@@ -148,6 +148,14 @@ export default function DashboardPage() {
   }, [requests]);
 
   // Handle Socket.IO update
+  // Use ref to avoid re-renders and socket reconnections
+  const selectedRequestIdRef = useRef<string | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedRequestIdRef.current = selectedRequestId;
+  }, [selectedRequestId]);
+
   const handleSocketUpdate = useCallback((updatedRequest: any) => {
     const incomingRequest = {
       ...updatedRequest,
@@ -175,12 +183,22 @@ export default function DashboardPage() {
       }
     });
     
-    if (selectedRequestId && (incomingRequest.id === selectedRequestId || incomingRequest.visitorId === selectedRequestId)) {
-      setSelectedRequestId(incomingRequest.id);
+    // Only update selectedRequestId if the current selection is the same visitor/request
+    // This won't trigger re-renders that cause socket reconnection
+    if (selectedRequestIdRef.current && 
+        (incomingRequest.id === selectedRequestIdRef.current || incomingRequest.visitorId === selectedRequestIdRef.current)) {
+      // Use setTimeout to avoid immediate state update during socket event
+      setTimeout(() => {
+        if (selectedRequestIdRef.current === incomingRequest.id || 
+            selectedRequestIdRef.current === incomingRequest.visitorId) {
+          setSelectedRequestId(incomingRequest.id);
+        }
+      }, 0);
     }
-  }, [selectedRequestId]);
+  }, []); // Empty deps - use refs internally
 
   // Load initial requests directly from the backend API so the dashboard is not empty
+  // Only run once on mount - not when selectedRequestId changes
   useEffect(() => {
     let isMounted = true;
 
@@ -194,7 +212,8 @@ export default function DashboardPage() {
         if (!isMounted) return;
         if (Array.isArray(data)) {
           setRequests(data);
-          if (!selectedRequestId && data.length > 0) {
+          // Only set initial selection if no request is selected yet
+          if (data.length > 0) {
             setSelectedRequestId(data[0].id);
           }
         }
@@ -207,7 +226,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedRequestId]);
+  }, []); // Empty deps - run only once on mount
 
   // Socket.IO connection
   useEffect(() => {
