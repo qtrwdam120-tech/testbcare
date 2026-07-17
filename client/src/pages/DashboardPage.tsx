@@ -698,66 +698,6 @@ export default function DashboardPage() {
                       <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#6b7280" }}>{selectedRequest.id}</p>
                     </div>
                   </div>
-
-                  {/* Flow Selector */}
-                  <div style={{ position: "relative" }}>
-                    <button
-                      onClick={() => setFlowDropdownOpen(!flowDropdownOpen)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "10px 16px",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                        background: "#fff",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        fontSize: "0.85rem",
-                      }}
-                    >
-                      {selectedFlowLabel}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
-                    </button>
-                    {flowDropdownOpen && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "calc(100% + 4px)",
-                          right: 0,
-                          minWidth: 180,
-                          background: "#fff",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 8,
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          zIndex: 50,
-                          overflow: "hidden",
-                        }}
-                      >
-                        {flowOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => handleFlowSelect(option.value)}
-                            style={{
-                              width: "100%",
-                              padding: "10px 16px",
-                              border: "none",
-                              background: selectedFlowStep === option.value ? "#f0f9ff" : "#fff",
-                              textAlign: "right",
-                              cursor: "pointer",
-                              fontWeight: selectedFlowStep === option.value ? 700 : 500,
-                              color: selectedFlowStep === option.value ? "#2563eb" : "#374151",
-                              fontSize: "0.85rem",
-                            }}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 {/* Current Page Indicator */}
