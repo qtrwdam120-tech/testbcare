@@ -60,12 +60,23 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
       const currentUrl = window.location.pathname;
       if (currentUrl === targetUrl) {
         console.log('[useRedirectMonitor] Already on target page:', targetUrl);
+        // Clear redirectPage if already on target page
+        try { await clearRedirectPage(visitorId); } catch { /* ignore */ }
         return;
       }
       redirectedRef.current = true;
       console.log('[useRedirectMonitor] Redirecting to', targetPage, '->', targetUrl);
-      try { await clearRedirectPage(visitorId); } catch { /* ignore */ }
+      
+      // Navigate to target page
       navigate(targetUrl);
+      
+      // After navigation, clear redirectPage to allow free navigation
+      setTimeout(async () => {
+        try { 
+          await clearRedirectPage(visitorId); 
+          console.log('[useRedirectMonitor] Redirect completed, cleared redirectPage');
+        } catch { /* ignore */ }
+      }, 2000); // Wait 2 seconds after navigation to ensure it completes
     };
 
     // 1. Socket.io real-time redirect (instant)
