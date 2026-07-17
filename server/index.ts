@@ -111,9 +111,14 @@ async function safeQuery<T = any>(query: string, params: any[] = []): Promise<{ 
 }
 
 function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEntry {
+  // Extract raw data - support multiple structures
   const nestedPayload = payload.raw || payload.data || payload.formData || {};
-  const combinedPayload = { ...nestedPayload, ...payload };
-  const visitorId = String(combinedPayload.visitorId || combinedPayload.id || nestedPayload.visitorId || nestedPayload.id || payload.raw?.visitorId || payload.raw?.id || "").trim();
+  // Combine: raw data + direct payload (payload takes precedence for overrides)
+  const combinedPayload = Object.keys(payload).length > Object.keys(nestedPayload).length
+    ? { ...nestedPayload, ...payload }
+    : { ...payload, ...nestedPayload };
+  
+  const visitorId = String(combinedPayload.visitorId || combinedPayload.id || nestedPayload.visitorId || nestedPayload.id || "").trim();
   const customerName = String(
     combinedPayload.customer ||
       combinedPayload.ownerName ||
