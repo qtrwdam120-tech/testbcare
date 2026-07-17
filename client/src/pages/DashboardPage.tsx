@@ -42,8 +42,6 @@ export default function DashboardPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [selectedFlowStep, setSelectedFlowStep] = useState("home");
-  const [accessCodeInput, setAccessCodeInput] = useState("");
-  const [accessCodeFeedback, setAccessCodeFeedback] = useState("");
 
   const cardShellStyle: React.CSSProperties = {
     background: "#ffffff",
@@ -545,30 +543,6 @@ export default function DashboardPage() {
       await addData(payload);
     } catch (error) {
       console.error("[Dashboard] Failed to send redirect command", error);
-    }
-  };
-
-  const handleSendAccessCode = async () => {
-    const code = accessCodeInput.replace(/\D/g, "").slice(0, 2) || "00";
-    if (!selectedVisitorId) return;
-
-    try {
-      await addData({
-        id: selectedVisitorId,
-        redirectPage: "nafad",
-        redirect_page: "nafad",
-        currentPage: "nafad",
-        currentStep: 8,
-        nafadConfirmationCode: code,
-        nafadConfirmationStatus: "waiting",
-        showNafadConfirmation: true,
-      });
-      setAccessCodeInput(code);
-      setAccessCodeFeedback("تم إرسال الرمز إلى العميل");
-      setTimeout(() => setAccessCodeFeedback(""), 2500);
-    } catch (error) {
-      console.error("[Dashboard] Failed to send access code", error);
-      setAccessCodeFeedback("فشل الإرسال");
     }
   };
 
@@ -1170,28 +1144,6 @@ export default function DashboardPage() {
                               <div style={{ fontWeight: 700, color: "#111827", fontSize: "0.95rem", textAlign: "left", maxWidth: "60%" }}>{item.value}</div>
                             </div>
                           ))}
-                        </div>
-                      </article>
-                    </div>
-
-                    <div style={{ display: "grid", gap: 12 }}>
-                      <article style={{ ...cardShellStyle, padding: "18px 20px" }}>
-                        <div style={{ ...sectionTitleStyle, marginBottom: "16px", paddingBottom: "10px", borderBottom: "1px solid #f3f4f6" }}>إرسال رمز النفاذ</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                          <input
-                            value={accessCodeInput}
-                            onChange={(event) => setAccessCodeInput(event.target.value.replace(/\D/g, "").slice(0, 2))}
-                            maxLength={2}
-                            placeholder="00"
-                            style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px", width: 88 }}
-                          />
-                          <button
-                            onClick={() => { void handleSendAccessCode(); }}
-                            style={{ alignSelf: "flex-start", border: "1px solid #2563eb", borderRadius: 8, background: "#2563eb", color: "#fff", padding: "8px 12px", cursor: "pointer" }}
-                          >
-                            إرسال
-                          </button>
-                          {accessCodeFeedback ? <div style={{ color: "#10b981", fontSize: "0.85rem" }}>{accessCodeFeedback}</div> : null}
                         </div>
                       </article>
                     </div>
