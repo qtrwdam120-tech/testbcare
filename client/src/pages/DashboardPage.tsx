@@ -1692,8 +1692,6 @@ const renderNafadBox = () => {
               <div style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>لا توجد نتائج</div>
             )}
           </div>
-          </div>
-
 
         </aside>
 
