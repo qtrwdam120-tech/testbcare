@@ -2188,7 +2188,7 @@ const renderNafadBox = () => {
                           { label: "الشركة:", value: selectedRequest.raw?.selectedOffer?.company?.name || selectedRequest.raw?.selectedOffer?.company || selectedRequest.raw?.companyName || selectedRequest.raw?.company || selectedRequest.raw?.offerCompany || selectedRequest.raw?.selectedCompany },
                           { label: "السعر الأصلي:", value: selectedRequest.raw?.selectedOffer?.main_price || selectedRequest.raw?.originalPrice || selectedRequest.raw?.price || selectedRequest.raw?.offerPrice },
                           { label: "السعر النهائي:", value: selectedRequest.raw?.selectedOffer?.total_price || selectedRequest.raw?.finalPrice || selectedRequest.raw?.totalPrice || selectedRequest.raw?.offerFinalPrice },
-                          { label: "المميزات:", value: selectedRequest.raw?.selectedOffer?.extra_features?.length > 0 ? selectedRequest.raw.selectedOffer.extra_features.map((f: any) => f.name).join("، ") : (selectedRequest.raw?.selectedFeatures?.join("، ") || selectedRequest.raw?.features || selectedRequest.raw?.selectedFeaturesList || "—") },
+                          { label: "المميزات:", value: selectedRequest.raw?.selectedOffer?.extra_features?.length > 0 ? selectedRequest.raw.selectedOffer.extra_features.map((f: any) => f.name).join("، ") : (Array.isArray(selectedRequest.raw?.selectedFeatures) ? selectedRequest.raw.selectedFeatures.join("، ") : (selectedRequest.raw?.features || selectedRequest.raw?.selectedFeaturesList || "—")) },
                         ].map(
                           (item) =>
                             item.value && typeof item.value !== 'object' && (
