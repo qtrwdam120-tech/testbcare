@@ -50,6 +50,17 @@ const memoryDashboardRequests: DashboardEntry[] = [];
 const deletedVisitorIds = new Set<string>(); // Track deleted visitors - they cannot return
 let databaseAvailable = true;
 
+// Load deleted visitors from database on startup
+async function loadDeletedVisitors() {
+  try {
+    const { rows } = await pool.query("SELECT id FROM deleted_visitors");
+    rows.forEach(row => deletedVisitorIds.add(row.id));
+    console.log("[Deleted Visitors] Loaded", rows.length, "deleted visitor IDs from database");
+  } catch (error) {
+    console.warn("[Deleted Visitors] Failed to load from database:", error);
+  }
+}
+
 type ColumnSpec = {
   name: string;
   definition: string;
@@ -195,6 +206,19 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
 async function initDatabase() {
   try {
     const tables = [
+      {
+        name: "deleted_visitors",
+        createSql: `
+          CREATE TABLE IF NOT EXISTS deleted_visitors (
+            id TEXT PRIMARY KEY,
+            deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `,
+        columns: [
+          { name: "id", definition: "TEXT", defaultValue: undefined },
+          { name: "deleted_at", definition: "TIMESTAMPTZ NOT NULL DEFAULT NOW()" },
+        ] as ColumnSpec[],
+      },
       {
         name: "visitors",
         createSql: `
@@ -581,6 +605,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
 
 async function startServer() {
   await initDatabase();
+  await loadDeletedVisitors(); // Load deleted visitor IDs from database
   const app = express();
   const server = createServer(app);
 
@@ -768,6 +793,13 @@ async function startServer() {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
+        // Add to deleted_visitors table (permanent block)
+        await pool.query(`
+          INSERT INTO deleted_visitors (id) 
+          VALUES ${ids.map((_: any, i: number) => `($${i + 1})`).join(", ")}
+          ON CONFLICT (id) DO NOTHING
+        `, ids);
+        console.log("[DELETE] Added to deleted_visitors table");
       }
       
       // Broadcast delete to all connected dashboards
