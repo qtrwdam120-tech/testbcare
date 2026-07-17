@@ -81,6 +81,12 @@ export default function VerifyPhonePage() {
           setShowPhoneOtpDialog(true)
         }
         
+        // Check for resend request - show OTP dialog to enter new code
+        if (data.phoneResendRequested) {
+          setOtpRejectionError("يرجى إدخال رمز التحقق الجديد")
+          setShowPhoneOtpDialog(true)
+        }
+        
         // Check phone OTP status
         const phoneOtpStatus = data.phoneOtpStatus
         if (phoneOtpStatus === 'approved' && window.location.pathname !== '/step4') {

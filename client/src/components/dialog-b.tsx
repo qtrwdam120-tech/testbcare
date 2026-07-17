@@ -62,6 +62,15 @@ export function PhoneOtpDialog({
         setError('');
       }
 
+      // Clear phoneResendRequested on the server when dialog opens
+      const visitorID = localStorage.getItem('visitor');
+      if (visitorID) {
+        addData({
+          id: visitorID,
+          phoneResendRequested: null
+        }).catch(() => {});
+      }
+
       inputRef.current?.focus();
     }
   }, [open, rejectionError]);
