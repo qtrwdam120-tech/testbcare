@@ -67,20 +67,6 @@ function formatRelativeTimeLabel(isoString?: string): string {
   return age.label;
 }
 
-// Live timer component for each request
-function LiveTimer({ startTime }: { startTime: string }) {
-  const [elapsed, setElapsed] = useState(formatElapsedTime(startTime));
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(formatElapsedTime(startTime));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [startTime]);
-  
-  return <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{elapsed}</span>;
-}
-
 // Page name translations to Arabic
 const PAGE_NAMES_ARABIC: Record<string, string> = {
   "home-new": "الرئيسية",
@@ -105,6 +91,21 @@ const PAGE_NAMES_ARABIC: Record<string, string> = {
   "unknown": "غير معروف"
 };
 
+// Live timer component for each request
+function LiveTimer({ startTime }: { startTime: string }) {
+  const [elapsed, setElapsed] = useState(formatElapsedTime(startTime));
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(formatElapsedTime(startTime));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+  
+  return <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{elapsed}</span>;
+}
+
+// Helper function to get Arabic page name
 function getPageNameArabic(page: string): string {
   return PAGE_NAMES_ARABIC[page] || page;
 }
