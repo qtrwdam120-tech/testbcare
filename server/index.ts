@@ -1003,6 +1003,8 @@ async function startServer() {
         return;
       }
 
+      console.log("[Dashboard Redirect] visitorId:", visitorId, "targetPage:", targetPage);
+      
       const currentVisitor = await readVisitor(visitorId);
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
@@ -1012,7 +1014,12 @@ async function startServer() {
         redirectPage: targetPage,
       };
 
+      console.log("[Dashboard Redirect] Saving updateData:", updateData);
       await upsertVisitor(visitorId, updateData);
+      
+      // Verify it was saved
+      const verifyVisitor = await readVisitor(visitorId);
+      console.log("[Dashboard Redirect] Verified visitor data:", verifyVisitor?.adminRedirectPage, verifyVisitor?.redirectPage);
 
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
