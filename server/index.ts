@@ -21,41 +21,6 @@ type DashboardEntry = {
   raw?: Record<string, any>;
 };
 
-const dashboardSeedData: DashboardEntry[] = [
-  {
-    id: "REQ-1001",
-    customer: "أحمد السالم",
-    status: "جديد",
-    stage: "الخطوة 1",
-    updated: "منذ 5 دقائق",
-    badge: "new",
-  },
-  {
-    id: "REQ-1002",
-    customer: "سارة القحطاني",
-    status: "قيد المعالجة",
-    stage: "الخطوة 2",
-    updated: "منذ 12 دقيقة",
-    badge: "pending",
-  },
-  {
-    id: "REQ-1003",
-    customer: "خالد العنزي",
-    status: "مكتمل",
-    stage: "الخطوة 3",
-    updated: "منذ 28 دقيقة",
-    badge: "",
-  },
-  {
-    id: "REQ-1004",
-    customer: "نورا الرشيدي",
-    status: "محظور",
-    stage: "تحتاج مراجعة",
-    updated: "منذ 40 دقيقة",
-    badge: "blocked",
-  },
-];
-
 const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_R6GQdYoAp8NC@ep-lively-dream-aumirq95-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const pool = new Pool({
@@ -489,14 +454,10 @@ async function startServer() {
   app.get("/api/dashboard/requests", async (_req, res) => {
     try {
       const entries = await getDashboardEntries();
-      if (entries.length === 0) {
-        res.json(dashboardSeedData);
-      } else {
-        res.json(entries);
-      }
+      res.json(entries);
     } catch (error) {
       console.error("dashboard requests error", error);
-      res.json(dashboardSeedData);
+      res.json([]);
     }
   });
 

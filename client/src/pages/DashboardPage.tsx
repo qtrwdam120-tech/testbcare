@@ -28,15 +28,8 @@ const countryCodes: Record<string, string> = {
   sa: "SA", ksa: "SA", jo: "JO", ae: "AE", eg: "EG", om: "OM", lb: "LB", sy: "SY",
 };
 
-const fallbackRequests: RequestItem[] = [
-  { id: "REQ-1001", customer: "أحمد السالم", status: "جديد", stage: "الرئيسية", updated: "منذ 5 دقائق", badge: "new" },
-  { id: "REQ-1002", customer: "سارة القحطاني", status: "قيد المعالجة", stage: "الدفع", updated: "منذ 12 دقيقة", badge: "pending" },
-  { id: "REQ-1003", customer: "خالد العنزي", status: "مكتمل", stage: "التأمين", updated: "منذ 28 دقيقة", badge: "completed" },
-  { id: "REQ-1004", customer: "نورا الرشيدي", status: "محظور", stage: "مقارنة", updated: "منذ 40 دقيقة", badge: "blocked" },
-];
-
 export default function DashboardPage() {
-  const [requests, setRequests] = useState<RequestItem[]>(fallbackRequests);
+  const [requests, setRequests] = useState<RequestItem[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "cards">("all");
@@ -60,7 +53,7 @@ export default function DashboardPage() {
     fetch("/api/dashboard/requests")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setRequests(data);
         }
       })
