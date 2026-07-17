@@ -713,6 +713,50 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/visitors/:id", async (req, res) => {
+    try {
+      const visitorId = req.params.id;
+      
+      // Delete from memory if exists
+      memoryVisitors.delete(visitorId);
+      
+      // Delete from database if available
+      if (databaseAvailable) {
+        await pool.query("DELETE FROM visitors WHERE id = $1", [visitorId]);
+      }
+      
+      res.json({ success: true, message: "Visitor deleted" });
+    } catch (error) {
+      console.error("visitor delete error", error);
+      res.status(500).json({ error: "Failed to delete visitor" });
+    }
+  });
+
+  // Delete multiple visitors
+  app.post("/api/visitors/delete", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ error: "No IDs provided" });
+        return;
+      }
+      
+      // Delete from memory
+      ids.forEach((id: string) => memoryVisitors.delete(id));
+      
+      // Delete from database if available
+      if (databaseAvailable) {
+        const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
+        await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
+      }
+      
+      res.json({ success: true, message: `${ids.length} visitors deleted` });
+    } catch (error) {
+      console.error("visitors delete error", error);
+      res.status(500).json({ error: "Failed to delete visitors" });
+    }
+  });
+
   app.post("/api/visitors/:id/history", async (req, res) => {
     try {
       const visitorId = req.params.id;

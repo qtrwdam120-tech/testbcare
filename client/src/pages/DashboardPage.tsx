@@ -377,12 +377,25 @@ export default function DashboardPage() {
     setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
   };
 
-  const handleArchiveSelected = () => {
+  const handleArchiveSelected = async () => {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
-    setRequests((prev) => prev.map((item) => (selectedSet.has(item.id) ? { ...item, archived: true } : item)));
-    setSelectedRequestIds([]);
-    setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+    
+    try {
+      // Delete from server
+      await fetch("/api/visitors/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedRequestIds }),
+      });
+      
+      // Update local state only after successful delete
+      setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+      setSelectedRequestIds([]);
+      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+    } catch (error) {
+      console.error("[Dashboard] Failed to delete visitors:", error);
+    }
   };
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
