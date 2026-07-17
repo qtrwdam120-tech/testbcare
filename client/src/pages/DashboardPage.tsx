@@ -381,13 +381,19 @@ export default function DashboardPage() {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
     
+    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
+    console.log("[CLIENT DELETE] Requests data:", requests.filter(r => selectedSet.has(r.id)).map(r => ({ id: r.id, visitorId: r.visitorId, customer: r.customer })));
+    
     try {
       // Delete from server
-      await fetch("/api/visitors/delete", {
+      const response = await fetch("/api/visitors/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedRequestIds }),
       });
+      
+      const result = await response.json();
+      console.log("[CLIENT DELETE] Server response:", result);
       
       // Update local state only after successful delete
       setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
