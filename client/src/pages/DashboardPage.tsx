@@ -641,12 +641,12 @@ export default function DashboardPage() {
   const getPhoneOtpStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?.phoneOtpStatus || "";
+  };
 
   // Get nafad status (step 8)
   const getNafadStatus = (): string => {
     const raw = selectedRequest?.raw;
     return raw?._v8Status || "";
-  };
   };
 
   // Render basic information box (from home-new page)
