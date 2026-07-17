@@ -8,7 +8,6 @@ import { Pool } from "pg";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dashboardDir = path.resolve(__dirname, "..", "dashboard");
 
 type DashboardEntry = {
   id: string;
@@ -615,11 +614,6 @@ async function startServer() {
     }
   });
 
-  app.get(["/dashboard", "/dashboard/"], (_req, res) => {
-    res.sendFile(path.join(dashboardDir, "index.html"));
-  });
-
-  app.use("/dashboard", express.static(dashboardDir));
 
   // Serve static files from dist/public in production
   const staticPath =
