@@ -824,27 +824,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Card Info */}
-                <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
-                  <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>معلومات الدفع</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "طريقة الدفع", value: selectedRequest.raw?.paymentMethod === 'credit-card' ? 'بطاقة ائتمانية' : 'بطاقة مدى' },
-                      { label: "نوع البطاقة", value: selectedRequest.raw?.cardType },
-                      { label: "البنك", value: selectedRequest.raw?.bankInfo?.name },
-                      { label: "بلد البنك", value: selectedRequest.raw?.bankInfo?.country },
-                    ].map(
-                      (item) =>
-                        item.value && (
-                          <div key={item.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{item.label}</span>
-                            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>{item.value}</span>
-                          </div>
-                        )
-                    )}
-                  </div>
-                </div>
-
                 {/* Card Details */}
                 <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb" }}>
                   <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تفاصيل البطاقة</h3>
@@ -867,6 +846,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Action Buttons - Below Card Details */}
+              {renderActionButtons()}
             </div>
           )}
         </main>
