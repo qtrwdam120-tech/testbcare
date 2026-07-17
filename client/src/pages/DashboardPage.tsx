@@ -221,7 +221,11 @@ export default function DashboardPage() {
 
   const handleOtpAction = async (action: "approved" | "rejected" | "resend") => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
-    if (!visitorId) return;
+    console.log("[DASHBOARD] handleOtpAction - visitorId:", visitorId, "selectedRequest:", selectedRequest);
+    if (!visitorId) {
+      console.log("[DASHBOARD] No visitorId found, cannot process action");
+      return;
+    }
     setActionLoading("otp");
     try {
       const res = await fetch("/api/dashboard/otp-action", {

