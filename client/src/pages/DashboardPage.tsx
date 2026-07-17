@@ -296,8 +296,8 @@ export default function DashboardPage() {
     const paymentStatus = getPaymentStatus();
     const otpStatus = getOtpStatus();
 
-    // Show payment status if already decided
-    if (currentPage === "check" && paymentStatus) {
+    // Show payment status message ONLY if approved or rejected (not pending)
+    if (currentPage === "check" && (paymentStatus === "approved" || paymentStatus === "rejected")) {
       return (
         <div style={{ background: paymentStatus === "approved" ? "#dcfce7" : "#fee2e2", borderRadius: 12, padding: 16, border: `1px solid ${paymentStatus === "approved" ? "#86efac" : "#fca5a5"}`, marginBottom: 16 }}>
           <h3 style={{ margin: "0 0 8px", fontSize: "0.9rem", fontWeight: 700, color: paymentStatus === "approved" ? "#166534" : "#991b1b" }}>
@@ -310,10 +310,14 @@ export default function DashboardPage() {
       );
     }
 
+    // Show pending status with buttons if currentPage is "check"
     if (currentPage === "check") {
       return (
         <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>إجراءات الدفع</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1rem" }}>⏳</span>
+            <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#92400e" }}>بانتظار المراجعة</span>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => handlePaymentAction("approved")}
