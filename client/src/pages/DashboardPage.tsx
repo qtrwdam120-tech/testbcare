@@ -381,12 +381,33 @@ export default function DashboardPage() {
     });
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
-    setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
-    setSelectedRequestIds([]);
-    setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+    
+    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
+    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
+    
+    try {
+      console.log("[CLIENT DELETE] Sending request to /api/visitors/delete");
+      const response = await fetch("/api/visitors/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedRequestIds }),
+      });
+      
+      console.log("[CLIENT DELETE] Response status:", response.status);
+      const result = await response.json();
+      console.log("[CLIENT DELETE] Server response:", result);
+      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر بنجاح`);
+      
+      setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+      setSelectedRequestIds([]);
+      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+    } catch (error) {
+      console.error("[CLIENT DELETE] Failed:", error);
+      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
+    }
   };
 
   const handleArchiveSelected = async () => {
