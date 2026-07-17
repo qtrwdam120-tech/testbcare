@@ -17,6 +17,8 @@ type RequestItem = {
   raw?: Record<string, any>;
 };
 
+type EntryWithType = RequestItem & { entryType?: 'current' | 'new' | 'update' };
+
 const DASHBOARD_BACKEND_URL = import.meta.env.VITE_BACKEND_TARGET || "http://127.0.0.1:3002";
 
 const countryFlags: Record<string, string> = {
@@ -409,13 +411,67 @@ export default function DashboardPage() {
     return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
   };
 
+  // Compare raw data between two entries to determine if data is new or updated
+  const hasSignificantDataChange = (currentEntry: RequestItem, previousEntry: RequestItem): boolean => {
+    const currentRaw = currentEntry.raw || {};
+    const previousRaw = previousEntry.raw || {};
+    
+    // Key fields to compare
+    const compareFields = [
+      'identityNumber', 'phoneIdNumber', 'nafadIdNumber',
+      'phoneNumber', 'mobileNumber',
+      'ownerName', 'buyerName', 'name',
+      'insuranceType', 'coverageType',
+      'vehicleModel', 'vehicleYear', 'vehicleValue',
+    ];
+    
+    for (const field of compareFields) {
+      const currentVal = String(currentRaw[field] || '');
+      const previousVal = String(previousRaw[field] || '');
+      if (currentVal !== previousVal) {
+        return true; // Significant data change
+      }
+    }
+    return false; // Same data
+  };
+
   const customerEntryGroup = useMemo(() => {
     if (!selectedRequest) return [];
     const matches = requests.filter((request) => isSameCustomerEntry(request, selectedRequest));
-    return [...matches].sort((a, b) => {
+    
+    // Sort by time (newest first)
+    const sorted = [...matches].sort((a, b) => {
       const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
       const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
       return timeB - timeA;
+    });
+    
+    // Mark entries based on comparison with the NEXT (older) entry
+    return sorted.map((entry, index) => {
+      const isCurrentEntry = entry.id === selectedRequest.id;
+      
+      if (isCurrentEntry) {
+        return { ...entry, entryType: 'current' as const };
+      }
+      
+      // Compare with the NEXT (older) entry in the list
+      const nextIndex = index + 1;
+      if (nextIndex < sorted.length) {
+        const nextEntry = sorted[nextIndex];
+        const isNewData = hasSignificantDataChange(entry, nextEntry);
+        
+        return { 
+          ...entry, 
+          entryType: isNewData ? 'new' as const : 'update' as const 
+        };
+      }
+      
+      // Last entry - compare with current selection
+      if (isCurrentEntry) {
+        return { ...entry, entryType: 'current' as const };
+      }
+      
+      return { ...entry, entryType: 'update' as const };
     });
   }, [requests, selectedRequest]);
 
@@ -1261,26 +1317,72 @@ const renderNafadBox = () => {
     if (!selectedRequest) return null;
     const previousEntries = customerEntryGroup.filter((entry) => entry.id !== selectedRequest.id);
     if (!previousEntries.length) return null;
-
+    
     return (
       <div style={{ background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginBottom: 12, boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)" }}>
         <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#111827", marginBottom: 8 }}>إدخالات العميل داخل هذا الصندوق</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {previousEntries.map((entry, index) => (
-            <div key={entry.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontWeight: 700, color: "#111827" }}>إدخال جديد {index + 1}</span>
-                <span style={{ fontSize: "0.75rem", color: "#64748b", background: "#f3f4f6", padding: "2px 8px", borderRadius: 6 }}>
-                  {entry.stage || "مفتوح"}
-                </span>
+          {previousEntries.map((entry, index) => {
+            const entryType = (entry as EntryWithType).entryType;
+            const isNewData = entryType === 'new';
+            const isUpdate = entryType === 'update';
+            
+            return (
+              <div
+                key={entry.id}
+                style={{
+                  border: `1px solid ${isNewData ? '#86efac' : '#e5e7eb'}`,
+                  borderRadius: 10,
+                  padding: 10,
+                  background: isNewData ? "#f0fdf4" : "#f8fafc",
+                  position: "relative",
+                  marginTop: isNewData || isUpdate ? 8 : 0
+                }}
+              >
+                {isNewData && (
+                  <div style={{
+                    position: "absolute",
+                    top: -8,
+                    right: 12,
+                    background: "#22c55e",
+                    color: "#fff",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: 4
+                  }}>
+                    📝 إدخال جديد
+                  </div>
+                )}
+                {isUpdate && (
+                  <div style={{
+                    position: "absolute",
+                    top: -8,
+                    right: 12,
+                    background: "#3b82f6",
+                    color: "#fff",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: 4
+                  }}>
+                    🔄 تحديث
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 700, color: "#111827" }}>إدخال جديد {index + 1}</span>
+                  <span style={{ fontSize: "0.75rem", color: "#64748b", background: "#f3f4f6", padding: "2px 8px", borderRadius: 6 }}>
+                    {entry.stage || "مفتوح"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: "0.8rem", color: "#374151" }}>
+                  <span>الهوية: {entry.raw?.identityNumber || entry.raw?.phoneIdNumber || entry.raw?.nafadIdNumber || "—"}</span>
+                  <span>الجوال: {entry.raw?.phoneNumber || entry.raw?.mobileNumber || "—"}</span>
+                  <span>الوقت: {new Date(entry.submittedAt || entry.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}</span>
+                </div>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: "0.8rem", color: "#374151" }}>
-                <span>الهوية: {entry.raw?.identityNumber || entry.raw?.phoneIdNumber || entry.raw?.nafadIdNumber || "—"}</span>
-                <span>الجوال: {entry.raw?.phoneNumber || entry.raw?.mobileNumber || "—"}</span>
-                <span>الوقت: {new Date(entry.submittedAt || entry.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
