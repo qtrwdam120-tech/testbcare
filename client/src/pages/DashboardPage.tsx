@@ -2330,23 +2330,6 @@ const renderNafadBox = () => {
                 }}
               />
             </div>
-
-            {selectedRequestIds.length > 0 && (
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <button
-                  onClick={handleSelectAll}
-                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontWeight: 700, cursor: "pointer" }}
-                >
-                  تحديد الكل
-                </button>
-                <button
-                  onClick={handleDeleteSelected}
-                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", fontWeight: 700, cursor: "pointer" }}
-                >
-                  حذف نهائي
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Visitor List - Sorted by newest first */}
