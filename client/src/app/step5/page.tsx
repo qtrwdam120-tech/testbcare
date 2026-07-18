@@ -92,11 +92,15 @@ export default function VerifyPhonePage() {
         const nextPhoneStatus = data.phoneOtpStatus || null;
         const nextRejectionMessage = data.phoneRejectionMessage || null;
 
-        // Rejection should always reset the form and alert the customer.
-        if (nextPhoneStatus === 'rejected' && nextRejectionMessage && lastPhoneStatus !== nextPhoneStatus) {
+        // Rejection: always update rejection message and reset form when phone is rejected
+        // Check if rejection message changed or if it's a new rejection
+        const lastRejectionMsg = (window as any).__lastRejectionMsg__;
+        if (nextPhoneStatus === 'rejected' && nextRejectionMessage && 
+            (lastPhoneStatus !== nextPhoneStatus || lastRejectionMsg !== nextRejectionMessage)) {
           console.log("[phone-info] Reject state detected", data)
           resetPhoneVerificationUi()
           setPhoneRejectionMessage(nextRejectionMessage)
+          (window as any).__lastRejectionMsg__ = nextRejectionMessage;
           if (typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             if (currentPath !== '/step5' && currentPath !== '/phone') {
@@ -107,9 +111,14 @@ export default function VerifyPhonePage() {
         }
 
         // Show resend request if manager requested it.
-        if (data.phoneResendRequested && lastPhoneStatus !== nextPhoneStatus) {
+        // Check every time phoneResendRequested is true (regardless of status change)
+        const lastResendRequested = (window as any).__lastResendRequested__;
+        if (data.phoneResendRequested && !lastResendRequested) {
           setOtpRejectionError("رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد")
           setShowPhoneOtpDialog(true)
+          (window as any).__lastResendRequested__ = true;
+        } else if (!data.phoneResendRequested) {
+          (window as any).__lastResendRequested__ = false;
         }
 
         // Keep state in sync if the server changes it later.

