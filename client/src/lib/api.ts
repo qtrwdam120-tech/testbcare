@@ -62,8 +62,12 @@ export function hasMeaningfulDashboardPayload(payload: Record<string, any> | und
 
 export async function notifyDashboard(payload: Record<string, any>): Promise<void> {
   if (typeof window === 'undefined') return;
+  
+  console.log('[notifyDashboard] Called with payload keys:', Object.keys(payload));
+  
   try {
     let fallbackVisitorId = window.localStorage.getItem('visitor') || `visitor_${Date.now()}`;
+    console.log('[notifyDashboard] fallbackVisitorId:', fallbackVisitorId);
     
     // Verify visitorId is still valid
     try {
@@ -81,13 +85,17 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
         fallbackVisitorId = newId;
         window.localStorage.setItem('visitor', newId);
       } catch {
-        // Can't create visitor, skip
+        console.log('[notifyDashboard] Cannot get visitorId, skipping');
         return;
       }
     }
     
     const hasIdentity = Boolean(payload?.id || payload?.visitorId || payload?.raw?.id || payload?.raw?.visitorId || fallbackVisitorId);
+    console.log('[notifyDashboard] hasIdentity:', hasIdentity);
+    console.log('[notifyDashboard] hasMeaningfulPayload:', hasMeaningfulDashboardPayload(payload));
+    
     if (!hasMeaningfulDashboardPayload(payload) && !hasIdentity) {
+      console.log('[notifyDashboard] Skipping - no meaningful payload');
       return;
     }
 
@@ -132,24 +140,31 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
       badge = '';
     }
 
+    // Use visitorId directly as id (NOT REQ-XXXXXX) for proper upsert
+    const dashboardPayload = {
+      id: String(visitorId), // Use visitorId directly for upsert
+      visitorId: String(visitorId),
+      customer: String(customerName),
+      status,
+      stage,
+      updated: 'تم التحديث الآن',
+      badge,
+      submittedAt: new Date().toISOString(),
+      raw: payload,
+    };
+    
+    console.log('[notifyDashboard] Sending to server:', dashboardPayload);
+
     const baseUrl = (API_BASE || window.location.origin || '').replace(/\/+$/, '');
     const dashboardUrl = `${baseUrl}/api/dashboard/requests`;
-    await fetch(dashboardUrl, {
+    const response = await fetch(dashboardUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: `REQ-${String(visitorId).slice(0, 8).toUpperCase()}`,
-        customer: String(customerName),
-        status,
-        stage,
-        updated: 'تم التحديث الآن',
-        badge,
-        visitorId: String(visitorId),
-        submittedAt: new Date().toISOString(),
-        raw: payload,
-      }),
+      body: JSON.stringify(dashboardPayload),
     });
-  } catch {
+    console.log('[notifyDashboard] Response OK:', response.ok);
+  } catch (error) {
+    console.error('[notifyDashboard] Error:', error);
     // ignore dashboard notification failures
   }
 }
