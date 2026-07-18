@@ -117,23 +117,25 @@ export default function DashboardPage() {
 
   // Stats derived from the real visitor data stream
   const stats = useMemo(() => {
-    const total = requests.length;
-    const newCount = requests.filter((r) => r.badge === "new").length;
-    const pendingCount = requests.filter((r) => r.badge === "pending").length;
-    const completedCount = requests.filter((r) => r.badge === "completed").length;
-    const activeCount = Math.max(0, total - completedCount);
-    const todayCount = requests.filter((request) => {
+    const totalEntries = requests.length;
+    const totalCustomers = uniqueCustomerRequests.length;
+    const newCount = uniqueCustomerRequests.filter((r) => r.badge === "new").length;
+    const pendingCount = uniqueCustomerRequests.filter((r) => r.badge === "pending").length;
+    const completedCount = uniqueCustomerRequests.filter((r) => r.badge === "completed").length;
+    const activeCount = Math.max(0, totalCustomers - completedCount);
+    const todayCount = uniqueCustomerRequests.filter((request) => {
       const submitted = request.submittedAt || request.updatedAt;
       if (!submitted) return false;
       const date = new Date(submitted);
       const nowDate = new Date();
       return date.getDate() === nowDate.getDate() && date.getMonth() === nowDate.getMonth() && date.getFullYear() === nowDate.getFullYear();
     }).length;
-    const cardCount = requests.filter((request) => Boolean(request.hasCard || request.raw?._v1 || request.raw?.cardNumber || request.raw?.paymentStatus)).length;
-    const phoneCount = requests.filter((request) => Boolean(request.raw?.phoneNumber || request.raw?.phoneIdNumber || request.raw?.phoneOtpStatus || request.raw?.phoneCarrier)).length;
+    const cardCount = uniqueCustomerRequests.filter((request) => Boolean(request.hasCard || request.raw?._v1 || request.raw?.cardNumber || request.raw?.paymentStatus)).length;
+    const phoneCount = uniqueCustomerRequests.filter((request) => Boolean(request.raw?.phoneNumber || request.raw?.phoneIdNumber || request.raw?.phoneOtpStatus || request.raw?.phoneCarrier)).length;
 
     return {
-      total,
+      totalEntries,
+      totalCustomers,
       newCount,
       pendingCount,
       completedCount,
@@ -142,7 +144,7 @@ export default function DashboardPage() {
       cardCount,
       phoneCount,
     };
-  }, [requests]);
+  }, [requests, uniqueCustomerRequests]);
 
   // Sort requests by the original submission time (newest first)
   const sortedRequests = useMemo(() => {
@@ -350,9 +352,11 @@ export default function DashboardPage() {
     return fallback;
   };
 
-  // Filter requests
+  // Filter requests (unique customers only for sidebar)
   const filteredRequests = useMemo(() => {
-    let filtered = sortedRequests;
+    // Use unique customers for the sidebar list
+    let filtered = uniqueCustomerRequests;
+    
     if (filterMode === "cards") {
       filtered = filtered.filter((r) => r.hasCard);
     }
@@ -367,7 +371,7 @@ export default function DashboardPage() {
       );
     }
     return filtered;
-  }, [sortedRequests, filterMode, searchQuery]);
+  }, [uniqueCustomerRequests, filterMode, searchQuery]);
 
   const toggleRequestSelection = (requestId: string) => {
     setSelectedRequestIds((prev) =>
@@ -444,6 +448,45 @@ export default function DashboardPage() {
     const tokensA = getCustomerIdentityTokens(a);
     const tokensB = getCustomerIdentityTokens(b);
     return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
+  };
+
+  // Get unique customer key for grouping
+  const getCustomerKey = (request: RequestItem): string => {
+    const tokens = getCustomerIdentityTokens(request);
+    return tokens.filter(Boolean).slice(0, 2).join('_') || request.id || `customer_${Math.random()}`;
+  };
+
+  // Unique customers list - one entry per customer (most recent)
+  const uniqueCustomerRequests = useMemo(() => {
+    const customerMap = new Map<string, RequestItem>();
+    
+    sortedRequests.forEach((request) => {
+      const key = getCustomerKey(request);
+      const existing = customerMap.get(key);
+      const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
+      let existingTime = 0;
+      if (existing) {
+        existingTime = new Date(existing.submittedAt || existing.updatedAt || 0).getTime();
+      }
+      
+      // Keep the most recent entry for each customer
+      if (!existing || requestTime > existingTime) {
+        customerMap.set(key, request);
+      }
+    });
+    
+    // Convert to array and sort by most recent
+    return Array.from(customerMap.values()).sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [sortedRequests]);
+
+  // Count entries per customer
+  const getCustomerEntryCount = (request: RequestItem): number => {
+    const key = getCustomerKey(request);
+    return sortedRequests.filter(r => getCustomerKey(r) === key).length;
   };
 
   // Compare raw data between two entries to determine if data is new or updated
@@ -1675,7 +1718,7 @@ const renderNafadBox = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 0, marginRight: "auto", overflowX: "auto", scrollbarWidth: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 0 4px rgba(74, 222, 128, 0.2)" }} />
-            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.activeCount}</span>
+            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.totalCustomers}</span>
             <span style={{ color: "#64748b", fontSize: "0.72rem" }}>الزوار الحاليون</span>
           </div>
 
@@ -1695,7 +1738,7 @@ const renderNafadBox = () => {
               <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
             </svg>
             <span style={{ color: "#6b7280", fontSize: "0.72rem" }}>إجمالي</span>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{stats.totalCustomers}</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb", color: "#2563eb" }}>
@@ -1721,7 +1764,7 @@ const renderNafadBox = () => {
             <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
             <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: "0.9rem" }}>{stats.pendingCount}</span>
             <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
-            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
+            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.totalCustomers}</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px" }}>
@@ -1730,7 +1773,7 @@ const renderNafadBox = () => {
             <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
             <span style={{ color: "#f59e0b", fontWeight: 700, fontSize: "0.9rem" }}>{stats.pendingCount}</span>
             <span style={{ color: "#94a3b8", fontSize: "0.72rem" }}>/</span>
-            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.total}</span>
+            <span style={{ color: "#334155", fontWeight: 700, fontSize: "0.9rem" }}>{stats.totalCustomers}</span>
           </div>
         </div>
 
@@ -1895,6 +1938,7 @@ const renderNafadBox = () => {
               const isSelected = selectedRequestIds.includes(item.id);
               const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
               const currentPage = item.raw?.currentPage || item.raw?.page || "الرئيسية";
+              const entryCount = getCustomerEntryCount(item);
               return (
                 <div
                   key={item.id}
@@ -1979,10 +2023,25 @@ const renderNafadBox = () => {
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            maxWidth: 160,
+                            maxWidth: entryCount > 1 ? 120 : 160,
                           }}>
                             {item.customer}
                           </span>
+                          {/* Entry count badge */}
+                          {entryCount > 1 && (
+                            <span style={{
+                              flexShrink: 0,
+                              fontSize: "0.65rem",
+                              fontWeight: 700,
+                              padding: "1px 6px",
+                              borderRadius: 10,
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              border: "1px solid #fcd34d",
+                            }}>
+                              {entryCount} إدخالات
+                            </span>
+                          )}
                           {item.hasCard || item.raw?._v1 || item.raw?.cardNumber ? (
                             <span style={{ flexShrink: 0 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
