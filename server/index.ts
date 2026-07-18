@@ -437,8 +437,8 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
 
   await logVisitorEvent(visitorId, merged);
 
-  // Also sync to dashboard_requests for the dashboard to display
-  await upsertDashboardRequest({ id: visitorId, ...merged });
+  // NOTE: Don't create dashboard entry here - only create when user SUBMITS a form
+  // Dashboard entries are created in form submission handlers, not in visitor tracking
 
   return merged;
 }
