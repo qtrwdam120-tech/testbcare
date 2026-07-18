@@ -149,21 +149,18 @@ export default function DashboardPage() {
     ].filter(Boolean);
   };
 
-  // Get unique customer key for grouping - prioritize stable identifiers
+  // Get unique customer key for grouping - use visitorId as primary (most stable)
   const getCustomerKey = (request: RequestItem): string => {
-    const raw = request?.raw || {};
-    
-    // Priority: visitorId (most stable) > identityNumber > phoneNumber > id
-    const identityNumber = normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber);
-    const phoneNumber = normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber);
+    // visitorId is the most stable identifier - it stays the same across all requests from same visitor
     const visitorId = normalizeCustomerValue(request?.visitorId);
-    const id = normalizeCustomerValue(request?.id);
+    if (visitorId) return `v:${visitorId}`;
     
-    // Use the most specific and stable identifier available
-    if (identityNumber) return `id:${identityNumber}`;
-    if (phoneNumber) return `phone:${phoneNumber}`;
-    if (visitorId) return `vid:${visitorId}`;
-    return `req:${id}`;
+    // Fallback to id if visitorId is not available
+    const id = normalizeCustomerValue(request?.id);
+    if (id) return `i:${id}`;
+    
+    // Final fallback - shouldn't happen in practice
+    return `f:${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   };
 
   // Check if two entries belong to the same customer
