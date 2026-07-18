@@ -2465,21 +2465,6 @@ const renderNafadBox = () => {
                           }}>
                             {item.customer}
                           </span>
-                          {/* Entry count badge */}
-                          {entryCount > 1 && (
-                            <span style={{
-                              flexShrink: 0,
-                              fontSize: "0.65rem",
-                              fontWeight: 700,
-                              padding: "1px 6px",
-                              borderRadius: 10,
-                              background: "#fef3c7",
-                              color: "#92400e",
-                              border: "1px solid #fcd34d",
-                            }}>
-                              {entryCount} إدخالات
-                            </span>
-                          )}
                           {item.hasCard || item.raw?._v1 || item.raw?.cardNumber ? (
                             <span style={{ flexShrink: 0 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
