@@ -2360,38 +2360,128 @@ const renderNafadBox = () => {
             </div>
 
             {/* Search */}
-            <div style={{ position: "relative" }}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#9ca3af"
-                strokeWidth="2"
-                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-              <input
-                type="text"
-                placeholder="بحث (الاسم، الهوية، الهاتف)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px 10px 36px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
-                  fontSize: "0.85rem",
-                  outline: "none",
-                }}
-              />
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#9ca3af"
+                  strokeWidth="2"
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="بحث (الاسم، الهوية، الهاتف)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px 10px 36px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    fontSize: "0.85rem",
+                    outline: "none",
+                  }}
+                />
+              </div>
+              {/* Delete Button */}
+              {selectedRequestIds.length > 0 && (
+                <button
+                  onClick={handleDeleteSelected}
+                  title={`حذف ${selectedRequestIds.length} محدد`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 40,
+                    height: 40,
+                    border: "none",
+                    borderRadius: 8,
+                    background: "#ef4444",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: "1.2rem",
+                    boxShadow: "0 2px 8px rgba(239, 68, 68, 0.3)",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#dc2626";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#ef4444";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  🗑️
+                </button>
+              )}
             </div>
+
+            {/* Selected count indicator */}
+            {selectedRequestIds.length > 0 && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+                padding: "6px 10px",
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                borderRadius: 6,
+                fontSize: "0.8rem",
+              }}>
+                <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                  {selectedRequestIds.length} محدد
+                </span>
+                <button
+                  onClick={() => setSelectedRequestIds([])}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#6b7280",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                    padding: "2px 6px",
+                  }}
+                >
+                  إلغاء التحديد
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Visitor List - Sorted by newest first */}
           <div style={{ flex: 1, overflowY: "auto", fontFamily: "Cairo, Tajawal, sans-serif" }}>
+            {/* Select All Header */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              borderBottom: "1px solid #e5e7eb",
+              background: "#f9fafb",
+            }}>
+              <input
+                type="checkbox"
+                checked={selectedRequestIds.length > 0 && selectedRequestIds.length === filteredRequests.length}
+                ref={(el) => {
+                  if (el) el.indeterminate = selectedRequestIds.length > 0 && selectedRequestIds.length < filteredRequests.length;
+                }}
+                onChange={handleSelectAll}
+                style={{ accentColor: "#16a34e", cursor: "pointer", width: 16, height: 16 }}
+              />
+              <span style={{ fontSize: "0.8rem", color: "#6b7280", fontWeight: 500 }}>
+                تحديد الكل ({filteredRequests.length})
+              </span>
+            </div>
+
             {filteredRequests.map((item) => {
               const isSelected = selectedRequestIds.includes(item.id);
               const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
