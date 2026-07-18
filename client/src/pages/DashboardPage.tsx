@@ -436,7 +436,7 @@ export default function DashboardPage() {
     let filtered = uniqueCustomerRequests;
     
     if (filterMode === "cards") {
-      filtered = filtered.filter((r) => r.hasCard);
+      filtered = filtered.filter((r) => r.hasCard || r.raw?._v1 || r.raw?.cardNumber);
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -2297,7 +2297,7 @@ const renderNafadBox = () => {
                   fontSize: "0.85rem",
                 }}
               >
-                بطاقة ({stats.completedCount})
+                بطاقة ({stats.cardCount})
               </button>
             </div>
 
