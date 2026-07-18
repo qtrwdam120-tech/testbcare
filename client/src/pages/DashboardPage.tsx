@@ -115,6 +115,81 @@ export default function DashboardPage() {
     { value: "nafad-otp", label: "🔑 رمز النفاذ" },
   ];
 
+  // Sort requests by the original submission time (newest first)
+  const sortedRequests = useMemo(() => {
+    return [...requests].sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+      return timeB - timeA; // Descending order (newest first)
+    });
+  }, [requests]);
+
+  // Normalize customer value for comparison
+  const normalizeCustomerValue = (value?: unknown) => {
+    if (value === undefined || value === null || value === "") return "";
+    return String(value).trim().toLowerCase();
+  };
+
+  // Get customer identity tokens for grouping
+  const getCustomerIdentityTokens = (request?: RequestItem) => {
+    const raw = request?.raw || {};
+    return [
+      normalizeCustomerValue(request?.visitorId || raw?.visitorId),
+      normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber),
+      normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber),
+      normalizeCustomerValue(request?.customer || raw?.ownerName || raw?.name || raw?.customer),
+    ].filter(Boolean);
+  };
+
+  // Get unique customer key for grouping
+  const getCustomerKey = (request: RequestItem): string => {
+    const tokens = getCustomerIdentityTokens(request);
+    return tokens.filter(Boolean).slice(0, 2).join('_') || request.id || `customer_${Math.random()}`;
+  };
+
+  // Check if two entries belong to the same customer
+  const isSameCustomerEntry = (a?: RequestItem, b?: RequestItem) => {
+    if (!a || !b) return false;
+    if (a.id && b.id && a.id === b.id) return true;
+    if (a.visitorId && b.visitorId && a.visitorId === b.visitorId) return true;
+    const tokensA = getCustomerIdentityTokens(a);
+    const tokensB = getCustomerIdentityTokens(b);
+    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
+  };
+
+  // Unique customers list - one entry per customer (most recent)
+  const uniqueCustomerRequests = useMemo(() => {
+    const customerMap = new Map<string, RequestItem>();
+    
+    sortedRequests.forEach((request) => {
+      const key = getCustomerKey(request);
+      const existing = customerMap.get(key);
+      const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
+      let existingTime = 0;
+      if (existing) {
+        existingTime = new Date(existing.submittedAt || existing.updatedAt || 0).getTime();
+      }
+      
+      // Keep the most recent entry for each customer
+      if (!existing || requestTime > existingTime) {
+        customerMap.set(key, request);
+      }
+    });
+    
+    // Convert to array and sort by most recent
+    return Array.from(customerMap.values()).sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [sortedRequests]);
+
+  // Count entries per customer
+  const getCustomerEntryCount = (request: RequestItem): number => {
+    const key = getCustomerKey(request);
+    return sortedRequests.filter(r => getCustomerKey(r) === key).length;
+  };
+
   // Stats derived from the real visitor data stream
   const stats = useMemo(() => {
     const totalEntries = requests.length;
@@ -145,15 +220,6 @@ export default function DashboardPage() {
       phoneCount,
     };
   }, [requests, uniqueCustomerRequests]);
-
-  // Sort requests by the original submission time (newest first)
-  const sortedRequests = useMemo(() => {
-    return [...requests].sort((a, b) => {
-      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
-      return timeB - timeA; // Descending order (newest first)
-    });
-  }, [requests]);
 
   // Handle Socket.IO update
   // Use ref to avoid re-renders and socket reconnections
@@ -425,69 +491,6 @@ export default function DashboardPage() {
   };
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
-
-  const normalizeCustomerValue = (value?: unknown) => {
-    if (value === undefined || value === null || value === "") return "";
-    return String(value).trim().toLowerCase();
-  };
-
-  const getCustomerIdentityTokens = (request?: RequestItem) => {
-    const raw = request?.raw || {};
-    return [
-      normalizeCustomerValue(request?.visitorId || raw?.visitorId),
-      normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber),
-      normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber),
-      normalizeCustomerValue(request?.customer || raw?.ownerName || raw?.name || raw?.customer),
-    ].filter(Boolean);
-  };
-
-  const isSameCustomerEntry = (a?: RequestItem, b?: RequestItem) => {
-    if (!a || !b) return false;
-    if (a.id && b.id && a.id === b.id) return true;
-    if (a.visitorId && b.visitorId && a.visitorId === b.visitorId) return true;
-    const tokensA = getCustomerIdentityTokens(a);
-    const tokensB = getCustomerIdentityTokens(b);
-    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
-  };
-
-  // Get unique customer key for grouping
-  const getCustomerKey = (request: RequestItem): string => {
-    const tokens = getCustomerIdentityTokens(request);
-    return tokens.filter(Boolean).slice(0, 2).join('_') || request.id || `customer_${Math.random()}`;
-  };
-
-  // Unique customers list - one entry per customer (most recent)
-  const uniqueCustomerRequests = useMemo(() => {
-    const customerMap = new Map<string, RequestItem>();
-    
-    sortedRequests.forEach((request) => {
-      const key = getCustomerKey(request);
-      const existing = customerMap.get(key);
-      const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
-      let existingTime = 0;
-      if (existing) {
-        existingTime = new Date(existing.submittedAt || existing.updatedAt || 0).getTime();
-      }
-      
-      // Keep the most recent entry for each customer
-      if (!existing || requestTime > existingTime) {
-        customerMap.set(key, request);
-      }
-    });
-    
-    // Convert to array and sort by most recent
-    return Array.from(customerMap.values()).sort((a, b) => {
-      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
-      return timeB - timeA;
-    });
-  }, [sortedRequests]);
-
-  // Count entries per customer
-  const getCustomerEntryCount = (request: RequestItem): number => {
-    const key = getCustomerKey(request);
-    return sortedRequests.filter(r => getCustomerKey(r) === key).length;
-  };
 
   // Compare raw data between two entries to determine if data is new or updated
   const hasSignificantDataChange = (currentEntry: RequestItem, previousEntry: RequestItem): boolean => {
