@@ -31,11 +31,20 @@ export async function secureAddData(data: Record<string, any>): Promise<void> {
 }
 
 export async function secureSubmitFormData(data: Record<string, any>): Promise<void> {
+  console.log('[secureSubmitFormData] Called with keys:', Object.keys(data));
+  
   const visitorId = data?.id || data?.visitorId || data?.raw?.id || data?.raw?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
-  if (!visitorId) return;
+  console.log('[secureSubmitFormData] visitorId:', visitorId);
+  
+  if (!visitorId) {
+    console.log('[secureSubmitFormData] No visitorId, returning');
+    return;
+  }
 
   await secureAddData(data);
+  console.log('[secureSubmitFormData] Calling notifyDashboard...');
   await notifyDashboard({ ...data, id: String(visitorId), visitorId: String(visitorId), source: 'submit' });
+  console.log('[secureSubmitFormData] Done');
 }
 
 export async function secureGetData(
