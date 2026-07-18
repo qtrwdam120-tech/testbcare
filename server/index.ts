@@ -47,18 +47,62 @@ const pool = new Pool({
 
 const memoryVisitors = new Map<string, Record<string, any>>();
 const memoryDashboardRequests: DashboardEntry[] = [];
-const deletedVisitorIds = new Set<string>(); // Track deleted visitors - they cannot return
+const archivedVisitorIds = new Set<string>(); // Track archived visitors - can be restored
 let databaseAvailable = true;
 
-// Load deleted visitors from database on startup
-async function loadDeletedVisitors() {
+// Load archived visitors from database on startup
+async function loadArchivedVisitors() {
   try {
-    const { rows } = await pool.query("SELECT id FROM deleted_visitors");
-    rows.forEach(row => deletedVisitorIds.add(row.id));
-    console.log("[Deleted Visitors] Loaded", rows.length, "deleted visitor IDs from database");
+    const { rows } = await pool.query("SELECT id FROM archived_visitors");
+    rows.forEach(row => archivedVisitorIds.add(row.id));
+    console.log("[Archived Visitors] Loaded", rows.length, "archived visitor IDs from database");
   } catch (error) {
-    console.warn("[Deleted Visitors] Failed to load from database:", error);
+    console.warn("[Archived Visitors] Failed to load from database:", error);
   }
+}
+
+// Check if visitor is archived and restore if needed
+async function checkAndRestoreArchivedVisitor(visitorId: string): Promise<{ restored: boolean; newVisitorId?: string }> {
+  if (!archivedVisitorIds.has(visitorId)) {
+    return { restored: false };
+  }
+  
+  console.log("[Visitor] Archived visitor returning:", visitorId);
+  
+  // Move from archive back to active
+  try {
+    const { rows } = await pool.query("SELECT data FROM archived_visitors WHERE id = $1", [visitorId]);
+    if (rows.length > 0) {
+      // Restore data and create new visitor
+      const newVisitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const visitorData = rows[0].data;
+      
+      // Insert as new visitor
+      await pool.query(
+        "INSERT INTO visitors (id, data, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        [newVisitorId, visitorData]
+      );
+      
+      // Remove from archive
+      await pool.query("DELETE FROM archived_visitors WHERE id = $1", [visitorId]);
+      archivedVisitorIds.delete(visitorId);
+      
+      // Add to dashboard
+      const customer = visitorData?.ownerName || visitorData?.name || visitorData?.customer || "زائر";
+      const stage = visitorData?.currentStep || "الخطوة 1";
+      await pool.query(
+        "INSERT INTO dashboard_requests (id, visitor_id, customer, status, stage, updated, badge, submitted_at, raw) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8) ON CONFLICT (id) DO UPDATE SET customer = $3, status = $4, stage = $5, updated = $6, badge = $7",
+        [newVisitorId, newVisitorId, customer, "جديد", stage, "تم التحديث الآن", "new", visitorData]
+      );
+      
+      console.log("[Visitor] Restored archived visitor as new:", newVisitorId);
+      return { restored: true, newVisitorId };
+    }
+  } catch (error) {
+    console.error("[Visitor] Failed to restore archived visitor:", error);
+  }
+  
+  return { restored: false };
 }
 
 type ColumnSpec = {
@@ -207,16 +251,18 @@ async function initDatabase() {
   try {
     const tables = [
       {
-        name: "deleted_visitors",
+        name: "archived_visitors",
         createSql: `
-          CREATE TABLE IF NOT EXISTS deleted_visitors (
+          CREATE TABLE IF NOT EXISTS archived_visitors (
             id TEXT PRIMARY KEY,
-            deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
         `,
         columns: [
           { name: "id", definition: "TEXT", defaultValue: undefined },
-          { name: "deleted_at", definition: "TIMESTAMPTZ NOT NULL DEFAULT NOW()" },
+          { name: "data", definition: "JSONB NOT NULL DEFAULT '{}'::jsonb" },
+          { name: "archived_at", definition: "TIMESTAMPTZ NOT NULL DEFAULT NOW()" },
         ] as ColumnSpec[],
       },
       {
@@ -605,7 +651,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
 
 async function startServer() {
   await initDatabase();
-  await loadDeletedVisitors(); // Load deleted visitor IDs from database
+  await loadArchivedVisitors(); // Load archived visitor IDs from database
   const app = express();
   const server = createServer(app);
 
@@ -710,15 +756,19 @@ async function startServer() {
     const payload = req.body || {};
     let visitorId = payload.id || payload.visitorId;
     
-    // Check if this visitor was previously deleted - if so, generate new ID
-    if (visitorId && deletedVisitorIds.has(visitorId)) {
-      console.log("[VISITOR] Previously deleted, generating new ID for:", visitorId);
-      // Remove old ID from deleted list (they're starting fresh)
-      deletedVisitorIds.delete(visitorId);
-      // Generate new visitorId
-      visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log("[VISITOR] New visitorId:", visitorId);
-    } else if (!visitorId) {
+    // Check if this visitor was previously archived - if so, restore them
+    if (visitorId) {
+      const restoreResult = await checkAndRestoreArchivedVisitor(visitorId);
+      if (restoreResult.restored && restoreResult.newVisitorId) {
+        console.log("[VISITOR] Archived visitor restored as:", restoreResult.newVisitorId);
+        await upsertVisitor(restoreResult.newVisitorId, payload);
+        res.json({ visitorId: restoreResult.newVisitorId });
+        return;
+      }
+    }
+    
+    // Generate new visitorId if not provided
+    if (!visitorId) {
       visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
     
@@ -775,36 +825,28 @@ async function startServer() {
     }
   });
 
-  // Delete multiple visitors
+  // Delete multiple visitors - PERMANENT DELETE, no blacklist
   app.post("/api/visitors/delete", async (req, res) => {
     try {
       const { ids } = req.body;
-      console.log("[DELETE] Request to delete visitors:", ids);
+      console.log("[DELETE] Request to permanently delete visitors:", ids);
       
       if (!Array.isArray(ids) || ids.length === 0) {
         res.status(400).json({ error: "No IDs provided" });
         return;
       }
       
-      // Mark as deleted - they cannot return
+      // Remove from memory
       ids.forEach((id: string) => {
-        deletedVisitorIds.add(id);
         memoryVisitors.delete(id);
       });
-      console.log("[DELETE] Marked as deleted:", ids.length, "visitors");
       
-      // Delete from database if available
+      // Permanently delete from database
       if (databaseAvailable) {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
-        // Add to deleted_visitors table (permanent block)
-        await pool.query(`
-          INSERT INTO deleted_visitors (id) 
-          VALUES ${ids.map((_: any, i: number) => `($${i + 1})`).join(", ")}
-          ON CONFLICT (id) DO NOTHING
-        `, ids);
-        console.log("[DELETE] Added to deleted_visitors table");
+        console.log("[DELETE] Permanently deleted from database");
       }
       
       // Broadcast delete to all connected dashboards
@@ -816,6 +858,85 @@ async function startServer() {
     } catch (error) {
       console.error("visitors delete error", error);
       res.status(500).json({ error: "Failed to delete visitors" });
+    }
+  });
+
+  // Archive multiple visitors - they can be restored if customer returns
+  app.post("/api/visitors/archive", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      console.log("[ARCHIVE] Request to archive visitors:", ids);
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ error: "No IDs provided" });
+        return;
+      }
+      
+      if (databaseAvailable) {
+        // Move each visitor to archive
+        for (const id of ids) {
+          // Get visitor data
+          const { rows } = await pool.query("SELECT data FROM visitors WHERE id = $1", [id]);
+          if (rows.length > 0) {
+            const visitorData = rows[0].data;
+            
+            // Insert into archive
+            await pool.query(
+              "INSERT INTO archived_visitors (id, data, archived_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO UPDATE SET data = $2, archived_at = NOW()",
+              [id, visitorData]
+            );
+            
+            // Remove from active tables
+            await pool.query("DELETE FROM visitors WHERE id = $1", [id]);
+            await pool.query("DELETE FROM dashboard_requests WHERE id = $1", [id]);
+            
+            // Track in memory
+            archivedVisitorIds.add(id);
+            memoryVisitors.delete(id);
+          }
+        }
+        console.log("[ARCHIVE] Archived", ids.length, "visitors");
+      }
+      
+      // Broadcast delete to all connected dashboards
+      ids.forEach(id => {
+        broadcastToDashboard("dashboard:delete", { id });
+      });
+      
+      res.json({ success: true, message: `${ids.length} visitors archived` });
+    } catch (error) {
+      console.error("visitors archive error", error);
+      res.status(500).json({ error: "Failed to archive visitors" });
+    }
+  });
+
+  // Get all archived visitors
+  app.get("/api/visitors/archived/list", async (_req, res) => {
+    try {
+      if (!databaseAvailable) {
+        res.json({ visitors: [] });
+        return;
+      }
+      
+      const { rows } = await pool.query(
+        "SELECT id, data, archived_at FROM archived_visitors ORDER BY archived_at DESC"
+      );
+      
+      const visitors = rows.map(row => {
+        const data = row.data || {};
+        return {
+          id: row.id,
+          customer: data.ownerName || data.name || data.customer || "زائر",
+          stage: data.currentStep || "غير محدد",
+          archivedAt: row.archived_at,
+          data: data,
+        };
+      });
+      
+      res.json({ visitors });
+    } catch (error) {
+      console.error("get archived visitors error", error);
+      res.status(500).json({ error: "Failed to get archived visitors" });
     }
   });
 

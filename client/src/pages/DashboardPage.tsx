@@ -98,6 +98,8 @@ export default function DashboardPage() {
   const [settingsTab, setSettingsTab] = useState<"security" | "cards" | "archive">("security");
   const [blockedCards, setBlockedCards] = useState<string[]>([]);
   const [newBlockedCard, setNewBlockedCard] = useState("");
+  const [archivedVisitors, setArchivedVisitors] = useState<any[]>([]);
+  const [loadingArchived, setLoadingArchived] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +117,23 @@ export default function DashboardPage() {
     { value: "step6", label: "🔒 النفاذ" },
     { value: "nafad-otp", label: "🔑 رمز النفاذ" },
   ];
+
+  // Fetch archived visitors when archive tab is opened
+  useEffect(() => {
+    if (settingsTab === "archive") {
+      setLoadingArchived(true);
+      fetch("/api/visitors/archived/list")
+        .then(res => res.json())
+        .then(data => {
+          setArchivedVisitors(data.visitors || []);
+          setLoadingArchived(false);
+        })
+        .catch(err => {
+          console.error("[Dashboard] Failed to fetch archived visitors:", err);
+          setLoadingArchived(false);
+        });
+    }
+  }, [settingsTab]);
 
   // Stats derived from the real visitor data stream
   const stats = useMemo(() => {
@@ -419,32 +438,30 @@ export default function DashboardPage() {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
     
-    const selectedData = requests.filter(r => selectedSet.has(r.id)).map(r => ({ id: r.id, visitorId: r.visitorId, customer: r.customer }));
-    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
-    console.log("[CLIENT DELETE] Selected data:", selectedData);
-    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
+    console.log("[CLIENT ARCHIVE] Selected IDs to archive:", selectedRequestIds);
+    showNotification("success", `جاري أرشفة ${selectedRequestIds.length} زائر...`);
     
     try {
-      // Delete from server
-      console.log("[CLIENT DELETE] Sending request to /api/visitors/delete");
-      const response = await fetch("/api/visitors/delete", {
+      // Archive on server
+      console.log("[CLIENT ARCHIVE] Sending request to /api/visitors/archive");
+      const response = await fetch("/api/visitors/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedRequestIds }),
       });
       
-      console.log("[CLIENT DELETE] Response status:", response.status);
+      console.log("[CLIENT ARCHIVE] Response status:", response.status);
       const result = await response.json();
-      console.log("[CLIENT DELETE] Server response:", result);
-      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر بنجاح`);
+      console.log("[CLIENT ARCHIVE] Server response:", result);
+      showNotification("success", `تم أرشفة ${selectedRequestIds.length} زائر`);
       
-      // Update local state only after successful delete
+      // Update local state only after successful archive
       setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
       setSelectedRequestIds([]);
       setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
     } catch (error) {
-      console.error("[Dashboard] Failed to delete visitors:", error);
-      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
+      console.error("[Dashboard] Failed to archive visitors:", error);
+      showNotification("error", "فشل أرشفة الزوار - " + (error as Error).message);
     }
   };
 
@@ -2508,21 +2525,43 @@ const renderNafadBox = () => {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
                     <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>الأرشيف</h3>
-                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>البيانات المؤرشفة من لوحة التحكم</p>
-                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, maxHeight: 400, overflowY: "auto", border: "1px solid #e5e7eb" }}>
-                      {requests.filter(r => r.status === "مؤرشف" || r.raw?.archived).length === 0 ? (
-                        <p style={{ textAlign: "center", color: "#9ca3af", margin: 0 }}>لا توجد بيانات مؤرشفة</p>
-                      ) : (
-                        requests.filter(r => r.status === "مؤرشف" || r.raw?.archived).map((item) => (
-                          <div key={item.id} style={{ padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>البيانات المؤرشفة - سيتم استعادتها عند عودة العميل</p>
+                    
+                    {loadingArchived ? (
+                      <div style={{ textAlign: "center", padding: 20, color: "#6b7280" }}>جاري التحميل...</div>
+                    ) : archivedVisitors.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>لا توجد بيانات مؤرشفة</div>
+                    ) : (
+                      <div style={{ background: "#fff", borderRadius: 8, maxHeight: 400, overflowY: "auto", border: "1px solid #e5e7eb" }}>
+                        {archivedVisitors.map((item, index) => (
+                          <div 
+                            key={item.id} 
+                            style={{ 
+                              padding: "12px 16px", 
+                              borderBottom: index < archivedVisitors.length - 1 ? "1px solid #e5e7eb" : "none",
+                              display: "flex", 
+                              flexDirection: "column", 
+                              gap: 4 
+                            }}
+                          >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: 600 }}>{item.customer || "زائر"}</span>
-                              <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.stage}</span>
+                              <span style={{ fontWeight: 600, color: "#111827" }}>{item.customer || "زائر"}</span>
+                              <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>
+                                {item.stage}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                              <span style={{ fontSize: "0.7rem", color: "#9ca3af", fontFamily: "monospace" }}>
+                                {item.id.substring(0, 20)}...
+                              </span>
+                              <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>
+                                {item.archivedAt ? new Date(item.archivedAt).toLocaleDateString("ar-SA") : ""}
+                              </span>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
