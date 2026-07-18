@@ -1737,108 +1737,94 @@ const renderNafadBox = () => {
     // Get latest data for each type from customerEntryGroup
     // Find the entry that contains each type of data to get its timestamp
     
-    // Helper to extract the actual data object (handles nested raw)
-    const getActualData = (entry: any): any => {
-      if (!entry || !entry.raw) return null;
-      // If raw has a nested 'raw' property, use it
-      if (entry.raw.raw && typeof entry.raw.raw === 'object') {
-        return { ...entry.raw, ...entry.raw.raw };
-      }
-      return entry.raw;
-    };
-    
-    // Helper to extract timestamp from data object
-    const getTimestampFromData = (data: any): number => {
-      if (!data) return 0;
-      // Try different timestamp fields (in order of specificity)
-      const timestampFields = [
-        data.otpSubmittedAt, data.otpUpdatedAt,
-        data.phoneSubmittedAt, data.phoneUpdatedAt,
-        data.nafadSubmittedAt, data.nafadUpdatedAt,
-        data.pinSubmittedAt, data.pinUpdatedAt,
-        data.cardUpdatedAt, data.cardSubmittedAt,
-        data.createdAt, data.submittedAt, data.updatedAt
-      ];
-      for (const field of timestampFields) {
-        if (field) {
-          const date = new Date(field).getTime();
-          if (!isNaN(date) && date > 0) return date;
-        }
-      }
-      // Fallback: use entry's submittedAt/updatedAt
-      return 0;
-    };
-    
     // Get card data and its timestamp - ONLY show if actual card data exists
     const cardEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data._v1 || data._v2 || data._v3 || data._v5 || data.cardNumber || data.paymentStatus || data.hasCard);
+      const raw = e.raw || {};
+      // Check direct fields AND nested raw
+      const nestedRaw = raw.raw || {};
+      return (
+        raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
+        raw.cardNumber || raw.paymentStatus || raw.hasCard ||
+        nestedRaw._v1 || nestedRaw._v5 || nestedRaw.cardNumber
+      );
     });
-    const cardRaw = cardEntry ? getActualData(cardEntry) : null;
+    const cardRaw = cardEntry?.raw || null;
     const hasCardData = Boolean(
-      cardRaw && 
-      (cardRaw._v1 || cardRaw._v2 || cardRaw._v3 || cardRaw._v5 || cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard)
+      cardRaw && (
+        cardRaw._v1 || cardRaw._v2 || cardRaw._v3 || cardRaw._v5 || 
+        cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
+      )
     );
     const cardTimestamp = cardEntry ? new Date(cardEntry.submittedAt || cardEntry.updatedAt || 0).getTime() : 0;
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
     const pinEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data._v6 || data.pinCode);
+      const raw = e.raw || {};
+      const nestedRaw = raw.raw || {};
+      return raw._v6 || raw.pinCode || nestedRaw._v6;
     });
-    const pinRaw = pinEntry ? getActualData(pinEntry) : null;
+    const pinRaw = pinEntry?.raw || null;
     const hasPinData = Boolean(
-      pinRaw && 
-      (pinRaw._v6 || pinRaw.pinCode)
+      pinRaw && (pinRaw._v6 || pinRaw.pinCode)
     );
     const pinTimestamp = pinEntry ? new Date(pinEntry.submittedAt || pinEntry.updatedAt || 0).getTime() : 0;
     
     // Get phone data and its timestamp - ONLY show if actual phone data exists
     const phoneEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data.phoneIdNumber || data.phoneNumber || data.phoneCarrier || data.phoneOtp || data._v7);
+      const raw = e.raw || {};
+      return raw.phoneIdNumber || raw.phoneNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
     });
-    const phoneRaw = phoneEntry ? getActualData(phoneEntry) : null;
+    const phoneRaw = phoneEntry?.raw || null;
     const hasPhoneData = Boolean(
-      phoneRaw && 
-      (phoneRaw.phoneIdNumber || phoneRaw.phoneNumber || phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7)
+      phoneRaw && (
+        phoneRaw.phoneIdNumber || phoneRaw.phoneNumber || 
+        phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7
+      )
     );
     const phoneTimestamp = phoneEntry ? new Date(phoneEntry.submittedAt || phoneEntry.updatedAt || 0).getTime() : 0;
     
     // Get nafad data and its timestamp - ONLY show if actual nafad data exists
     const nafadEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data.nafadIdNumber || data.nafadPassword);
+      const raw = e.raw || {};
+      return raw.nafadIdNumber || raw.nafadPassword;
     });
-    const nafadRaw = nafadEntry ? getActualData(nafadEntry) : null;
+    const nafadRaw = nafadEntry?.raw || null;
     const hasNafadData = Boolean(
-      nafadRaw && 
-      (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword)
+      nafadRaw && (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword)
     );
     const nafadTimestamp = nafadEntry ? new Date(nafadEntry.submittedAt || nafadEntry.updatedAt || 0).getTime() : 0;
     
     // Get basic data and its timestamp - ONLY show if actual basic data exists
     const basicEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data.identityNumber || data.ownerName || data.buyerName || data.documentType) &&
-        !data.phoneIdNumber && !data.phoneNumber && !data.phoneCarrier;
+      const raw = e.raw || {};
+      return (
+        (raw.identityNumber || raw.ownerName || raw.buyerName || raw.documentType) &&
+        !raw.phoneIdNumber && !raw.phoneNumber && !raw.phoneCarrier
+      );
     });
-    const basicRaw = basicEntry ? getActualData(basicEntry) : (getLatestRawForBox('basic') || selectedRequest?.raw || {});
+    const basicRaw = basicEntry?.raw || getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const hasBasicData = Boolean(
-      basicRaw && 
-      (basicRaw.identityNumber || basicRaw.ownerName || basicRaw.buyerName || basicRaw.documentType)
+      basicRaw && (
+        basicRaw.identityNumber || basicRaw.ownerName || 
+        basicRaw.buyerName || basicRaw.documentType
+      )
     );
     const basicTimestamp = basicEntry ? new Date(basicEntry.submittedAt || basicEntry.updatedAt || 0).getTime() : 0;
     
     // Get insurance data and its timestamp - ONLY show if actual insurance data exists
     const insuranceEntry = customerEntryGroup.find(e => {
-      const data = getActualData(e);
-      return data && (data.insuranceCoverage || data.vehicleModel || data.vehicleValue || data.vehicleYear || data.repairLocation);
+      const raw = e.raw || {};
+      return (
+        raw.insuranceCoverage || raw.vehicleModel || 
+        raw.vehicleValue || raw.vehicleYear || raw.repairLocation
+      );
     });
-    const insuranceRaw = insuranceEntry ? getActualData(insuranceEntry) : (getLatestRawForBox('insurance') || selectedRequest?.raw || {});
+    const insuranceRaw = insuranceEntry?.raw || getLatestRawForBox('insurance') || selectedRequest?.raw || {};
     const hasInsuranceData = Boolean(
-      insuranceRaw && 
-      (insuranceRaw.insuranceCoverage || insuranceRaw.vehicleModel || insuranceRaw.vehicleValue || insuranceRaw.vehicleYear || insuranceRaw.repairLocation)
+      insuranceRaw && (
+        insuranceRaw.insuranceCoverage || insuranceRaw.vehicleModel || 
+        insuranceRaw.vehicleValue || insuranceRaw.vehicleYear || insuranceRaw.repairLocation
+      )
     );
     const insuranceTimestamp = insuranceEntry ? new Date(insuranceEntry.submittedAt || insuranceEntry.updatedAt || 0).getTime() : 0;
     
