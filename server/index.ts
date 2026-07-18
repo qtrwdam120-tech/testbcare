@@ -125,22 +125,34 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     : { ...payload, ...nestedPayload };
   
   const visitorId = String(combinedPayload.visitorId || combinedPayload.id || nestedPayload.visitorId || nestedPayload.id || "").trim();
+  
+  // Extract customer name with priority: customer > ownerName > buyerName > name > firstName > identityNumber > phoneNumber
   const customerName = String(
     combinedPayload.customer ||
-      combinedPayload.ownerName ||
-      combinedPayload.buyerName ||
-      combinedPayload.name ||
-      combinedPayload.firstName ||
-      combinedPayload.lastName ||
-      combinedPayload.identityNumber ||
-      combinedPayload.phoneNumber ||
-      nestedPayload.ownerName ||
-      nestedPayload.buyerName ||
-      nestedPayload.name ||
-      nestedPayload.identityNumber ||
-      nestedPayload.phoneNumber ||
-      "زائر"
-  );
+    combinedPayload.ownerName ||
+    combinedPayload.buyerName ||
+    combinedPayload.name ||
+    combinedPayload.firstName ||
+    combinedPayload.lastName ||
+    combinedPayload.identityNumber ||
+    combinedPayload.phoneNumber ||
+    nestedPayload.customer ||
+    nestedPayload.ownerName ||
+    nestedPayload.buyerName ||
+    nestedPayload.name ||
+    nestedPayload.firstName ||
+    nestedPayload.lastName ||
+    nestedPayload.identityNumber ||
+    nestedPayload.phoneNumber ||
+    payload.customer ||
+    payload.ownerName ||
+    payload.buyerName ||
+    payload.name ||
+    payload.identityNumber ||
+    payload.phoneNumber ||
+    "زائر"
+  ).trim() || "زائر";
+  
   const currentPage = String(combinedPayload.currentPage || combinedPayload.page || nestedPayload.currentPage || nestedPayload.page || payload.raw?.currentPage || payload.raw?.page || "home");
   
   // Parse currentStep - handle both numeric and string values like "_t2", "_t3"
