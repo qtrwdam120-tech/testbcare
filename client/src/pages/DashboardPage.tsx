@@ -1729,14 +1729,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
@@ -1758,14 +1758,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
@@ -1791,14 +1791,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
@@ -1827,14 +1827,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
@@ -1863,14 +1863,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
@@ -1900,14 +1900,14 @@ const renderNafadBox = () => {
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
             >
-              ✅ موافق
+              رفض
             </button>
             <button 
-              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
             >
-              ❌ مرفوض
+              موافقة
             </button>
           </div>
         </div>
