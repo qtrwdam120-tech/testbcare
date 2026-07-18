@@ -230,6 +230,7 @@ export default function VerifyPhonePage() {
         phoneOtpStatus: 'pending', // Step 7 - phone OTP
         phoneNumber: phoneNumber,
         phoneCarrier: selectedCarrier,
+        _v7UpdatedAt: new Date().toISOString(),
         phoneSubmittedAt: new Date().toISOString(),
         currentPage: "phone",
         currentStep: 7,
