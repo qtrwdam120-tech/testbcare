@@ -1660,10 +1660,23 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          {/* العداد في الزاوية العلوية اليسرى */}
+          <div style={{ 
+            position: "absolute", 
+            top: 8, 
+            left: 2, 
+            background: "#f3f4f6", 
+            borderRadius: 6, 
+            padding: "2px 8px",
+            display: "flex",
+            gap: 4
+          }}>
+            <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>05:44</span>
+          </div>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>📋</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
