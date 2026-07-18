@@ -149,18 +149,31 @@ export default function DashboardPage() {
     ].filter(Boolean);
   };
 
-  // Get unique customer key for grouping - use visitorId as primary (most stable)
+  // Get unique customer key using identityNumber (national ID) as the permanent identifier
   const getCustomerKey = (request: RequestItem): string => {
-    // visitorId is the most stable identifier - it stays the same across all requests from same visitor
+    const raw = request?.raw || {};
+    
+    // Use identityNumber as the primary key - it's the permanent customer identifier
+    const identityNumber = normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber);
+    
+    if (identityNumber) {
+      return `id:${identityNumber}`;
+    }
+    
+    // If no identityNumber, use phoneNumber as fallback
+    const phoneNumber = normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber);
+    if (phoneNumber) {
+      return `phone:${phoneNumber}`;
+    }
+    
+    // Final fallback to visitorId
     const visitorId = normalizeCustomerValue(request?.visitorId);
-    if (visitorId) return `v:${visitorId}`;
+    if (visitorId) {
+      return `vid:${visitorId}`;
+    }
     
-    // Fallback to id if visitorId is not available
-    const id = normalizeCustomerValue(request?.id);
-    if (id) return `i:${id}`;
-    
-    // Final fallback - shouldn't happen in practice
-    return `f:${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    // Last resort - should not happen in normal flow
+    return `req:${normalizeCustomerValue(request?.id) || `unknown_${Date.now()}`}`;
   };
 
   // Check if two entries belong to the same customer
