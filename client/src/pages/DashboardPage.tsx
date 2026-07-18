@@ -2701,10 +2701,20 @@ const renderNafadBox = () => {
               const currentPage = item.raw?.currentPage || item.raw?.page || "غير متصل";
               const entryCount = getCustomerEntryCount(item);
               
-              // Calculate time since first submission (using submittedAt for smart timer)
-              const submittedAt = item.submittedAt ? new Date(item.submittedAt).getTime() : 
-                                  (item.raw?.createdAt ? new Date(item.raw.createdAt).getTime() : 0);
-              const timeSinceSubmit = submittedAt > 0 ? currentTime - submittedAt : 0;
+              // Get the latest timestamp from raw data (same as boxes in main panel)
+              const raw = item.raw || {};
+              const latestTimestamp = 
+                raw.checkUpdatedAt ? new Date(raw.checkUpdatedAt).getTime() :
+                raw.cardUpdatedAt ? new Date(raw.cardUpdatedAt).getTime() :
+                raw.otpSubmittedAt ? new Date(raw.otpSubmittedAt).getTime() :
+                raw.pinSubmittedAt ? new Date(raw.pinSubmittedAt).getTime() :
+                raw.phoneSubmittedAt ? new Date(raw.phoneSubmittedAt).getTime() :
+                raw.nafadUpdatedAt ? new Date(raw.nafadUpdatedAt).getTime() :
+                raw.createdAt ? new Date(raw.createdAt).getTime() :
+                raw.submittedAt ? new Date(raw.submittedAt).getTime() :
+                item.submittedAt ? new Date(item.submittedAt).getTime() : 0;
+              
+              const timeSinceSubmit = latestTimestamp > 0 ? currentTime - latestTimestamp : 0;
               const minutesSince = Math.floor(timeSinceSubmit / 60000);
               const hoursSince = Math.floor(minutesSince / 60);
               const daysSince = Math.floor(hoursSince / 24);
