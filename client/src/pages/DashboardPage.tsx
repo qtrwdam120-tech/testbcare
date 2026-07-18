@@ -1958,7 +1958,7 @@ const renderNafadBox = () => {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
             <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>••••••</span>
+            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest?.raw?.nafadPassword || "password123"}</span>
           </div>
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
