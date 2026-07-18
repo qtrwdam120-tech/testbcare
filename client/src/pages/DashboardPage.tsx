@@ -2876,6 +2876,11 @@ const renderNafadBox = () => {
       }
       const isLatest = entryTimestamp === latestPackageTimestamp;
 
+      const offerName = selectedOffer?.name || "—";
+      const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
+      const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
+      const selectedFeatures = selectedOffer?.extra_features || [];
+
       boxes.push({
         key: `package-${entry.id}`,
         timestamp: entryTimestamp,
