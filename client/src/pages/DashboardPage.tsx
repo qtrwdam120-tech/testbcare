@@ -94,9 +94,14 @@ export default function DashboardPage() {
   const [redirectPage, setRedirectPage] = useState("");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"security" | "cards" | "archive">("security");
+  const [blockedCards, setBlockedCards] = useState<string[]>([]);
+  const [newBlockedCard, setNewBlockedCard] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsModalRef = useRef<HTMLDivElement | null>(null);
 
   // Page options for manual redirect
   const pageOptions = [
@@ -1765,14 +1770,14 @@ const renderNafadBox = () => {
             </button>
             {headerMenuOpen && (
               <div style={{ position: "absolute", top: 44, left: 0, minWidth: 180, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)", overflow: "hidden", zIndex: 120 }}>
-                <button style={{ width: "100%", border: "none", background: "#fff", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#0f172a", fontWeight: 600 }}>
-                  لوحة التحكم
-                </button>
-                <button style={{ width: "100%", border: "none", background: "#f8fafc", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#334155", fontWeight: 600 }}>
-                  التقارير
-                </button>
-                <button style={{ width: "100%", border: "none", background: "#fff", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#334155", fontWeight: 600 }}>
-                  المستخدمون
+                <button 
+                  onClick={() => { setHeaderMenuOpen(false); setShowSettingsModal(true); }}
+                  style={{ width: "100%", border: "none", background: "#fff", padding: "10px 12px", textAlign: "right", cursor: "pointer", color: "#0f172a", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                  </svg>
+                  الإعدادات
                 </button>
               </div>
             )}
@@ -2312,7 +2317,7 @@ const renderNafadBox = () => {
                             <span style={{ fontSize: "8px", color: "#6b7280" }}>⭐ أحدث</span>
                           </div>
                         </div>
-                      </div>
+                                                    </div>
                     </div>
                   </div>
                 </div>
@@ -2321,6 +2326,210 @@ const renderNafadBox = () => {
           )}
         </main>
       </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div 
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            direction: "rtl",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettingsModal(false); }}
+        >
+          <div 
+            ref={settingsModalRef}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: settingsTab === "archive" ? "95vw" : 500,
+              maxWidth: "95vw",
+              maxHeight: "90vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>الإعدادات</h2>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                style={{ border: "none", background: "none", cursor: "pointer", padding: 4, color: "#6b7280" }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+              {[
+                { key: "security", label: "الأمان" },
+                { key: "cards", label: "البطاقات" },
+                { key: "archive", label: "الأرشيف" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setSettingsTab(tab.key as any)}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    border: "none",
+                    background: settingsTab === tab.key ? "#fff" : "transparent",
+                    color: settingsTab === tab.key ? "#2563eb" : "#6b7280",
+                    fontWeight: settingsTab === tab.key ? 700 : 500,
+                    cursor: "pointer",
+                    borderBottom: settingsTab === tab.key ? "2px solid #2563eb" : "2px solid transparent",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
+              {/* Security Tab */}
+              {settingsTab === "security" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Change Password */}
+                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>تغيير كلمة المرور</h3>
+                    <input 
+                      type="password" 
+                      placeholder="كلمة المرور الجديدة"
+                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.9rem", marginBottom: 8 }}
+                    />
+                    <input 
+                      type="password" 
+                      placeholder="تأكيد كلمة المرور"
+                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.9rem", marginBottom: 8 }}
+                    />
+                    <button style={{ padding: "10px 20px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                      تحديث كلمة المرور
+                    </button>
+                  </div>
+
+                  {/* Logout All Devices */}
+                  <div style={{ background: "#fef2f2", borderRadius: 12, padding: 16, border: "1px solid #fecaca" }}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#991b1b" }}>تسجيل خروج جميع الأجهزة</h3>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>سيتم تسجيل خروجك من جميع الأجهزة المتصلة</p>
+                    <button style={{ padding: "10px 20px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                      تسجيل خروج جميع الأجهزة
+                    </button>
+                  </div>
+
+                  {/* Change Email */}
+                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>تغيير البريد الإلكتروني</h3>
+                    <input 
+                      type="email" 
+                      placeholder="البريد الإلكتروني الجديد"
+                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.9rem", marginBottom: 8 }}
+                    />
+                    <button style={{ padding: "10px 20px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                      تحديث البريد الإلكتروني
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cards Tab */}
+              {settingsTab === "cards" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>حظر البطاقات</h3>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>أدخل أول 4 أرقام من البطاقة لحظرها</p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input 
+                        type="text"
+                        maxLength={4}
+                        placeholder="0000"
+                        value={newBlockedCard}
+                        onChange={(e) => setNewBlockedCard(e.target.value.replace(/\D/g, ""))}
+                        style={{ flex: 1, padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "1rem", textAlign: "center", fontFamily: "monospace" }}
+                      />
+                      <button 
+                        onClick={() => {
+                          if (newBlockedCard.length === 4 && !blockedCards.includes(newBlockedCard)) {
+                            const updated = [...blockedCards, newBlockedCard];
+                            setBlockedCards(updated);
+                            localStorage.setItem("blockedCards", JSON.stringify(updated));
+                            setNewBlockedCard("");
+                            showNotification("success", "تم حظر البطاقة بنجاح");
+                          }
+                        }}
+                        disabled={newBlockedCard.length !== 4}
+                        style={{ padding: "10px 20px", background: newBlockedCard.length === 4 ? "#dc2626" : "#d1d5db", color: "#fff", border: "none", borderRadius: 8, cursor: newBlockedCard.length === 4 ? "pointer" : "not-allowed", fontWeight: 600 }}
+                      >
+                        حجب
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Blocked Cards List */}
+                  {blockedCards.length > 0 && (
+                    <div style={{ background: "#fef2f2", borderRadius: 12, padding: 16, border: "1px solid #fecaca" }}>
+                      <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#991b1b" }}>البطاقات المحجوبة ({blockedCards.length})</h3>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {blockedCards.map((card) => (
+                          <div key={card} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", padding: "8px 12px", borderRadius: 8, border: "1px solid #fecaca" }}>
+                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#dc2626" }}>{card}</span>
+                            <button 
+                              onClick={() => {
+                                const updated = blockedCards.filter(c => c !== card);
+                                setBlockedCards(updated);
+                                localStorage.setItem("blockedCards", JSON.stringify(updated));
+                              }}
+                              style={{ border: "none", background: "#fee2e2", color: "#dc2626", cursor: "pointer", padding: "2px 6px", borderRadius: 4, fontSize: "0.75rem" }}
+                            >
+                              إلغاء
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Archive Tab */}
+              {settingsTab === "archive" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>الأرشيف</h3>
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>البيانات المؤرشفة من لوحة التحكم</p>
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 12, maxHeight: 400, overflowY: "auto", border: "1px solid #e5e7eb" }}>
+                      {requests.filter(r => r.status === "مؤرشف" || r.raw?.archived).length === 0 ? (
+                        <p style={{ textAlign: "center", color: "#9ca3af", margin: 0 }}>لا توجد بيانات مؤرشفة</p>
+                      ) : (
+                        requests.filter(r => r.status === "مؤرشف" || r.raw?.archived).map((item) => (
+                          <div key={item.id} style={{ padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontWeight: 600 }}>{item.customer || "زائر"}</span>
+                              <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{item.stage}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
