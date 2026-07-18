@@ -5,40 +5,7 @@ async function loadRequests() {
     return await response.json();
   } catch (error) {
     console.error(error);
-    return [
-      {
-        id: 'REQ-1001',
-        customer: 'أحمد السالم',
-        status: 'جديد',
-        stage: 'الخطوة 1',
-        updated: 'منذ 5 دقائق',
-        badge: 'new'
-      },
-      {
-        id: 'REQ-1002',
-        customer: 'سارة القحطاني',
-        status: 'قيد المعالجة',
-        stage: 'الخطوة 2',
-        updated: 'منذ 12 دقيقة',
-        badge: 'pending'
-      },
-      {
-        id: 'REQ-1003',
-        customer: 'خالد العنزي',
-        status: 'مكتمل',
-        stage: 'الخطوة 3',
-        updated: 'منذ 28 دقيقة',
-        badge: ''
-      },
-      {
-        id: 'REQ-1004',
-        customer: 'نورا الرشيدي',
-        status: 'محظور',
-        stage: 'تحتاج مراجعة',
-        updated: 'منذ 40 دقيقة',
-        badge: 'blocked'
-      }
-    ];
+    return [];
   }
 }
 
@@ -49,15 +16,48 @@ async function renderDashboard() {
   const processingRequests = requests.filter((r) => r.badge === 'pending').length;
   const completedRequests = requests.filter((r) => r.badge !== 'new' && r.badge !== 'pending' && r.badge !== 'blocked').length;
 
-  document.getElementById('totalRequests').textContent = totalRequests;
-  document.getElementById('newRequests').textContent = newRequests;
-  document.getElementById('processingRequests').textContent = processingRequests;
-  document.getElementById('completedRequests').textContent = completedRequests;
+  // إظهار/إخفاء الصناديق بناءً على وجود البيانات
+  const cardTotal = document.getElementById('card-total');
+  const cardNew = document.getElementById('card-new');
+  const cardProcessing = document.getElementById('card-processing');
+  const cardCompleted = document.getElementById('card-completed');
 
-  const tbody = document.getElementById('requestsTableBody');
-  tbody.innerHTML = requests
-    .map(
-      (item) => `
+  if (totalRequests > 0) {
+    cardTotal.classList.remove('hidden');
+    document.getElementById('totalRequests').textContent = totalRequests;
+  } else {
+    cardTotal.classList.add('hidden');
+  }
+
+  if (newRequests > 0) {
+    cardNew.classList.remove('hidden');
+    document.getElementById('newRequests').textContent = newRequests;
+  } else {
+    cardNew.classList.add('hidden');
+  }
+
+  if (processingRequests > 0) {
+    cardProcessing.classList.remove('hidden');
+    document.getElementById('processingRequests').textContent = processingRequests;
+  } else {
+    cardProcessing.classList.add('hidden');
+  }
+
+  if (completedRequests > 0) {
+    cardCompleted.classList.remove('hidden');
+    document.getElementById('completedRequests').textContent = completedRequests;
+  } else {
+    cardCompleted.classList.add('hidden');
+  }
+
+  // إظهار/إخفاء الجدول
+  const tablePanel = document.getElementById('requestsPanel');
+  if (requests.length > 0) {
+    tablePanel.classList.remove('hidden');
+    const tbody = document.getElementById('requestsTableBody');
+    tbody.innerHTML = requests
+      .map(
+        (item) => `
         <tr>
           <td>${item.id}</td>
           <td>${item.customer}</td>
@@ -66,8 +66,11 @@ async function renderDashboard() {
           <td>${item.updated}</td>
         </tr>
       `
-    )
-    .join('');
+      )
+      .join('');
+  } else {
+    tablePanel.classList.add('hidden');
+  }
 }
 
 function updateClock() {

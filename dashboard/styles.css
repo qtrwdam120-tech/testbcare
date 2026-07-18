@@ -112,6 +112,10 @@ body {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.stat-card.hidden {
+  display: none;
 }
 .stat-label { margin: 0 0 8px; color: var(--muted); font-size: 0.9rem; }
 .stat-card h3 { margin: 0; font-size: 1.5rem; }
@@ -121,6 +125,10 @@ body {
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 18px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.panel.hidden {
+  display: none;
 }
 .panel-header {
   display: flex;

