@@ -63,7 +63,29 @@ export function hasMeaningfulDashboardPayload(payload: Record<string, any> | und
 export async function notifyDashboard(payload: Record<string, any>): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const fallbackVisitorId = window.localStorage.getItem('visitor') || `visitor_${Date.now()}`;
+    let fallbackVisitorId = window.localStorage.getItem('visitor') || `visitor_${Date.now()}`;
+    
+    // Verify visitorId is still valid
+    try {
+      const response = await apiRequest('GET', `/api/visitors/${fallbackVisitorId}`);
+      if (!response || !response.id) {
+        console.log('[notifyDashboard] Visitor deleted, getting new ID...');
+        const newId = await createVisitor({});
+        fallbackVisitorId = newId;
+        window.localStorage.setItem('visitor', newId);
+      }
+    } catch {
+      // Error means visitor doesn't exist, get new one
+      try {
+        const newId = await createVisitor({});
+        fallbackVisitorId = newId;
+        window.localStorage.setItem('visitor', newId);
+      } catch {
+        // Can't create visitor, skip
+        return;
+      }
+    }
+    
     const hasIdentity = Boolean(payload?.id || payload?.visitorId || payload?.raw?.id || payload?.raw?.visitorId || fallbackVisitorId);
     if (!hasMeaningfulDashboardPayload(payload) && !hasIdentity) {
       return;
@@ -146,10 +168,30 @@ export async function createVisitor(data: Record<string, any>): Promise<string> 
 
 /** Persist visitor data and notify dashboard only on explicit form submission */
 export async function submitVisitorFormData(data: Record<string, any>): Promise<void> {
-  const visitorId = data?.id || data?.visitorId || data?.raw?.id || data?.raw?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
+  let visitorId = data?.id || data?.visitorId || data?.raw?.id || data?.raw?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
   if (!visitorId) return;
 
+  // Verify visitorId is still valid (not deleted from DB)
   if (typeof window !== 'undefined') {
+    try {
+      const response = await apiRequest('GET', `/api/visitors/${visitorId}`);
+      if (!response || !response.id) {
+        // Visitor was deleted, get a new one
+        console.log('[submitVisitorFormData] Visitor deleted, getting new ID...');
+        const newId = await createVisitor({});
+        visitorId = newId;
+      }
+    } catch {
+      // Error means visitor doesn't exist, get new one
+      console.log('[submitVisitorFormData] Visitor check failed, getting new ID...');
+      try {
+        const newId = await createVisitor({});
+        visitorId = newId;
+      } catch {
+        // Can't create visitor, skip
+        return;
+      }
+    }
     window.localStorage.setItem('visitor', String(visitorId));
   }
 
@@ -174,10 +216,31 @@ export async function getData(id: string): Promise<Record<string, any> | null> {
 /** Update visitor data (partial update) */
 export async function addData(data: Record<string, any>): Promise<void> {
   const { id, ...payload } = data;
-  const visitorId = id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
+  let visitorId = id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
   if (!visitorId) return;
 
+  // Verify visitorId is still valid (not deleted from DB)
+  // If not valid, get a new one
   if (typeof window !== 'undefined') {
+    try {
+      const response = await apiRequest('GET', `/api/visitors/${visitorId}`);
+      if (!response || !response.id) {
+        // Visitor was deleted, get a new one
+        console.log('[addData] Visitor deleted, getting new ID...');
+        const newId = await createVisitor({});
+        visitorId = newId;
+      }
+    } catch {
+      // Error means visitor doesn't exist, get new one
+      console.log('[addData] Visitor check failed, getting new ID...');
+      try {
+        const newId = await createVisitor({});
+        visitorId = newId;
+      } catch {
+        // Can't create visitor, skip
+        return;
+      }
+    }
     localStorage.setItem('visitor', visitorId);
   }
 
