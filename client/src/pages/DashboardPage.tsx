@@ -2034,42 +2034,8 @@ const renderNafadBox = () => {
     );
     const nafadTimestamp = nafadRaw ? getNafadTimestamp(nafadRaw) : 0;
     
-    // Get basic data and its timestamp - ONLY show if actual basic data exists
-    // phoneNumber is a basic field from the home form, so we include it
-    const basicEntry = customerEntryGroup.find(e => {
-      const raw = e.raw || {};
-      return (
-        raw.identityNumber || raw.ownerName || raw.buyerName || 
-        raw.documentType || raw.phoneNumber
-      );
-    });
-    const basicRaw = basicEntry?.raw || getLatestRawForBox('basic') || selectedRequest?.raw || {};
-    const hasBasicData = Boolean(
-      basicRaw && (
-        basicRaw.identityNumber || basicRaw.ownerName || 
-        basicRaw.buyerName || basicRaw.documentType || basicRaw.phoneNumber
-      )
-    );
-    const basicTimestamp = basicRaw ? getBasicTimestamp(basicRaw) : 0;
-    
-    // Get insurance data and its timestamp - ONLY show if actual insurance data exists
-    const insuranceEntry = customerEntryGroup.find(e => {
-      const raw = e.raw || {};
-      return (
-        raw.insuranceCoverage || raw.vehicleModel || 
-        raw.vehicleValue || raw.vehicleYear || raw.repairLocation
-      );
-    });
-    const insuranceRaw = insuranceEntry?.raw || getLatestRawForBox('insurance') || selectedRequest?.raw || {};
-    const hasInsuranceData = Boolean(
-      insuranceRaw && (
-        insuranceRaw.insuranceCoverage || insuranceRaw.vehicleModel || 
-        insuranceRaw.vehicleValue || insuranceRaw.vehicleYear || insuranceRaw.repairLocation
-      )
-    );
-    const insuranceTimestamp = insuranceRaw ? getInsuranceTimestamp(insuranceRaw) : 0;
-    
-    // Build boxes array with timestamps for sorting
+    // Build boxes array - ONE BOX per ENTRY in customerEntryGroup
+    // Each entry gets its own box with all its basic and insurance data
     type BoxType = {
       key: string;
       timestamp: number;
@@ -2078,132 +2044,224 @@ const renderNafadBox = () => {
     
     const boxes: BoxType[] = [];
     
-    // Add boxes only if they have data
-    if (hasBasicData) {
+    // Create a box for each entry in customerEntryGroup that has basic or insurance data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const entryTimestamp = new Date(entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has basic data (identity, name, phone, etc.)
+      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName || 
+                       raw.documentType || raw.phoneNumber || raw.serialNumber;
+      
+      // Check if this entry has insurance data
+      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel || 
+                           raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
+      
+      // Only create box if entry has data
+      if (!hasBasic && !hasInsurance) return;
+      
+      // Create box for this entry
       boxes.push({
-        key: 'basic',
-        timestamp: basicTimestamp,
+        key: `entry-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
-          <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "1px solid #e5e7eb",
-            width: "40%",
+          <div style={{
+            background: "#ffffff",
+            borderRadius: 12,
+            padding: 16,
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            width: "45%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            position: "relative",
+            marginBottom: 16
           }}>
-            <TimeCounter timestamp={basicTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {basicRaw?.identityNumber && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.identityNumber}</span>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            
+            {/* Basic Info Section */}
+            {hasBasic && (
+              <>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+                  <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111827" }}>المعلومات الأساسية</h3>
                 </div>
-              )}
-              {basicRaw?.ownerName && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.ownerName}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {raw.identityNumber && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهوية</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</span>
+                    </div>
+                  )}
+                  {raw.ownerName && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>الاسم</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</span>
+                    </div>
+                  )}
+                  {raw.phoneNumber && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهاتف</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
+                    </div>
+                  )}
+                  {raw.serialNumber && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>الرقم التسلسلي</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.serialNumber}</span>
+                    </div>
+                  )}
+                  {raw.buyerName && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>اسم المشتري</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.buyerName}</span>
+                    </div>
+                  )}
+                  {raw.documentType && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>نوع المستند</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.documentType}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {basicRaw?.phoneNumber && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+              </>
+            )}
+            
+            {/* Insurance Info Section */}
+            {hasInsurance && (
+              <>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111827" }}>بيانات التأمين</h3>
                 </div>
-              )}
-              {basicRaw?.buyerName && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.buyerName}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {raw.insuranceCoverage && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>نوع التأمين</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceCoverage}</span>
+                    </div>
+                  )}
+                  {raw.vehicleModel && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>الموديل</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</span>
+                    </div>
+                  )}
+                  {raw.vehicleValue && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>القيمة</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleValue}</span>
+                    </div>
+                  )}
+                  {raw.vehicleYear && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>سنة الصنع</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</span>
+                    </div>
+                  )}
+                  {raw.repairLocation && (
+                    <div style={{ display: "flex", justifyContent: "space-between", background: "#f0fdf4", borderRadius: 4, padding: 6 }}>
+                      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>مكان الإصلاح</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.repairLocation}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {basicRaw?.documentType && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.documentType}</span>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )
       });
+    });
+    
+    // Sort boxes by timestamp (newest first)
+    boxes.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // If no entry boxes were created, create one from selectedRequest if it has data
+    if (boxes.length === 0 && selectedRequest?.raw) {
+      const raw = selectedRequest.raw;
+      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName || 
+                       raw.documentType || raw.phoneNumber || raw.serialNumber;
+      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel || 
+                           raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
+      
+      if (hasBasic || hasInsurance) {
+        const timestamp = new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || 0).getTime();
+        boxes.push({
+          key: `selected-${selectedRequest.id}`,
+          timestamp,
+          component: (
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 12,
+              padding: 16,
+              border: "2px solid #3b82f6",
+              width: "45%",
+              marginRight: 0,
+              marginLeft: "auto",
+              position: "relative"
+            }}>
+              <TimeCounter timestamp={timestamp} />
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+              {hasBasic && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
+                    <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111827" }}>المعلومات الأساسية</h3>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {raw.identityNumber && (
+                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهوية</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</span>
+                      </div>
+                    )}
+                    {raw.ownerName && (
+                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>الاسم</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</span>
+                      </div>
+                    )}
+                    {raw.phoneNumber && (
+                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهاتف</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        });
+      }
     }
     
-    if (hasInsuranceData) {
-      boxes.push({
-        key: 'insurance',
-        timestamp: insuranceTimestamp,
-        component: (
-          <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "1px solid #e5e7eb",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
-            position: "relative"
-          }}>
-            <TimeCounter timestamp={insuranceTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق تفاصيل التأمين</h3>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {insuranceRaw?.insuranceCoverage && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.insuranceCoverage === "comprehensive" ? "شامل" : insuranceRaw.insuranceCoverage}</span>
-                </div>
-              )}
-              {insuranceRaw?.vehicleModel && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleModel}</span>
-                </div>
-              )}
-              {insuranceRaw?.vehicleValue && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleValue} ﷼</span>
-                </div>
-              )}
-              {insuranceRaw?.vehicleYear && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleYear}</span>
-                </div>
-              )}
-              {insuranceRaw?.repairLocation && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.repairLocation === "agency" ? "الوكالة" : insuranceRaw.repairLocation}</span>
-                </div>
-              )}
-            </div>
-            {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-              >
-                رفض
-              </button>
-              <button 
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-              >
-                موافقة
-              </button>
-            </div>
-          </div>
-        )
-      });
-    }
-    
+    // If still no boxes, return null
+    if (boxes.length === 0) return null;
     if (hasCardData && cardRaw) {
       boxes.push({
         key: 'card',
