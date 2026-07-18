@@ -444,9 +444,30 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
 }
 
 async function upsertDashboardRequest(payload: Record<string, any> = {}) {
-  console.log("[UpsertDashboard] payload id:", payload.id, "customer:", payload.customer || payload.ownerName);
+  const visitorId = payload.id || payload.visitorId;
+  console.log("[UpsertDashboard] payload id:", visitorId, "customer:", payload.customer || payload.ownerName);
   
-  const normalized = normalizeDashboardEntry(payload);
+  // Fetch existing visitor data from database to merge with current payload
+  let existingVisitorData: Record<string, any> = {};
+  if (visitorId) {
+    try {
+      const visitorResult = await pool.query<{ data: Record<string, any> }>(
+        "SELECT data FROM visitors WHERE id = $1",
+        [visitorId]
+      );
+      if (visitorResult.rows[0]?.data) {
+        existingVisitorData = visitorResult.rows[0].data;
+        console.log("[UpsertDashboard] Fetched existing visitor data:", Object.keys(existingVisitorData));
+      }
+    } catch (e) {
+      console.warn("[UpsertDashboard] Could not fetch visitor data:", e);
+    }
+  }
+
+  // Merge existing visitor data with current payload (current payload takes precedence)
+  const mergedPayload = { ...existingVisitorData, ...payload };
+  
+  const normalized = normalizeDashboardEntry(mergedPayload);
   console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
   
   try {
@@ -482,10 +503,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
         normalized.updated,
         normalized.badge,
         persistedSubmittedAt,
-        normalized.raw || {},
+        mergedPayload, // Store the merged payload with all visitor data
       ],
     );
-    console.log("[UpsertDashboard] DB insert successful");
+    console.log("[UpsertDashboard] DB insert successful with merged data");
   } catch (error) {
     console.error("[UpsertDashboard] DB insert failed:", error);
     throw error;
