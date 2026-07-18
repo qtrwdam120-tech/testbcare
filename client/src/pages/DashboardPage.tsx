@@ -319,14 +319,9 @@ export default function DashboardPage() {
       console.log("[Socket Update] Existing index:", existingIndex, "Current requests:", prevRequests.length);
       
       if (existingIndex >= 0) {
-        const existing = prevRequests[existingIndex];
+        // REPLACE old entry with new one (don't merge)
         const newRequests = [...prevRequests];
-        newRequests[existingIndex] = {
-          ...existing,
-          ...incomingRequest,
-          submittedAt: incomingRequest.submittedAt || existing.submittedAt,
-          updatedAt: incomingRequest.updatedAt || existing.updatedAt,
-        };
+        newRequests[existingIndex] = incomingRequest;
         return newRequests;
       } else {
         console.log("[Socket Update] NEW entry - adding to list:", incomingRequest.id);
