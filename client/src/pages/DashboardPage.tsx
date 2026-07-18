@@ -124,6 +124,12 @@ export default function DashboardPage() {
     { value: "step5", label: "📱 رقم الهاتف" },
   ];
 
+  // Convert page route to Arabic name
+  const getPageArabicName = (page: string): string => {
+    const pageOption = pageOptions.find(p => p.value === page);
+    return pageOption?.label?.replace(/^[^\s]+\s/, '') || page || "غير محدد";
+  };
+
   // Sort requests by the original submission time (newest first)
   const sortedRequests = useMemo(() => {
     return [...requests].sort((a, b) => {
@@ -2830,7 +2836,7 @@ const renderNafadBox = () => {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span style={{ fontSize: "0.75rem", color: "#4b5563", fontWeight: 600 }}>
-                          {currentPage}
+                          {getPageArabicName(currentPage)}
                         </span>
                         <span style={{
                           width: 6,
@@ -2956,7 +2962,7 @@ const renderNafadBox = () => {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
                     <span style={{ fontSize: "10px", padding: "2px 6px", background: "#dcfce7", color: "#166534", borderRadius: 4, border: "1px solid #86efac", fontWeight: 600 }}>
-                      {liveSummary.currentPage}
+                      {getPageArabicName(liveSummary.currentPage)}
                     </span>
                   </div>
                 </div>
