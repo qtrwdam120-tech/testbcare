@@ -624,6 +624,27 @@ async function startServer() {
 
   // SSE endpoint for visitor status updates (step2, step3, step5, etc.)
   // Customer pages listen to this to get real-time status updates
+  
+  // Map to store visitor SSE clients - MUST be defined before broadcastToVisitor
+  const visitorSseClients = new Map<string, Set<any>>();
+
+  // Function to broadcast status update to visitor
+  function broadcastToVisitor(visitorId: string, field: string, value: any) {
+    const clients = visitorSseClients.get(visitorId);
+    if (!clients) return;
+    
+    const data = { field, status: value, visitorId };
+    const message = `data: ${JSON.stringify(data)}\n\n`;
+    
+    clients.forEach(client => {
+      try {
+        client.write(`event: status_update\n${message}`);
+      } catch (e) {
+        clients.delete(client);
+      }
+    });
+  }
+
   app.get("/api/visitor/:id/stream", (req, res) => {
     const { id } = req.params;
     console.log("[Visitor SSE] Client connected for visitor:", id);
@@ -660,26 +681,6 @@ async function startServer() {
       console.log("[Visitor SSE] Client disconnected for visitor:", id);
     });
   });
-
-  // Function to broadcast status update to visitor
-  function broadcastToVisitor(visitorId: string, field: string, value: any) {
-    const clients = visitorSseClients.get(visitorId);
-    if (!clients) return;
-    
-    const data = { field, status: value, visitorId };
-    const message = `data: ${JSON.stringify(data)}\n\n`;
-    
-    clients.forEach(client => {
-      try {
-        client.write(`event: status_update\n${message}`);
-      } catch (e) {
-        clients.delete(client);
-      }
-    });
-  }
-
-  // Map to store visitor SSE clients
-  const visitorSseClients = new Map<string, Set<any>>();
 
   app.get("/api/dashboard/requests", async (_req, res) => {
     try {
