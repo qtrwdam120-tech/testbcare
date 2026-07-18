@@ -45,19 +45,13 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const memoryVisitors = new Map<string, Record<string, any>>();
-const memoryDashboardRequests: DashboardEntry[] = [];
-let databaseAvailable = true;
+// No local memory - all data stored in PostgreSQL database only
 
 type ColumnSpec = {
   name: string;
   definition: string;
   defaultValue?: string;
 };
-
-function isDatabaseHealthy() {
-  return databaseAvailable;
-}
 
 async function tableExists(tableName: string): Promise<boolean> {
   const result = await pool.query<{ table_name: string | null }>("SELECT to_regclass($1) AS table_name", [tableName]);
@@ -114,16 +108,11 @@ async function ensureTable(tableName: string, createSql: string, columns: Column
 }
 
 async function safeQuery<T = any>(query: string, params: any[] = []): Promise<{ rows: T[] }> {
-  if (!isDatabaseHealthy()) {
-    return { rows: [] };
-  }
-
   try {
     return await pool.query(query, params);
   } catch (error) {
-    databaseAvailable = false;
-    console.error("Database query failed, falling back to memory store", error);
-    return { rows: [] };
+    console.error("Database query failed:", error);
+    throw error;
   }
 }
 
@@ -313,8 +302,8 @@ async function initDatabase() {
       console.log("[db] schema is up to date");
     }
   } catch (error) {
-    databaseAvailable = false;
-    console.warn("Database init failed, using memory store instead", error);
+    console.error("[db] Database init failed:", error);
+    process.exit(1); // Exit if database is not available
   }
 }
 
@@ -342,25 +331,14 @@ async function logVisitorEvent(visitorId: string, payload: Record<string, any> =
 }
 
 async function readVisitor(visitorId: string): Promise<Record<string, any> | null> {
-  const fromMemory = memoryVisitors.get(visitorId);
-  if (fromMemory) {
-    return fromMemory;
-  }
-
-  if (!isDatabaseHealthy()) {
-    return null;
-  }
-
   try {
-    const existingResult = await pool.query<{ data: Record<string, any> }>("SELECT data FROM visitors WHERE id = $1", [visitorId]);
-    const data = existingResult.rows[0]?.data || null;
-    if (data) {
-      memoryVisitors.set(visitorId, data);
-    }
-    return data;
+    const result = await pool.query<{ data: Record<string, any> }>(
+      "SELECT data FROM visitors WHERE id = $1", 
+      [visitorId]
+    );
+    return result.rows[0]?.data || null;
   } catch (error) {
-    databaseAvailable = false;
-    console.warn("Visitor read failed, using memory store", error);
+    console.error("[readVisitor] Error:", error);
     return null;
   }
 }
@@ -425,17 +403,15 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
       
       // Save to database with history
       const updatedWithHistory = { ...currentData, history: [...history, historyEntry] };
-      if (isDatabaseHealthy()) {
-        await pool.query(
-          `INSERT INTO visitors (id, data, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())
-           ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW();`,
-          [visitorId, updatedWithHistory],
-        );
-      }
-      memoryVisitors.set(visitorId, updatedWithHistory);
+      // Save to history in database
+      await pool.query(
+        `INSERT INTO visitors (id, data, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW();`,
+        [visitorId, updatedWithHistory],
+      );
       console.log(`[UpsertVisitor] Saved old ${dataType} data to history`);
     } catch (e) {
-      console.warn("[UpsertVisitor] Failed to save history:", e);
+      console.error("[UpsertVisitor] Failed to save history:", e);
     }
   }
   
@@ -443,35 +419,26 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
   const merged = { ...currentData, ...payload, updatedAt: new Date().toISOString() };
   console.log("[UpsertVisitor] merged keys:", Object.keys(merged));
 
-  if (isDatabaseHealthy()) {
-    try {
-      await pool.query(
-        `
-          INSERT INTO visitors (id, data, created_at, updated_at)
-          VALUES ($1, $2, NOW(), NOW())
-          ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW();
-        `,
-        [visitorId, merged],
-      );
-      console.log("[UpsertVisitor] DB insert/update successful");
-    } catch (error) {
-      databaseAvailable = false;
-      console.warn("Visitor DB update failed, using memory store", error);
-    }
-  } else {
-    console.log("[UpsertVisitor] DB not healthy, using memory store");
+  // Save to database
+  try {
+    await pool.query(
+      `
+        INSERT INTO visitors (id, data, created_at, updated_at)
+        VALUES ($1, $2, NOW(), NOW())
+        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW();
+      `,
+      [visitorId, merged],
+    );
+    console.log("[UpsertVisitor] DB insert/update successful");
+  } catch (error) {
+    console.error("[UpsertVisitor] DB insert/update failed:", error);
+    throw error;
   }
 
-  memoryVisitors.set(visitorId, merged);
   await logVisitorEvent(visitorId, merged);
 
   // Also sync to dashboard_requests for the dashboard to display
-  try {
-    await upsertDashboardRequest({ id: visitorId, ...merged });
-    console.log("[UpsertVisitor] Dashboard sync completed");
-  } catch (e) {
-    console.warn("[UpsertVisitor] Dashboard sync failed:", e);
-  }
+  await upsertDashboardRequest({ id: visitorId, ...merged });
 
   return merged;
 }
@@ -482,81 +449,59 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const normalized = normalizeDashboardEntry(payload);
   console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
   
-  if (isDatabaseHealthy()) {
-    try {
-      const existingResult = await pool.query<{ submittedAt: string | null }>(
-        `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1`,
-        [normalized.id],
-      );
-      const existingSubmittedAt = existingResult.rows[0]?.submittedAt || null;
-      const persistedSubmittedAt = existingSubmittedAt || normalized.submittedAt || new Date().toISOString();
-      normalized.submittedAt = persistedSubmittedAt;
-      normalized.updatedAt = persistedSubmittedAt;
+  try {
+    const existingResult = await pool.query<{ submittedAt: string | null }>(
+      `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1`,
+      [normalized.id],
+    );
+    const existingSubmittedAt = existingResult.rows[0]?.submittedAt || null;
+    const persistedSubmittedAt = existingSubmittedAt || normalized.submittedAt || new Date().toISOString();
+    normalized.submittedAt = persistedSubmittedAt;
+    normalized.updatedAt = persistedSubmittedAt;
 
-      await pool.query(
-        `
-          INSERT INTO dashboard_requests (id, visitor_id, customer, status, stage, updated, badge, submitted_at, raw)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          ON CONFLICT (id) DO UPDATE SET
-            visitor_id = EXCLUDED.visitor_id,
-            customer = EXCLUDED.customer,
-            status = EXCLUDED.status,
-            stage = EXCLUDED.stage,
-            updated = EXCLUDED.updated,
-            badge = EXCLUDED.badge,
-            submitted_at = dashboard_requests.submitted_at,
-            raw = EXCLUDED.raw;
-        `,
-        [
-          normalized.id,
-          normalized.visitorId || null,
-          normalized.customer,
-          normalized.status,
-          normalized.stage,
-          normalized.updated,
-          normalized.badge,
-          persistedSubmittedAt,
-          normalized.raw || {},
-        ],
-      );
-      console.log("[UpsertDashboard] DB insert successful");
-    } catch (error) {
-      databaseAvailable = false;
-      console.warn("Dashboard DB update failed, using memory store", error);
-    }
-  } else {
-    console.log("[UpsertDashboard] DB not healthy, using memory");
+    await pool.query(
+      `
+        INSERT INTO dashboard_requests (id, visitor_id, customer, status, stage, updated, badge, submitted_at, raw)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO UPDATE SET
+          visitor_id = EXCLUDED.visitor_id,
+          customer = EXCLUDED.customer,
+          status = EXCLUDED.status,
+          stage = EXCLUDED.stage,
+          updated = EXCLUDED.updated,
+          badge = EXCLUDED.badge,
+          submitted_at = dashboard_requests.submitted_at,
+          raw = EXCLUDED.raw;
+      `,
+      [
+        normalized.id,
+        normalized.visitorId || null,
+        normalized.customer,
+        normalized.status,
+        normalized.stage,
+        normalized.updated,
+        normalized.badge,
+        persistedSubmittedAt,
+        normalized.raw || {},
+      ],
+    );
+    console.log("[UpsertDashboard] DB insert successful");
+  } catch (error) {
+    console.error("[UpsertDashboard] DB insert failed:", error);
+    throw error;
   }
 
-  const existingIndex = memoryDashboardRequests.findIndex((entry) => entry.id === normalized.id);
-  if (existingIndex >= 0) {
-    memoryDashboardRequests[existingIndex] = normalized;
-    console.log("[UpsertDashboard] Updated existing in memory");
-  } else {
-    memoryDashboardRequests.unshift(normalized);
-    console.log("[UpsertDashboard] Added new to memory, total:", memoryDashboardRequests.length);
-  }
-  if (memoryDashboardRequests.length > 50) {
-    memoryDashboardRequests.length = 50;
-  }
   return normalized;
 }
 
 async function getDashboardEntries(): Promise<DashboardEntry[]> {
-  console.log("[Dashboard] Fetching entries... DB healthy:", isDatabaseHealthy());
+  console.log("[Dashboard] Fetching entries from database...");
   
-  if (!isDatabaseHealthy()) {
-    console.log("[Dashboard] DB NOT healthy - returning MEMORY entries:", memoryDashboardRequests.length);
-    console.log("[Dashboard] Memory entries IDs:", memoryDashboardRequests.map(e => e.id));
-    return memoryDashboardRequests.slice();
-  }
-
   try {
     const { rows } = await pool.query(
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
     console.log("[Dashboard] DB QUERY SUCCESS - rows:", rows.length);
-    console.log("[Dashboard] DB row IDs:", rows.map(r => r.id));
 
     return rows.map((row) => ({
       id: row.id,
@@ -571,10 +516,8 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       raw: row.raw || {},
     }));
   } catch (error) {
-    databaseAvailable = false;
-    console.warn("[Dashboard] DB QUERY FAILED - returning memory entries:", error);
-    console.log("[Dashboard] Memory entries count:", memoryDashboardRequests.length);
-    return memoryDashboardRequests.slice();
+    console.error("[Dashboard] DB QUERY FAILED:", error);
+    throw error;
   }
 }
 
@@ -729,16 +672,11 @@ async function startServer() {
       const visitorId = req.params.id;
       console.log("[DELETE] Single visitor HARD DELETE:", visitorId);
       
-      // Delete from memory
-      memoryVisitors.delete(visitorId);
-      
       // HARD DELETE from all tables
-      if (databaseAvailable) {
-        await pool.query("DELETE FROM visitors WHERE id = $1", [visitorId]);
-        await pool.query("DELETE FROM dashboard_requests WHERE id = $1", [visitorId]);
-        await pool.query("DELETE FROM visitor_events WHERE visitor_id = $1", [visitorId]);
-        await pool.query("DELETE FROM visitor_snapshots WHERE visitor_id = $1", [visitorId]);
-      }
+      await pool.query("DELETE FROM visitors WHERE id = $1", [visitorId]);
+      await pool.query("DELETE FROM dashboard_requests WHERE id = $1", [visitorId]);
+      await pool.query("DELETE FROM visitor_events WHERE visitor_id = $1", [visitorId]);
+      await pool.query("DELETE FROM visitor_snapshots WHERE visitor_id = $1", [visitorId]);
       
       // Broadcast to dashboards
       broadcastToDashboard("dashboard:delete", { id: visitorId });
@@ -761,38 +699,19 @@ async function startServer() {
         return;
       }
       
-      // Remove from memory - both visitors and dashboard requests
-      ids.forEach((id: string) => {
-        memoryVisitors.delete(id);
-        // Remove from memoryDashboardRequests by filtering out matching IDs (in-place)
-        const beforeCount = memoryDashboardRequests.length;
-        // Also remove by visitorId since dashboard entries use visitorId as id
-        const filtered = memoryDashboardRequests.filter(
-          entry => entry.id !== id && entry.visitorId !== id
-        );
-        // Clear and repopulate (can't reassign const array)
-        memoryDashboardRequests.length = 0;
-        memoryDashboardRequests.push(...filtered);
-        if (memoryDashboardRequests.length !== beforeCount) {
-          console.log(`[DELETE] Removed ${beforeCount - memoryDashboardRequests.length} entries from memoryDashboardRequests`);
-        }
-      });
-      
       // HARD DELETE from all tables in database
-      if (databaseAvailable) {
-        const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
-        
-        // Delete from visitors table
-        await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
-        // Delete from dashboard_requests table
-        await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
-        // Delete from visitor_events table
-        await pool.query(`DELETE FROM visitor_events WHERE visitor_id IN (${placeholders})`, ids);
-        // Delete from visitor_snapshots table
-        await pool.query(`DELETE FROM visitor_snapshots WHERE visitor_id IN (${placeholders})`, ids);
-        
-        console.log("[DELETE] HARD DELETE completed - data wiped from all tables");
-      }
+      const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
+      
+      // Delete from visitors table
+      await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
+      // Delete from dashboard_requests table
+      await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
+      // Delete from visitor_events table
+      await pool.query(`DELETE FROM visitor_events WHERE visitor_id IN (${placeholders})`, ids);
+      // Delete from visitor_snapshots table
+      await pool.query(`DELETE FROM visitor_snapshots WHERE visitor_id IN (${placeholders})`, ids);
+      
+      console.log("[DELETE] HARD DELETE completed - data wiped from all tables");
       
       // Broadcast delete to all connected dashboards
       ids.forEach(id => {
@@ -806,51 +725,14 @@ async function startServer() {
     }
   });
 
-  // Clear all memory cache and reload from database
-  app.post("/api/dashboard/clear-memory", async (_req, res) => {
+  // Reload dashboard data from database (no cache to clear anymore)
+  app.post("/api/dashboard/reload", async (_req, res) => {
     try {
-      const memoryCount = memoryDashboardRequests.length;
-      const memoryVisitorsCount = memoryVisitors.size;
-      
-      // Clear all memory
-      memoryDashboardRequests.length = 0;
-      memoryVisitors.clear();
-      
-      // Reload from database
-      let dbCount = 0;
-      if (isDatabaseHealthy()) {
-        try {
-          const { rows } = await pool.query(
-            `SELECT id, visitor_id AS "visitorId", customer, status, stage, updated, badge, submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC`
-          );
-          
-          // Rebuild memory from DB
-          rows.forEach(row => {
-            const entry: DashboardEntry = {
-              id: row.id,
-              visitorId: row.visitorId,
-              customer: row.customer || "زائر",
-              status: row.status || "جديد",
-              stage: row.stage || "الخطوة 1",
-              updated: row.updated || "تم التحديث الآن",
-              badge: row.badge || "",
-              submittedAt: row.submittedAt,
-              raw: row.raw || {},
-            };
-            memoryDashboardRequests.push(entry);
-          });
-          
-          dbCount = rows.length;
-        } catch (e) {
-          console.error("[ClearMemory] DB reload failed:", e);
-        }
-      }
-      
-      console.log(`[ClearMemory] Cleared ${memoryCount} memory entries and ${memoryVisitorsCount} visitors, reloaded ${dbCount} from DB`);
-      res.json({ success: true, cleared: { dashboardRequests: memoryCount, visitors: memoryVisitorsCount }, reloaded: dbCount });
+      const entries = await getDashboardEntries();
+      res.json({ success: true, count: entries.length });
     } catch (error) {
-      console.error("clear memory error", error);
-      res.status(500).json({ error: "Failed to clear memory" });
+      console.error("dashboard reload error", error);
+      res.status(500).json({ error: "Failed to reload dashboard" });
     }
   });
 
