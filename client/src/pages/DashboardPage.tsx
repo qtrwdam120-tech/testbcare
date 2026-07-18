@@ -13,7 +13,6 @@ type RequestItem = {
   visitorId?: string;
   submittedAt?: string;
   hasCard?: boolean;
-  archived?: boolean;
   raw?: Record<string, any>;
 };
 
@@ -95,11 +94,9 @@ export default function DashboardPage() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"security" | "cards" | "archive">("security");
+  const [settingsTab, setSettingsTab] = useState<"security" | "cards">("security");
   const [blockedCards, setBlockedCards] = useState<string[]>([]);
   const [newBlockedCard, setNewBlockedCard] = useState("");
-  const [archivedVisitors, setArchivedVisitors] = useState<any[]>([]);
-  const [loadingArchived, setLoadingArchived] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
@@ -117,23 +114,6 @@ export default function DashboardPage() {
     { value: "step6", label: "🔒 النفاذ" },
     { value: "nafad-otp", label: "🔑 رمز النفاذ" },
   ];
-
-  // Fetch archived visitors when archive tab is opened
-  useEffect(() => {
-    if (settingsTab === "archive") {
-      setLoadingArchived(true);
-      fetch("/api/visitors/archived/list")
-        .then(res => res.json())
-        .then(data => {
-          setArchivedVisitors(data.visitors || []);
-          setLoadingArchived(false);
-        })
-        .catch(err => {
-          console.error("[Dashboard] Failed to fetch archived visitors:", err);
-          setLoadingArchived(false);
-        });
-    }
-  }, [settingsTab]);
 
   // Stats derived from the real visitor data stream
   const stats = useMemo(() => {
@@ -372,7 +352,7 @@ export default function DashboardPage() {
 
   // Filter requests
   const filteredRequests = useMemo(() => {
-    let filtered = sortedRequests.filter((r) => !r.archived);
+    let filtered = sortedRequests;
     if (filterMode === "cards") {
       filtered = filtered.filter((r) => r.hasCard);
     }
@@ -405,44 +385,13 @@ export default function DashboardPage() {
     });
   };
 
-  const handleArchiveSelected = async () => {
-    if (!selectedRequestIds.length) return;
-    const selectedSet = new Set(selectedRequestIds);
-    
-    console.log("[CLIENT ARCHIVE] Selected IDs to archive:", selectedRequestIds);
-    showNotification("success", `جاري أرشفة ${selectedRequestIds.length} زائر...`);
-    
-    try {
-      // Archive on server
-      console.log("[CLIENT ARCHIVE] Sending request to /api/visitors/archive");
-      const response = await fetch("/api/visitors/archive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedRequestIds }),
-      });
-      
-      console.log("[CLIENT ARCHIVE] Response status:", response.status);
-      const result = await response.json();
-      console.log("[CLIENT ARCHIVE] Server response:", result);
-      showNotification("success", `تم أرشفة ${selectedRequestIds.length} زائر`);
-      
-      // Update local state only after successful archive
-      setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
-      setSelectedRequestIds([]);
-      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
-    } catch (error) {
-      console.error("[Dashboard] Failed to archive visitors:", error);
-      showNotification("error", "فشل أرشفة الزوار - " + (error as Error).message);
-    }
-  };
-
-  // Handle permanent delete with localStorage cleanup
+  // Handle permanent delete (HARD DELETE - no archive)
   const handleDeleteSelected = async () => {
     if (selectedRequestIds.length === 0) return;
     
     const selectedSet = new Set(selectedRequestIds);
-    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
-    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
+    console.log("[CLIENT DELETE] HARD DELETE request:", selectedRequestIds);
+    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر نهائياً...`);
     
     try {
       const response = await fetch("/api/visitors/delete", {
@@ -454,22 +403,14 @@ export default function DashboardPage() {
       const result = await response.json();
       console.log("[CLIENT DELETE] Server response:", result);
       
-      // Server tells us to clear localStorage for these visitors
-      if (result.success && result.deletedIds) {
-        // Clear localStorage for deleted visitors (force new visitorId)
-        result.deletedIds.forEach((id: string) => {
-          localStorage.removeItem(`visitor_data_${id}`);
-        });
-        // If the current user's visitorId was deleted, clear it too
-        const currentVisitorId = localStorage.getItem("visitor");
-        if (currentVisitorId && selectedSet.has(currentVisitorId)) {
-          localStorage.removeItem("visitor");
-          console.log("[CLIENT DELETE] Cleared localStorage visitor ID - customer will get new ID on return");
-        }
-      }
+      // Clear localStorage for deleted visitors (force new visitorId on return)
+      selectedRequestIds.forEach((id: string) => {
+        localStorage.removeItem(`visitor_data_${id}`);
+      });
       
       showNotification("success", `تم حذف ${selectedRequestIds.length} زائر نهائياً`);
       
+      // Update local state
       setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
       setSelectedRequestIds([]);
       setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
@@ -1926,13 +1867,7 @@ const renderNafadBox = () => {
                   onClick={handleDeleteSelected}
                   style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", fontWeight: 700, cursor: "pointer" }}
                 >
-                  حذف
-                </button>
-                <button
-                  onClick={handleArchiveSelected}
-                  style={{ flex: 1, minWidth: 84, padding: "8px 10px", borderRadius: 8, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", fontWeight: 700, cursor: "pointer" }}
-                >
-                  أرشفة
+                  حذف نهائي
                 </button>
               </div>
             )}
@@ -2406,7 +2341,6 @@ const renderNafadBox = () => {
               {[
                 { key: "security", label: "الأمان" },
                 { key: "cards", label: "البطاقات" },
-                { key: "archive", label: "الأرشيف" },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -2531,52 +2465,6 @@ const renderNafadBox = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Archive Tab */}
-              {settingsTab === "archive" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: 16 }}>
-                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>الأرشيف</h3>
-                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#6b7280" }}>البيانات المؤرشفة - سيتم استعادتها عند عودة العميل</p>
-                    
-                    {loadingArchived ? (
-                      <div style={{ textAlign: "center", padding: 20, color: "#6b7280" }}>جاري التحميل...</div>
-                    ) : archivedVisitors.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: 20, color: "#9ca3af" }}>لا توجد بيانات مؤرشفة</div>
-                    ) : (
-                      <div style={{ background: "#fff", borderRadius: 8, maxHeight: 400, overflowY: "auto", border: "1px solid #e5e7eb" }}>
-                        {archivedVisitors.map((item, index) => (
-                          <div 
-                            key={item.id} 
-                            style={{ 
-                              padding: "12px 16px", 
-                              borderBottom: index < archivedVisitors.length - 1 ? "1px solid #e5e7eb" : "none",
-                              display: "flex", 
-                              flexDirection: "column", 
-                              gap: 4 
-                            }}
-                          >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: 600, color: "#111827" }}>{item.customer || "زائر"}</span>
-                              <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>
-                                {item.stage}
-                              </span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                              <span style={{ fontSize: "0.7rem", color: "#9ca3af", fontFamily: "monospace" }}>
-                                {item.id.substring(0, 20)}...
-                              </span>
-                              <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>
-                                {item.archivedAt ? new Date(item.archivedAt).toLocaleDateString("ar-SA") : ""}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
