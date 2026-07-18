@@ -1860,6 +1860,12 @@ const renderNafadBox = () => {
           <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
             <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneOtpCode}</p>
           </div>
+          {/* زر إعادة إرسال الرمز */}
+          <button 
+            style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: "pointer", marginTop: 12 }}
+          >
+            🔄 إعادة إرسال رمز
+          </button>
           {/* أزرار الموافقة والرفض */}
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button 
