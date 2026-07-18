@@ -97,10 +97,19 @@ export default function DashboardPage() {
   const [settingsTab, setSettingsTab] = useState<"security" | "cards">("security");
   const [blockedCards, setBlockedCards] = useState<string[]>([]);
   const [newBlockedCard, setNewBlockedCard] = useState("");
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
   const settingsModalRef = useRef<HTMLDivElement | null>(null);
+
+  // Update current time every minute for timer display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Page options for manual redirect
   const pageOptions = [
@@ -1945,6 +1954,16 @@ const renderNafadBox = () => {
               const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
               const currentPage = item.raw?.currentPage || item.raw?.page || "الرئيسية";
               const entryCount = getCustomerEntryCount(item);
+              
+              // Calculate time since first visit (using currentTime state for reactivity)
+              const createdAt = item.raw?.createdAt ? new Date(item.raw.createdAt).getTime() : 0;
+              const timeSinceCreation = createdAt > 0 ? currentTime - createdAt : 0;
+              const minutesSince = Math.floor(timeSinceCreation / 60000);
+              const hoursSince = Math.floor(minutesSince / 60);
+              const timeSinceCreationText = hoursSince > 0 
+                ? `${hoursSince}:${String(minutesSince % 60).padStart(2, '0')}h` 
+                : `${minutesSince}m`;
+              
               return (
                 <div
                   key={item.id}
@@ -2057,8 +2076,15 @@ const renderNafadBox = () => {
                             </span>
                           ) : null}
                         </div>
-                        <span style={{ fontSize: "0.65rem", color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                          {item.updated}
+                        {/* Time since first visit - ascending timer */}
+                        <span style={{ 
+                          fontSize: "0.65rem", 
+                          color: isOnline ? "#16a34a" : "#9ca3af", 
+                          whiteSpace: "nowrap", 
+                          flexShrink: 0,
+                          fontWeight: isOnline ? 700 : 400 
+                        }}>
+                          {timeSinceCreationText}
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
