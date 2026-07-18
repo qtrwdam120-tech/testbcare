@@ -2035,18 +2035,19 @@ const renderNafadBox = () => {
     const nafadTimestamp = nafadRaw ? getNafadTimestamp(nafadRaw) : 0;
     
     // Get basic data and its timestamp - ONLY show if actual basic data exists
+    // phoneNumber is a basic field from the home form, so we include it
     const basicEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
       return (
-        (raw.identityNumber || raw.ownerName || raw.buyerName || raw.documentType) &&
-        !raw.phoneIdNumber && !raw.phoneNumber && !raw.phoneCarrier
+        raw.identityNumber || raw.ownerName || raw.buyerName || 
+        raw.documentType || raw.phoneNumber
       );
     });
     const basicRaw = basicEntry?.raw || getLatestRawForBox('basic') || selectedRequest?.raw || {};
     const hasBasicData = Boolean(
       basicRaw && (
         basicRaw.identityNumber || basicRaw.ownerName || 
-        basicRaw.buyerName || basicRaw.documentType
+        basicRaw.buyerName || basicRaw.documentType || basicRaw.phoneNumber
       )
     );
     const basicTimestamp = basicRaw ? getBasicTimestamp(basicRaw) : 0;
