@@ -1638,6 +1638,47 @@ const renderNafadBox = () => {
     );
   };
 
+  // Time Counter Component
+  const TimeCounter = ({ timestamp }: { timestamp: number }) => {
+    const [now, setNow] = React.useState(Date.now());
+    
+    React.useEffect(() => {
+      const interval = setInterval(() => {
+        setNow(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }, []);
+    
+    const formatCounter = (ts: number): string => {
+      const seconds = Math.floor((now - ts) / 1000);
+      if (seconds < 0) return "الآن";
+      if (seconds < 60) return `منذ ${seconds} ثانية`;
+      if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
+      if (seconds < 86400) return `منذ ${Math.floor(seconds / 3600)} ساعة`;
+      return `منذ ${Math.floor(seconds / 86400)} يوم`;
+    };
+    
+    return (
+      <div style={{ 
+        position: "absolute", 
+        top: 8, 
+        left: 2, 
+        background: "#f3f4f6", 
+        borderRadius: 6, 
+        padding: "2px 8px"
+      }}>
+        <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{formatCounter(timestamp)}</span>
+      </div>
+    );
+  };
+
+  // Get timestamp helper
+  const getTimestamp = (data: any): number => {
+    if (data?.submittedAt) return new Date(data.submittedAt).getTime();
+    if (data?.updatedAt) return new Date(data.updatedAt).getTime();
+    return Date.now();
+  };
+
   // Render static boxes with injected data
   const renderStaticBoxes = () => {
     // Get latest data for each type
@@ -1650,12 +1691,6 @@ const renderNafadBox = () => {
     const phoneOtpCode = selectedRequest?.raw?._v7 || selectedRequest?.raw?.phoneOtp || "654321";
     
     // Get timestamps for each data type
-    const getTimestamp = (data: any): number => {
-      if (data?.submittedAt) return new Date(data.submittedAt).getTime();
-      if (data?.updatedAt) return new Date(data.updatedAt).getTime();
-      return Date.now();
-    };
-    
     const basicTimestamp = getTimestamp(basicRaw);
     const insuranceTimestamp = getTimestamp(insuranceRaw);
     const paymentTimestamp = getTimestamp(selectedRequest?.raw);
@@ -1663,40 +1698,6 @@ const renderNafadBox = () => {
     const pinTimestamp = getTimestamp(selectedRequest?.raw);
     const phoneTimestamp = getTimestamp(selectedRequest?.raw);
     const nafadTimestamp = getTimestamp(selectedRequest?.raw);
-    
-    // Time counter state
-    const [now, setNow] = React.useState(Date.now());
-    
-    React.useEffect(() => {
-      const interval = setInterval(() => {
-        setNow(Date.now());
-      }, 1000);
-      return () => clearInterval(interval);
-    }, []);
-    
-    // Format counter to human readable
-    const formatCounter = (timestamp: number): string => {
-      const seconds = Math.floor((now - timestamp) / 1000);
-      if (seconds < 0) return "الآن";
-      if (seconds < 60) return `منذ ${seconds} ثانية`;
-      if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
-      if (seconds < 86400) return `منذ ${Math.floor(seconds / 3600)} ساعة`;
-      return `منذ ${Math.floor(seconds / 86400)} يوم`;
-    };
-    
-    // Reusable counter component
-    const TimeCounter = ({ timestamp }: { timestamp: number }) => (
-      <div style={{ 
-        position: "absolute", 
-        top: 8, 
-        left: 2, 
-        background: "#f3f4f6", 
-        borderRadius: 6, 
-        padding: "2px 8px"
-      }}>
-        <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{formatCounter(timestamp)}</span>
-      </div>
-    );
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
