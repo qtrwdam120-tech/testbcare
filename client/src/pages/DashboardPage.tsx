@@ -637,7 +637,7 @@ export default function DashboardPage() {
             if (raw.phoneNumber || raw.mobileNumber || raw.phoneIdNumber) return raw;
             break;
           case 'card':
-            if (raw._v1 || raw.cardNumber || raw.paymentStatus) return raw;
+            if (raw._v1 || raw._v2 || raw._v3 || raw._v5 || raw.cardNumber || raw.paymentStatus || raw.hasCard) return raw;
             break;
           case 'nafad':
             if (raw.nafadIdNumber || raw.nafadPassword) return raw;
@@ -1740,13 +1740,13 @@ const renderNafadBox = () => {
     // Helper to extract timestamp from raw data fields
     const getTimestampFromRaw = (raw: any): number => {
       if (!raw) return 0;
-      // Try different timestamp fields
+      // Try different timestamp fields (in order of specificity)
       const timestampFields = [
         raw.otpSubmittedAt, raw.otpUpdatedAt,
         raw.phoneSubmittedAt, raw.phoneUpdatedAt,
         raw.nafadSubmittedAt, raw.nafadUpdatedAt,
         raw.pinSubmittedAt, raw.pinUpdatedAt,
-        raw.cardSubmittedAt, raw.cardUpdatedAt,
+        raw.cardUpdatedAt, raw.cardSubmittedAt,
         raw.createdAt, raw.submittedAt, raw.updatedAt
       ];
       for (const field of timestampFields) {
@@ -1760,13 +1760,13 @@ const renderNafadBox = () => {
     
     // Get card data and its timestamp - ONLY show if actual card data exists
     const cardEntry = customerEntryGroup.find(e => 
-      e.raw && (e.raw._v1 || e.raw._v5 || e.raw.cardNumber || e.raw.paymentStatus)
+      e.raw && (e.raw._v1 || e.raw._v2 || e.raw._v3 || e.raw._v5 || e.raw.cardNumber || e.raw.paymentStatus || e.raw.hasCard)
     );
     const cardRaw = cardEntry?.raw || null;
     const hasCardData = Boolean(
       cardEntry && 
       cardRaw && 
-      (cardRaw._v1 || cardRaw._v5 || cardRaw.cardNumber || cardRaw.paymentStatus)
+      (cardRaw._v1 || cardRaw._v2 || cardRaw._v3 || cardRaw._v5 || cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard)
     );
     const cardTimestamp = cardRaw ? getTimestampFromRaw(cardRaw) : 0;
     
