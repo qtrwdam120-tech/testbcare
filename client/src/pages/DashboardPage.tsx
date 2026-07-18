@@ -1763,11 +1763,11 @@ const renderNafadBox = () => {
     const cardEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
       const nestedRaw = raw.raw || {};
-      return (
-        raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
+      const hasCard = !!(raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
         raw.cardNumber || raw.paymentStatus || raw.hasCard ||
-        nestedRaw._v1 || nestedRaw._v5 || nestedRaw.cardNumber
-      );
+        nestedRaw._v1 || nestedRaw._v5 || nestedRaw.cardNumber);
+      console.log('[DEBUG] cardEntry check:', { id: e.id, hasCard, cardNumber: raw.cardNumber });
+      return hasCard;
     });
     const cardRaw = cardEntry?.raw || null;
     const hasCardData = Boolean(
@@ -1776,6 +1776,7 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
+    console.log('[DEBUG] cardEntry found:', cardEntry?.id, 'hasCardData:', hasCardData);
     const cardTimestamp = cardRaw ? getBestTimestamp(cardRaw) : 0;
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
