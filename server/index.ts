@@ -836,17 +836,21 @@ async function startServer() {
         return;
       }
       
-      // Remove from memory
+      // Remove from memory completely
       ids.forEach((id: string) => {
         memoryVisitors.delete(id);
       });
       
-      // Permanently delete from database
+      // Permanently delete from ALL tables in database
       if (databaseAvailable) {
         const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
+        
+        // Delete from all related tables
         await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
-        console.log("[DELETE] Permanently deleted from database");
+        await pool.query(`DELETE FROM archived_visitors WHERE id IN (${placeholders})`, ids);
+        
+        console.log("[DELETE] Permanently deleted from ALL tables");
       }
       
       // Broadcast delete to all connected dashboards
@@ -854,7 +858,7 @@ async function startServer() {
         broadcastToDashboard("dashboard:delete", { id });
       });
       
-      res.json({ success: true, message: `${ids.length} visitors permanently deleted` });
+      res.json({ success: true, deletedIds: ids, message: `${ids.length} visitors permanently deleted` });
     } catch (error) {
       console.error("visitors delete error", error);
       res.status(500).json({ error: "Failed to delete visitors" });

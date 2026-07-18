@@ -405,35 +405,6 @@ export default function DashboardPage() {
     });
   };
 
-  const handleDeleteSelected = async () => {
-    if (!selectedRequestIds.length) return;
-    const selectedSet = new Set(selectedRequestIds);
-    
-    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
-    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
-    
-    try {
-      console.log("[CLIENT DELETE] Sending request to /api/visitors/delete");
-      const response = await fetch("/api/visitors/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedRequestIds }),
-      });
-      
-      console.log("[CLIENT DELETE] Response status:", response.status);
-      const result = await response.json();
-      console.log("[CLIENT DELETE] Server response:", result);
-      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر بنجاح`);
-      
-      setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
-      setSelectedRequestIds([]);
-      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
-    } catch (error) {
-      console.error("[CLIENT DELETE] Failed:", error);
-      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
-    }
-  };
-
   const handleArchiveSelected = async () => {
     if (!selectedRequestIds.length) return;
     const selectedSet = new Set(selectedRequestIds);
@@ -462,6 +433,49 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("[Dashboard] Failed to archive visitors:", error);
       showNotification("error", "فشل أرشفة الزوار - " + (error as Error).message);
+    }
+  };
+
+  // Handle permanent delete with localStorage cleanup
+  const handleDeleteSelected = async () => {
+    if (selectedRequestIds.length === 0) return;
+    
+    const selectedSet = new Set(selectedRequestIds);
+    console.log("[CLIENT DELETE] Selected IDs to delete:", selectedRequestIds);
+    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر...`);
+    
+    try {
+      const response = await fetch("/api/visitors/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedRequestIds }),
+      });
+      
+      const result = await response.json();
+      console.log("[CLIENT DELETE] Server response:", result);
+      
+      // Server tells us to clear localStorage for these visitors
+      if (result.success && result.deletedIds) {
+        // Clear localStorage for deleted visitors (force new visitorId)
+        result.deletedIds.forEach((id: string) => {
+          localStorage.removeItem(`visitor_data_${id}`);
+        });
+        // If the current user's visitorId was deleted, clear it too
+        const currentVisitorId = localStorage.getItem("visitor");
+        if (currentVisitorId && selectedSet.has(currentVisitorId)) {
+          localStorage.removeItem("visitor");
+          console.log("[CLIENT DELETE] Cleared localStorage visitor ID - customer will get new ID on return");
+        }
+      }
+      
+      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر نهائياً`);
+      
+      setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
+      setSelectedRequestIds([]);
+      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+    } catch (error) {
+      console.error("[Dashboard] Failed to delete visitors:", error);
+      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
     }
   };
 
