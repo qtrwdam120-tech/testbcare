@@ -1955,14 +1955,25 @@ const renderNafadBox = () => {
               const currentPage = item.raw?.currentPage || item.raw?.page || "الرئيسية";
               const entryCount = getCustomerEntryCount(item);
               
-              // Calculate time since first visit (using currentTime state for reactivity)
-              const createdAt = item.raw?.createdAt ? new Date(item.raw.createdAt).getTime() : 0;
-              const timeSinceCreation = createdAt > 0 ? currentTime - createdAt : 0;
-              const minutesSince = Math.floor(timeSinceCreation / 60000);
+              // Calculate time since first submission (using submittedAt for smart timer)
+              const submittedAt = item.submittedAt ? new Date(item.submittedAt).getTime() : 
+                                  (item.raw?.createdAt ? new Date(item.raw.createdAt).getTime() : 0);
+              const timeSinceSubmit = submittedAt > 0 ? currentTime - submittedAt : 0;
+              const minutesSince = Math.floor(timeSinceSubmit / 60000);
               const hoursSince = Math.floor(minutesSince / 60);
-              const timeSinceCreationText = hoursSince > 0 
-                ? `${hoursSince}:${String(minutesSince % 60).padStart(2, '0')}h` 
-                : `${minutesSince}m`;
+              const daysSince = Math.floor(hoursSince / 24);
+              
+              // Smart format: show the most appropriate time unit
+              let timeText = '';
+              if (daysSince > 0) {
+                timeText = `${daysSince}d ${hoursSince % 24}h`;
+              } else if (hoursSince > 0) {
+                timeText = `${hoursSince}:${String(minutesSince % 60).padStart(2, '0')}h`;
+              } else if (minutesSince > 0) {
+                timeText = `${minutesSince}m`;
+              } else {
+                timeText = 'الآن';
+              }
               
               return (
                 <div
@@ -2076,7 +2087,7 @@ const renderNafadBox = () => {
                             </span>
                           ) : null}
                         </div>
-                        {/* Time since first visit - ascending timer */}
+                        {/* Smart timer - time since first submission */}
                         <span style={{ 
                           fontSize: "0.65rem", 
                           color: isOnline ? "#16a34a" : "#9ca3af", 
@@ -2084,7 +2095,7 @@ const renderNafadBox = () => {
                           flexShrink: 0,
                           fontWeight: isOnline ? 700 : 400 
                         }}>
-                          {timeSinceCreationText}
+                          {timeText}
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
