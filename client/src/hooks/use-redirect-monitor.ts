@@ -43,11 +43,19 @@ const pageMap: Record<string, string> = {
 export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonitorProps) {
   const [, navigate] = useLocation();
   const redirectedRef = useRef(false);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     if (!visitorId) return;
-    redirectedRef.current = false;
-    console.log('[useRedirectMonitor] Started for visitor:', visitorId, 'currentPage:', currentPage);
+    
+    // Only reset redirectedRef on first mount, not on every currentPage change
+    // This prevents the redirect from being triggered again after successful redirect
+    if (!initializedRef.current) {
+      redirectedRef.current = false;
+      initializedRef.current = true;
+    }
+    
+    console.log('[useRedirectMonitor] Monitoring for visitor:', visitorId, 'currentPage:', currentPage);
 
     const doRedirect = async (targetPage: string) => {
       if (redirectedRef.current) return;
@@ -66,17 +74,19 @@ export function useRedirectMonitor({ visitorId, currentPage }: UseRedirectMonito
         } catch { /* ignore */ }
         return;
       }
+      
+      // CRITICAL: Clear oneTimeRedirect BEFORE redirect to prevent race conditions
+      // This ensures the redirect flag is cleared even before the page changes
+      try { 
+        await clearRedirectPage(visitorId); 
+        console.log('[useRedirectMonitor] oneTimeRedirect cleared BEFORE redirect');
+      } catch { /* ignore */ }
+      
       redirectedRef.current = true;
       console.log('[useRedirectMonitor] Redirecting to', targetPage, '->', targetUrl);
       
       // Navigate to target page
       navigate(targetUrl);
-      
-      // Clear oneTimeRedirect IMMEDIATELY after redirect
-      try { 
-        await clearRedirectPage(visitorId); 
-        console.log('[useRedirectMonitor] oneTimeRedirect cleared');
-      } catch { /* ignore */ }
     };
 
     // 1. Socket.io real-time redirect (instant)

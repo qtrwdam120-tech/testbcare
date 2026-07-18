@@ -862,7 +862,13 @@ async function startServer() {
     try {
       const visitorId = req.params.id;
       const currentData = (await readVisitor(visitorId)) || {};
-      await upsertVisitor(visitorId, { ...currentData, redirectPage: null, redirect_page: null, ...req.body });
+      await upsertVisitor(visitorId, { 
+        ...currentData, 
+        redirectPage: null, 
+        redirect_page: null, 
+        oneTimeRedirect: null, // Clear one-time redirect flag
+        ...req.body 
+      });
       res.json({ success: true });
     } catch (error) {
       console.error("visitor clear redirect error", error);
