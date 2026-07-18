@@ -684,15 +684,11 @@ async function startServer() {
     const payload = req.body || {};
     let visitorId = payload.id || payload.visitorId;
     
-    // If visitorId is provided, generate a NEW one (hard delete means old ID is dead)
-    if (visitorId) {
-      console.log("[VISITOR] Visitor submitted data - generating new ID to ensure fresh start");
+    // Generate new visitorId only if not provided
+    if (!visitorId) {
       visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       payload.id = visitorId;
       payload.visitorId = visitorId;
-    } else {
-      // Generate new visitorId if not provided
-      visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
     
     try {
