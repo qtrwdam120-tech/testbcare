@@ -356,10 +356,13 @@ async function readVisitor(visitorId: string): Promise<Record<string, any> | nul
 }
 
 async function upsertVisitor(visitorId: string, payload: Record<string, any> = {}) {
-  console.log("[UpsertVisitor] visitorId:", visitorId, "payload keys:", Object.keys(payload));
+  console.log("[UpsertVisitor] visitorId:", visitorId);
+  console.log("[UpsertVisitor] payload keys:", Object.keys(payload));
+  console.log("[UpsertVisitor] payload sample:", JSON.stringify(payload).slice(0, 500));
   
   // Read data BEFORE any modifications
   const currentData = (await readVisitor(visitorId)) || {};
+  console.log("[UpsertVisitor] currentData keys:", Object.keys(currentData));
   
   // Determine the type of data being submitted
   let dataType = "general";
