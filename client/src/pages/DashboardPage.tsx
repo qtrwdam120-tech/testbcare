@@ -625,7 +625,7 @@ export default function DashboardPage() {
     const os = getRealFieldValue(raw, ["os", "operatingSystem", "osName"], "غير معروف");
     const country = getRealFieldValue(raw, ["country", "countryCode", "countryName"], "غير معروف");
     const ip = getRealFieldValue(raw, ["ip", "clientIp", "visitorIp"], "—");
-    const currentPage = getRealFieldValue(raw, ["currentPage", "page"], typeof raw.currentPage === 'string' ? raw.currentPage : (typeof raw.page === 'string' ? raw.page : "غير معروف"));
+    const currentPage = getRealFieldValue(raw, ["currentPage", "page"], typeof raw.currentPage === 'string' ? raw.currentPage : (typeof raw.page === 'string' ? raw.page : "غير متصل"));
     const currentStep = getRealFieldValue(raw, ["currentStep", "step"], "—");
 
     return {
@@ -2337,7 +2337,7 @@ const renderNafadBox = () => {
             {filteredRequests.map((item) => {
               const isSelected = selectedRequestIds.includes(item.id);
               const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
-              const currentPage = item.raw?.currentPage || item.raw?.page || "الرئيسية";
+              const currentPage = item.raw?.currentPage || item.raw?.page || "غير متصل";
               const entryCount = getCustomerEntryCount(item);
               
               // Calculate time since first submission (using submittedAt for smart timer)
