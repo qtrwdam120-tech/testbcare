@@ -139,52 +139,94 @@ export default function DashboardPage() {
     return String(value).trim().toLowerCase();
   };
 
-  // Get customer identity tokens for grouping (excluding visitorId since it changes)
-  const getCustomerIdentityTokens = (request?: RequestItem) => {
+  // Get customer identifier - Priority: identityNumber > phoneNumber > visitorId
+  const getCustomerIdentifier = (request: RequestItem): { id?: string; phone?: string; vid?: string } => {
     const raw = request?.raw || {};
-    return [
-      normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber),
-      normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber),
-      normalizeCustomerValue(request?.customer || raw?.ownerName || raw?.name || raw?.customer),
-    ].filter(Boolean);
+    
+    // 1. identityNumber is the PRIMARY identifier (permanent national ID)
+    const identityNumber = normalizeCustomerValue(
+      raw?.identityNumber || 
+      raw?.phoneIdNumber || 
+      raw?.nafadIdNumber
+    );
+    
+    // 2. phoneNumber is secondary identifier
+    const phoneNumber = normalizeCustomerValue(
+      raw?.phoneNumber || 
+      raw?.mobileNumber
+    );
+    
+    // 3. visitorId as fallback
+    const visitorId = normalizeCustomerValue(request?.visitorId);
+    
+    return { id: identityNumber, phone: phoneNumber, vid: visitorId };
   };
 
-  // Get unique customer key using identityNumber (national ID) as the permanent identifier
+  // Get unique customer key - one key per real customer
   const getCustomerKey = (request: RequestItem): string => {
+    const { id, phone, vid } = getCustomerIdentifier(request);
+    
+    // Primary: use identityNumber (most reliable - doesn't change)
+    if (id) {
+      return `id:${id}`;
+    }
+    
+    // Secondary: use phoneNumber (if identityNumber not available)
+    if (phone) {
+      return `phone:${phone}`;
+    }
+    
+    // Tertiary: use visitorId (last resort)
+    if (vid) {
+      return `vid:${vid}`;
+    }
+    
+    // Fallback: use request id
+    return `req:${request.id || Date.now()}`;
+  };
+
+  // Get display name for customer
+  const getCustomerDisplayName = (request: RequestItem): string => {
     const raw = request?.raw || {};
     
-    // Use identityNumber as the primary key - it's the permanent customer identifier
-    const identityNumber = normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber);
-    
-    if (identityNumber) {
-      return `id:${identityNumber}`;
+    // Priority: ownerName > name > identityNumber > phoneNumber > visitorId > "زائر"
+    const name = raw?.ownerName || raw?.name || raw?.customer || request?.customer;
+    if (name && name !== 'زائر') {
+      return String(name);
     }
     
-    // If no identityNumber, use phoneNumber as fallback
-    const phoneNumber = normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber);
-    if (phoneNumber) {
-      return `phone:${phoneNumber}`;
+    // Use identityNumber as display name if available
+    const id = raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber;
+    if (id) {
+      return String(id);
     }
     
-    // Final fallback to visitorId
-    const visitorId = normalizeCustomerValue(request?.visitorId);
-    if (visitorId) {
-      return `vid:${visitorId}`;
+    // Use phoneNumber as display name
+    const phone = raw?.phoneNumber || raw?.mobileNumber;
+    if (phone) {
+      return String(phone);
     }
     
-    // Last resort - should not happen in normal flow
-    return `req:${normalizeCustomerValue(request?.id) || `unknown_${Date.now()}`}`;
+    return 'زائر';
   };
 
   // Check if two entries belong to the same customer
   const isSameCustomerEntry = (a?: RequestItem, b?: RequestItem) => {
     if (!a || !b) return false;
-    if (a.id && b.id && a.id === b.id) return true;
-    if (a.visitorId && b.visitorId && a.visitorId === b.visitorId) return true;
-    const tokensA = getCustomerIdentityTokens(a);
-    const tokensB = getCustomerIdentityTokens(b);
-    // Match if any token matches AND both entries have at least one token
-    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 0 && tokensB.length > 0;
+    
+    const idA = getCustomerIdentifier(a);
+    const idB = getCustomerIdentifier(b);
+    
+    // Match by identityNumber (strongest match)
+    if (idA.id && idA.id === idB.id) return true;
+    
+    // Match by phoneNumber (if no identityNumber match)
+    if (idA.phone && idA.phone === idB.phone) return true;
+    
+    // Match by visitorId (weakest match)
+    if (idA.vid && idA.vid === idB.vid) return true;
+    
+    return false;
   };
 
   // Unique customers list - one entry per customer (most recent)
@@ -2462,7 +2504,7 @@ const renderNafadBox = () => {
                             whiteSpace: "nowrap",
                             maxWidth: entryCount > 1 ? 120 : 160,
                           }}>
-                            {item.customer}
+                            {getCustomerDisplayName(item)}
                           </span>
                           {item.hasCard || item.raw?._v1 || item.raw?.cardNumber ? (
                             <span style={{ flexShrink: 0 }}>
@@ -2530,7 +2572,7 @@ const renderNafadBox = () => {
                     style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
                   >
                     <span style={{ fontWeight: 700, color: "#111827", fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {liveSummary.ownerName || selectedRequest.customer}
+                      {liveSummary.ownerName || getCustomerDisplayName(selectedRequest)}
                     </span>
                     <span style={{ color: "#9ca3af", fontSize: "0.85rem" }}>↻</span>
                   </button>
