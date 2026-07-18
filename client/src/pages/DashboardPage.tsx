@@ -149,13 +149,21 @@ export default function DashboardPage() {
     ].filter(Boolean);
   };
 
-  // Get unique customer key for grouping
+  // Get unique customer key for grouping - prioritize stable identifiers
   const getCustomerKey = (request: RequestItem): string => {
-    const tokens = getCustomerIdentityTokens(request);
-    if (tokens.length > 0) {
-      return tokens.filter(Boolean).slice(0, 2).join('_');
-    }
-    return request.id || `customer_${Math.random()}`;
+    const raw = request?.raw || {};
+    
+    // Priority: visitorId (most stable) > identityNumber > phoneNumber > id
+    const identityNumber = normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber);
+    const phoneNumber = normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber);
+    const visitorId = normalizeCustomerValue(request?.visitorId);
+    const id = normalizeCustomerValue(request?.id);
+    
+    // Use the most specific and stable identifier available
+    if (identityNumber) return `id:${identityNumber}`;
+    if (phoneNumber) return `phone:${phoneNumber}`;
+    if (visitorId) return `vid:${visitorId}`;
+    return `req:${id}`;
   };
 
   // Check if two entries belong to the same customer
