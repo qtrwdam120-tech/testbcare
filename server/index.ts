@@ -764,12 +764,15 @@ async function startServer() {
       // Remove from memory - both visitors and dashboard requests
       ids.forEach((id: string) => {
         memoryVisitors.delete(id);
-        // Remove from memoryDashboardRequests by filtering out matching IDs
+        // Remove from memoryDashboardRequests by filtering out matching IDs (in-place)
         const beforeCount = memoryDashboardRequests.length;
         // Also remove by visitorId since dashboard entries use visitorId as id
-        memoryDashboardRequests = memoryDashboardRequests.filter(
+        const filtered = memoryDashboardRequests.filter(
           entry => entry.id !== id && entry.visitorId !== id
         );
+        // Clear and repopulate (can't reassign const array)
+        memoryDashboardRequests.length = 0;
+        memoryDashboardRequests.push(...filtered);
         if (memoryDashboardRequests.length !== beforeCount) {
           console.log(`[DELETE] Removed ${beforeCount - memoryDashboardRequests.length} entries from memoryDashboardRequests`);
         }
