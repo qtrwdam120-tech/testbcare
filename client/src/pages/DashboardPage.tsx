@@ -1012,9 +1012,9 @@ export default function DashboardPage() {
         border: "1px solid #e5e7eb", 
         marginBottom: 12, 
         position: "relative",
-        width: "60%",
-        marginRight: "auto",
-        marginLeft: 0
+        width: "40%",
+        marginRight: 0,
+        marginLeft: "auto"
       }}>
         {timestamp > 0 && (
           <div style={{
