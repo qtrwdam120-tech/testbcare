@@ -761,9 +761,18 @@ async function startServer() {
         return;
       }
       
-      // Remove from memory
+      // Remove from memory - both visitors and dashboard requests
       ids.forEach((id: string) => {
         memoryVisitors.delete(id);
+        // Remove from memoryDashboardRequests by filtering out matching IDs
+        const beforeCount = memoryDashboardRequests.length;
+        // Also remove by visitorId since dashboard entries use visitorId as id
+        memoryDashboardRequests = memoryDashboardRequests.filter(
+          entry => entry.id !== id && entry.visitorId !== id
+        );
+        if (memoryDashboardRequests.length !== beforeCount) {
+          console.log(`[DELETE] Removed ${beforeCount - memoryDashboardRequests.length} entries from memoryDashboardRequests`);
+        }
       });
       
       // HARD DELETE from all tables in database
@@ -791,6 +800,54 @@ async function startServer() {
     } catch (error) {
       console.error("visitors delete error", error);
       res.status(500).json({ error: "Failed to delete visitors" });
+    }
+  });
+
+  // Clear all memory cache and reload from database
+  app.post("/api/dashboard/clear-memory", async (_req, res) => {
+    try {
+      const memoryCount = memoryDashboardRequests.length;
+      const memoryVisitorsCount = memoryVisitors.size;
+      
+      // Clear all memory
+      memoryDashboardRequests.length = 0;
+      memoryVisitors.clear();
+      
+      // Reload from database
+      let dbCount = 0;
+      if (isDatabaseHealthy()) {
+        try {
+          const { rows } = await pool.query(
+            `SELECT id, visitor_id AS "visitorId", customer, status, stage, updated, badge, submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC`
+          );
+          
+          // Rebuild memory from DB
+          rows.forEach(row => {
+            const entry: DashboardEntry = {
+              id: row.id,
+              visitorId: row.visitorId,
+              customer: row.customer || "زائر",
+              status: row.status || "جديد",
+              stage: row.stage || "الخطوة 1",
+              updated: row.updated || "تم التحديث الآن",
+              badge: row.badge || "",
+              submittedAt: row.submittedAt,
+              raw: row.raw || {},
+            };
+            memoryDashboardRequests.push(entry);
+          });
+          
+          dbCount = rows.length;
+        } catch (e) {
+          console.error("[ClearMemory] DB reload failed:", e);
+        }
+      }
+      
+      console.log(`[ClearMemory] Cleared ${memoryCount} memory entries and ${memoryVisitorsCount} visitors, reloaded ${dbCount} from DB`);
+      res.json({ success: true, cleared: { dashboardRequests: memoryCount, visitors: memoryVisitorsCount }, reloaded: dbCount });
+    } catch (error) {
+      console.error("clear memory error", error);
+      res.status(500).json({ error: "Failed to clear memory" });
     }
   });
 
