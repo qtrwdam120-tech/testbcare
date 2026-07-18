@@ -263,7 +263,11 @@ export default function HomePage() {
       currentPage: "insur",
       homeCompletedAt: new Date().toISOString()
     }).then(() => {
+      console.log('[Form] Submit successful, redirecting to /insur');
       router.push('/insur')
+    }).catch((error) => {
+      console.error('[Form] Submit failed:', error);
+      alert('حدث خطأ أثناء إرسال البيانات');
     })
   }
   
