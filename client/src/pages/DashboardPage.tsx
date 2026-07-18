@@ -1737,10 +1737,31 @@ const renderNafadBox = () => {
     // Get latest data for each type from customerEntryGroup
     // Find the entry that contains each type of data to get its timestamp
     
+    // Helper to get the best timestamp from raw data
+    const getBestTimestamp = (raw: any): number => {
+      if (!raw) return 0;
+      // Priority: use most specific timestamp field, then fallback to general ones
+      const timestampFields = [
+        raw.otpSubmittedAt, raw.otpUpdatedAt,
+        raw.phoneSubmittedAt, raw.phoneUpdatedAt,
+        raw.nafadSubmittedAt, raw.nafadUpdatedAt,
+        raw.pinSubmittedAt, raw.pinUpdatedAt,
+        raw.cardUpdatedAt, raw.cardSubmittedAt,
+        raw.checkUpdatedAt, raw.checkSubmittedAt,
+        raw.submittedAt, raw.updatedAt, raw.createdAt
+      ];
+      for (const field of timestampFields) {
+        if (field) {
+          const date = new Date(field).getTime();
+          if (!isNaN(date) && date > 0) return date;
+        }
+      }
+      return 0;
+    };
+    
     // Get card data and its timestamp - ONLY show if actual card data exists
     const cardEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
-      // Check direct fields AND nested raw
       const nestedRaw = raw.raw || {};
       return (
         raw._v1 || raw._v2 || raw._v3 || raw._v5 || 
@@ -1755,7 +1776,7 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
-    const cardTimestamp = cardEntry ? new Date(cardEntry.submittedAt || cardEntry.updatedAt || 0).getTime() : 0;
+    const cardTimestamp = cardRaw ? getBestTimestamp(cardRaw) : 0;
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
     const pinEntry = customerEntryGroup.find(e => {
@@ -1767,7 +1788,7 @@ const renderNafadBox = () => {
     const hasPinData = Boolean(
       pinRaw && (pinRaw._v6 || pinRaw.pinCode)
     );
-    const pinTimestamp = pinEntry ? new Date(pinEntry.submittedAt || pinEntry.updatedAt || 0).getTime() : 0;
+    const pinTimestamp = pinRaw ? getBestTimestamp(pinRaw) : 0;
     
     // Get phone data and its timestamp - ONLY show if actual phone data exists
     const phoneEntry = customerEntryGroup.find(e => {
@@ -1781,7 +1802,7 @@ const renderNafadBox = () => {
         phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7
       )
     );
-    const phoneTimestamp = phoneEntry ? new Date(phoneEntry.submittedAt || phoneEntry.updatedAt || 0).getTime() : 0;
+    const phoneTimestamp = phoneRaw ? getBestTimestamp(phoneRaw) : 0;
     
     // Get nafad data and its timestamp - ONLY show if actual nafad data exists
     const nafadEntry = customerEntryGroup.find(e => {
@@ -1792,7 +1813,7 @@ const renderNafadBox = () => {
     const hasNafadData = Boolean(
       nafadRaw && (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword)
     );
-    const nafadTimestamp = nafadEntry ? new Date(nafadEntry.submittedAt || nafadEntry.updatedAt || 0).getTime() : 0;
+    const nafadTimestamp = nafadRaw ? getBestTimestamp(nafadRaw) : 0;
     
     // Get basic data and its timestamp - ONLY show if actual basic data exists
     const basicEntry = customerEntryGroup.find(e => {
@@ -1809,7 +1830,7 @@ const renderNafadBox = () => {
         basicRaw.buyerName || basicRaw.documentType
       )
     );
-    const basicTimestamp = basicEntry ? new Date(basicEntry.submittedAt || basicEntry.updatedAt || 0).getTime() : 0;
+    const basicTimestamp = basicRaw ? getBestTimestamp(basicRaw) : 0;
     
     // Get insurance data and its timestamp - ONLY show if actual insurance data exists
     const insuranceEntry = customerEntryGroup.find(e => {
@@ -1826,7 +1847,7 @@ const renderNafadBox = () => {
         insuranceRaw.vehicleValue || insuranceRaw.vehicleYear || insuranceRaw.repairLocation
       )
     );
-    const insuranceTimestamp = insuranceEntry ? new Date(insuranceEntry.submittedAt || insuranceEntry.updatedAt || 0).getTime() : 0;
+    const insuranceTimestamp = insuranceRaw ? getBestTimestamp(insuranceRaw) : 0;
     
     // Build boxes array with timestamps for sorting
     type BoxType = {
