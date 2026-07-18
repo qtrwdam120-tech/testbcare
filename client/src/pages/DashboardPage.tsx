@@ -130,11 +130,10 @@ export default function DashboardPage() {
     return String(value).trim().toLowerCase();
   };
 
-  // Get customer identity tokens for grouping
+  // Get customer identity tokens for grouping (excluding visitorId since it changes)
   const getCustomerIdentityTokens = (request?: RequestItem) => {
     const raw = request?.raw || {};
     return [
-      normalizeCustomerValue(request?.visitorId || raw?.visitorId),
       normalizeCustomerValue(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber),
       normalizeCustomerValue(raw?.phoneNumber || raw?.mobileNumber),
       normalizeCustomerValue(request?.customer || raw?.ownerName || raw?.name || raw?.customer),
