@@ -2281,7 +2281,7 @@ const renderNafadBox = () => {
                   fontSize: "0.85rem",
                 }}
               >
-                الكل ({totalCustomers})
+                الكل ({stats.totalCustomers})
               </button>
               <button
                 onClick={() => setFilterMode("cards")}
