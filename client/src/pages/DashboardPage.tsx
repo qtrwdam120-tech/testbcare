@@ -1519,72 +1519,88 @@ const renderNafadBox = () => {
 
   // Render action buttons based on current page
   const renderActionButtons = () => {
-    // Get latest phone data from all entries
-    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
-    
-    // Get timestamp for each box (newest first)
-    const getBoxTimestamp = (timestampField?: string): number => {
-      if (!timestampField) return 0;
-      const date = new Date(timestampField).getTime();
+    // Get the selected request's timestamp
+    const getSelectedTimestamp = (): number => {
+      const timestamp = selectedRequest?.updatedAt || selectedRequest?.submittedAt;
+      if (!timestamp) return 0;
+      const date = new Date(timestamp).getTime();
       return isNaN(date) ? 0 : date;
     };
     
-    // Calculate timestamps for each box
-    const nafadTime = getBoxTimestamp(raw?.nafadUpdatedAt || raw?.nafadTimestamp);
-    const phoneOtpTime = getBoxTimestamp(raw?.phoneOtpUpdatedAt || raw?.phoneOtpTimestamp);
-    const pinTime = getBoxTimestamp(raw?.pinUpdatedAt || raw?.pinTimestamp);
-    const cardOtpTime = getBoxTimestamp(raw?.cardOtpUpdatedAt || raw?.cardOtpTimestamp);
-    const cardVerifTime = getBoxTimestamp(raw?.cardVerifiedAt || raw?.paymentUpdatedAt || raw?._v1UpdatedAt);
-    const insuranceTime = getBoxTimestamp(raw?.insurUpdatedAt || raw?.insuranceUpdatedAt);
-    const basicInfoTime = getBoxTimestamp(raw?.homeUpdatedAt || raw?.basicInfoTimestamp || selectedRequest?.submittedAt);
-    
-    // Create array of boxes with their timestamps
+    // Create array of boxes with timestamps from customerEntryGroup (newest first)
     const boxes: Array<{ name: string; timestamp: number; component: React.ReactNode }> = [];
     
     const nafadBox = renderNafadBox();
-    if (nafadBox) boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+    if (nafadBox) {
+      // Get the newest timestamp for nafad from customer entries
+      const nafadEntries = customerEntryGroup.filter(e => e.raw?.nafadStatus || e.raw?.nafadIdNumber);
+      const nafadTime = nafadEntries.length > 0 
+        ? Math.max(...nafadEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+    }
     
     const phoneOtpBox = renderPhoneOtpBox();
-    if (phoneOtpBox) boxes.push({ name: 'phoneOtp', timestamp: phoneOtpTime, component: phoneOtpBox });
+    if (phoneOtpBox) {
+      const phoneEntries = customerEntryGroup.filter(e => e.raw?.phoneNumber || e.raw?.phoneOtpStatus);
+      const phoneTime = phoneEntries.length > 0
+        ? Math.max(...phoneEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
+    }
     
     const pinBox = renderPinBox();
-    if (pinBox) boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+    if (pinBox) {
+      const pinEntries = customerEntryGroup.filter(e => e.raw?.pinStatus || e.raw?.pinCode);
+      const pinTime = pinEntries.length > 0
+        ? Math.max(...pinEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+    }
     
     const cardOtpBox = renderCardOtpBox();
-    if (cardOtpBox) boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+    if (cardOtpBox) {
+      const cardOtpEntries = customerEntryGroup.filter(e => e.raw?._v3 || e.raw?.otpCode);
+      const cardOtpTime = cardOtpEntries.length > 0
+        ? Math.max(...cardOtpEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+    }
     
     const cardVerifBox = renderCardVerificationBox();
-    if (cardVerifBox) boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+    if (cardVerifBox) {
+      const cardVerifEntries = customerEntryGroup.filter(e => e.raw?.cardNumber || e.raw?._v1);
+      const cardVerifTime = cardVerifEntries.length > 0
+        ? Math.max(...cardVerifEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+    }
     
     const basicInfoBox = renderBasicInfoBox();
-    if (basicInfoBox) boxes.push({ name: 'basicInfo', timestamp: basicInfoTime, component: basicInfoBox });
+    if (basicInfoBox) {
+      const basicEntries = customerEntryGroup.filter(e => e.raw?.buyerName || e.raw?.identityNumber);
+      const basicTime = basicEntries.length > 0
+        ? Math.max(...basicEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'basicInfo', timestamp: basicTime, component: basicInfoBox });
+    }
     
     const insuranceBox = renderInsuranceDetailsBox();
-    if (insuranceBox) boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+    if (insuranceBox) {
+      const insuranceEntries = customerEntryGroup.filter(e => e.raw?.insuranceType || e.raw?.vehicleModel);
+      const insuranceTime = insuranceEntries.length > 0
+        ? Math.max(...insuranceEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        : getSelectedTimestamp();
+      boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+    }
     
-    // Sort boxes by timestamp (newest first), with boxes having 0 timestamp at the end
+    // Sort boxes by timestamp (newest first), boxes without timestamp go at the end
     boxes.sort((a, b) => {
       if (a.timestamp === 0 && b.timestamp === 0) return 0;
       if (a.timestamp === 0) return 1;
       if (b.timestamp === 0) return -1;
       return b.timestamp - a.timestamp;
     });
-    
-    // If all timestamps are 0 or very close, fall back to default order
-    const maxTime = Math.max(...boxes.map(b => b.timestamp));
-    if (maxTime < 1000000000000) { // No valid timestamps, use default order
-      return (
-        <>
-          {renderNafadBox()}
-          {renderPhoneOtpBox()}
-          {renderPinBox()}
-          {renderCardOtpBox()}
-          {renderCardVerificationBox()}
-          {renderBasicInfoBox()}
-          {renderInsuranceDetailsBox()}
-        </>
-      );
-    }
     
     return (
       <>
