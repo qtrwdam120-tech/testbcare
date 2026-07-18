@@ -1011,6 +1011,7 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12, 
+        marginTop: 10,
         position: "relative",
         width: "40%",
         marginRight: 0,
