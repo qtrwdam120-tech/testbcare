@@ -2937,45 +2937,11 @@ const renderNafadBox = () => {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button
-                onClick={() => handleReject("package")}
-                style={{
-                  flex: 1,
-                  padding: "10px 16px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  color: "#374151",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  opacity: actionLoading ? 0.5 : 1
-                }}
-              >
-                رفض
-              </button>
-              <button
-                onClick={() => handleApprove("package")}
-                style={{
-                  flex: 1,
-                  padding: "10px 16px",
-                  border: "none",
-                  borderRadius: 8,
-                  background: "#059669",
-                  color: "#fff",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  opacity: actionLoading ? 0.5 : 1
-                }}
-              >
-                موافقة
-              </button>
-            </div>
           </div>
         )
       });
     });
+
     // Sort boxes by timestamp (newest first)
     boxes.sort((a, b) => b.timestamp - a.timestamp);
     
