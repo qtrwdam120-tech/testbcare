@@ -1,7 +1,7 @@
 /**
  * BeCare Socket client shim.
- * The visitor flow now persists data through the PostgreSQL-backed REST API,
- * so socket traffic is kept local and does not attempt to reach legacy hosts.
+ * The visitor flow now persists data through the PostgreSQL-backed REST API.
+ * Real-time updates are now supported through SSE for visitor status updates.
  */
 
 import { io, Socket } from 'socket.io-client';
@@ -54,8 +54,35 @@ export function onVisitorRedirect(_callback: (data: { targetPage: string }) => v
   return () => undefined;
 }
 
-export function onVisitorStatusUpdated(_callback: (data: any) => void): () => void {
-  return () => undefined;
+export function onVisitorStatusUpdated(callback: (data: any) => void): () => void {
+  const visitorId = localStorage.getItem("visitor");
+  if (!visitorId) {
+    console.log("[Socket] No visitor ID found for status updates");
+    return () => undefined;
+  }
+  
+  console.log("[Socket] Connecting to visitor SSE stream for:", visitorId);
+  
+  const eventSource = new EventSource(`/api/visitor/${visitorId}/stream`);
+  
+  eventSource.addEventListener("status_update", (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log("[Socket] Status update received:", data);
+      callback(data);
+    } catch (e) {
+      console.error("[Socket] Error parsing status update:", e);
+    }
+  });
+  
+  eventSource.onerror = (err) => {
+    console.error("[Socket] SSE error:", err);
+  };
+  
+  return () => {
+    console.log("[Socket] Closing visitor SSE stream");
+    eventSource.close();
+  };
 }
 
 export function onVisitorNewMessage(_callback: (data: any) => void): () => void {

