@@ -2798,28 +2798,41 @@ const renderNafadBox = () => {
     
 
     // Create a box for each entry that has Package/Offer data (from compar page)
+    // Find the most recent package timestamp first
+    let latestPackageTimestamp = 0;
+    customerEntryGroup.forEach((entry) => {
+      const raw = entry.raw || {};
+      if (raw.selectedOffer || raw.offerTotalPrice) {
+        const ts = raw.comparCompletedAt 
+          ? new Date(raw.comparCompletedAt).getTime() 
+          : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
+        if (ts > latestPackageTimestamp) {
+          latestPackageTimestamp = ts;
+        }
+      }
+    });
+
     customerEntryGroup.forEach((entry, index) => {
       const raw = entry.raw || {};
       const selectedOffer = raw.selectedOffer;
       const hasPackage = selectedOffer?.name || raw.offerTotalPrice;
 
-      // Box type offset: Basic=0, Card=1, OTP=2, PIN=3, Phone=4, Nafad=5, Package=6
-      const BOX_TYPE_OFFSET = 6;
+      // Check if this entry has package data
+      if (!hasPackage) return;
 
-      // Use comparCompletedAt if available, otherwise use entry's timestamp
-      let baseTimestamp = entry.submittedAt || entry.createdAt || entry.updatedAt || Date.now();
+      // Use comparCompletedAt timestamp for accurate time display
+      let entryTimestamp = Date.now();
       if (raw.comparCompletedAt) {
         const comparTs = new Date(raw.comparCompletedAt).getTime();
         if (comparTs > 0) {
-          baseTimestamp = raw.comparCompletedAt;
+          entryTimestamp = comparTs;
         }
+      } else if (entry.submittedAt) {
+        entryTimestamp = new Date(entry.submittedAt).getTime();
       }
 
-      const entryTimestamp = new Date(baseTimestamp).getTime() - (index * 10000) - BOX_TYPE_OFFSET;
-      const isLatest = index === 0;
-
-      // Check if this entry has package data
-      if (!hasPackage) return;
+      // This is the latest package if its timestamp matches the most recent
+      const isLatest = entryTimestamp === latestPackageTimestamp;
 
       const offerName = selectedOffer?.name || "—";
       const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
