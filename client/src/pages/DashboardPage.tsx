@@ -1005,7 +1005,17 @@ export default function DashboardPage() {
     const timestamp = getEntryTimestamp(raw);
 
     return (
-      <div style={{ background: "#ffffff", borderRadius: 12, padding: 16, border: "1px solid #e5e7eb", marginBottom: 12, position: "relative" }}>
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb", 
+        marginBottom: 12, 
+        position: "relative",
+        width: "60%",
+        marginRight: "auto",
+        marginLeft: 0
+      }}>
         {timestamp > 0 && (
           <div style={{
             position: "absolute",
@@ -1020,58 +1030,58 @@ export default function DashboardPage() {
             {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🛡️</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق تفاصيل التأمين
           </h3>
         </div>
         
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {raw?.insuranceCoverage && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>نوع التغطية</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
                 {raw.insuranceCoverage === "comprehensive" ? "شامل" : "ضد الغير"}
-              </p>
+              </span>
             </div>
           )}
           {raw?.insuranceStartDate && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>تاريخ البدء</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceStartDate}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>تاريخ البدء</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceStartDate}</span>
             </div>
           )}
           {raw?.vehicleUsage && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>استخدام المركبة</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleUsage}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>استخدام المركبة</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleUsage}</span>
             </div>
           )}
           {raw?.vehicleValue && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>القيمة التقديرية</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleValue} ﷼</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleValue} ﷼</span>
             </div>
           )}
           {raw?.vehicleYear && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>سنة الصنع</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</span>
             </div>
           )}
           {raw?.vehicleModel && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>الموديل</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</span>
             </div>
           )}
           {raw?.repairLocation && (
-            <div style={{ background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>مكان الإصلاح</span>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
                 {raw.repairLocation === "agency" ? "الوكالة" : "الورشة"}
-              </p>
+              </span>
             </div>
           )}
         </div>
