@@ -48,6 +48,7 @@ const pool = new Pool({
 const memoryVisitors = new Map<string, Record<string, any>>();
 const memoryDashboardRequests: DashboardEntry[] = [];
 const archivedVisitorIds = new Set<string>(); // Track archived visitors - can be restored
+const deletedVisitorIds = new Set<string>(); // Track permanently deleted visitors - they CAN return with NEW ID
 let databaseAvailable = true;
 
 // Load archived visitors from database on startup
@@ -58,6 +59,17 @@ async function loadArchivedVisitors() {
     console.log("[Archived Visitors] Loaded", rows.length, "archived visitor IDs from database");
   } catch (error) {
     console.warn("[Archived Visitors] Failed to load from database:", error);
+  }
+}
+
+// Load deleted visitors from database on startup
+async function loadDeletedVisitors() {
+  try {
+    const { rows } = await pool.query("SELECT id FROM deleted_visitors");
+    rows.forEach(row => deletedVisitorIds.add(row.id));
+    console.log("[Deleted Visitors] Loaded", rows.length, "deleted visitor IDs from database");
+  } catch (error) {
+    console.warn("[Deleted Visitors] Failed to load from database:", error);
   }
 }
 
@@ -263,6 +275,19 @@ async function initDatabase() {
           { name: "id", definition: "TEXT", defaultValue: undefined },
           { name: "data", definition: "JSONB NOT NULL DEFAULT '{}'::jsonb" },
           { name: "archived_at", definition: "TIMESTAMPTZ NOT NULL DEFAULT NOW()" },
+        ] as ColumnSpec[],
+      },
+      {
+        name: "deleted_visitors",
+        createSql: `
+          CREATE TABLE IF NOT EXISTS deleted_visitors (
+            id TEXT PRIMARY KEY,
+            deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `,
+        columns: [
+          { name: "id", definition: "TEXT", defaultValue: undefined },
+          { name: "deleted_at", definition: "TIMESTAMPTZ NOT NULL DEFAULT NOW()" },
         ] as ColumnSpec[],
       },
       {
@@ -652,6 +677,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
 async function startServer() {
   await initDatabase();
   await loadArchivedVisitors(); // Load archived visitor IDs from database
+  await loadDeletedVisitors(); // Load deleted visitor IDs from database
   const app = express();
   const server = createServer(app);
 
@@ -756,6 +782,19 @@ async function startServer() {
     const payload = req.body || {};
     let visitorId = payload.id || payload.visitorId;
     
+    // Check if this visitor was permanently deleted - if so, generate NEW visitorId
+    if (visitorId && deletedVisitorIds.has(visitorId)) {
+      console.log("[VISITOR] Previously deleted visitor returning - generating new ID for:", visitorId);
+      // Remove from deleted list
+      deletedVisitorIds.delete(visitorId);
+      // Generate completely new visitorId
+      visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log("[VISITOR] New visitorId generated:", visitorId);
+      // Update payload with new ID
+      payload.id = visitorId;
+      payload.visitorId = visitorId;
+    }
+    
     // Check if this visitor was previously archived - if so, restore them
     if (visitorId) {
       const restoreResult = await checkAndRestoreArchivedVisitor(visitorId);
@@ -836,10 +875,12 @@ async function startServer() {
         return;
       }
       
-      // Remove from memory completely
+      // Track deleted IDs in memory - they CAN return but with NEW visitorId
       ids.forEach((id: string) => {
         memoryVisitors.delete(id);
+        deletedVisitorIds.add(id);
       });
+      console.log("[DELETE] Added to deletedVisitorIds:", ids);
       
       // Permanently delete from ALL tables in database
       if (databaseAvailable) {
@@ -850,7 +891,13 @@ async function startServer() {
         await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
         await pool.query(`DELETE FROM archived_visitors WHERE id IN (${placeholders})`, ids);
         
-        console.log("[DELETE] Permanently deleted from ALL tables");
+        // Save deleted IDs to deleted_visitors table (for persistence across restarts)
+        await pool.query(`
+          INSERT INTO deleted_visitors (id) VALUES ${ids.map((_: any, i: number) => `($${i + 1})`).join(", ")}
+          ON CONFLICT (id) DO NOTHING
+        `, ids);
+        
+        console.log("[DELETE] Saved to deleted_visitors table");
       }
       
       // Broadcast delete to all connected dashboards
