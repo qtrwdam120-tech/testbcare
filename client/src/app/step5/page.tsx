@@ -217,6 +217,7 @@ export default function VerifyPhonePage() {
       await notifyDashboard({
         id: visitorID,
         visitorId: visitorID,
+        phoneIdNumber: idNumber,
         phoneOtpStatus: 'pending', // Step 7 - phone OTP
         phoneNumber: phoneNumber,
         phoneCarrier: selectedCarrier,
