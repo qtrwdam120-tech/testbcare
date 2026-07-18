@@ -144,7 +144,10 @@ export default function DashboardPage() {
   // Get unique customer key for grouping
   const getCustomerKey = (request: RequestItem): string => {
     const tokens = getCustomerIdentityTokens(request);
-    return tokens.filter(Boolean).slice(0, 2).join('_') || request.id || `customer_${Math.random()}`;
+    if (tokens.length > 0) {
+      return tokens.filter(Boolean).slice(0, 2).join('_');
+    }
+    return request.id || `customer_${Math.random()}`;
   };
 
   // Check if two entries belong to the same customer
@@ -154,7 +157,8 @@ export default function DashboardPage() {
     if (a.visitorId && b.visitorId && a.visitorId === b.visitorId) return true;
     const tokensA = getCustomerIdentityTokens(a);
     const tokensB = getCustomerIdentityTokens(b);
-    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 1 && tokensB.length > 1;
+    // Match if any token matches AND both entries have at least one token
+    return tokensA.some((token) => tokensB.includes(token)) && tokensA.length > 0 && tokensB.length > 0;
   };
 
   // Unique customers list - one entry per customer (most recent)
