@@ -346,9 +346,22 @@ export default function DashboardPage() {
       console.log("[Socket Update] Existing index:", existingIndex, "Current requests:", prevRequests.length);
       
       if (existingIndex >= 0) {
-        // REPLACE old entry with new one (don't merge)
+        // MERGE old entry with new one (preserve all data)
+        const existingRequest = prevRequests[existingIndex];
+        const mergedRequest = {
+          ...existingRequest,
+          ...incomingRequest,
+          // Always use the newest submittedAt
+          submittedAt: new Date(incomingRequest.submittedAt || incomingRequest.updatedAt || Date.now()).getTime() >
+                      new Date(existingRequest.submittedAt || existingRequest.updatedAt || 0).getTime()
+                      ? incomingRequest.submittedAt || incomingRequest.updatedAt
+                      : existingRequest.submittedAt || existingRequest.updatedAt,
+          // Merge raw data
+          raw: { ...(existingRequest.raw || {}), ...(incomingRequest.raw || {}) },
+        };
         const newRequests = [...prevRequests];
-        newRequests[existingIndex] = incomingRequest;
+        newRequests[existingIndex] = mergedRequest;
+        console.log("[Socket Update] MERGED entry:", mergedRequest.id, "raw keys:", Object.keys(mergedRequest.raw || {}));
         return newRequests;
       } else {
         console.log("[Socket Update] NEW entry - adding to list:", incomingRequest.id);
@@ -356,17 +369,18 @@ export default function DashboardPage() {
       }
     });
     
-    // Only update selectedRequestId if the current selection is the same visitor/request
-    // This won't trigger re-renders that cause socket reconnection
-    if (selectedRequestIdRef.current && 
-        (incomingRequest.id === selectedRequestIdRef.current || incomingRequest.visitorId === selectedRequestIdRef.current)) {
-      // Use setTimeout to avoid immediate state update during socket event
-      setTimeout(() => {
-        if (selectedRequestIdRef.current === incomingRequest.id || 
-            selectedRequestIdRef.current === incomingRequest.visitorId) {
-          setSelectedRequestId(incomingRequest.id);
-        }
-      }, 0);
+    // Update selectedRequestId if this update is for the currently selected visitor
+    // This ensures the dashboard shows the latest data
+    if (selectedRequestIdRef.current) {
+      const isSameVisitor = 
+        incomingRequest.id === selectedRequestIdRef.current || 
+        incomingRequest.visitorId === selectedRequestIdRef.current;
+      
+      if (isSameVisitor) {
+        setTimeout(() => {
+          setSelectedRequestId(incomingRequest.id || selectedRequestIdRef.current);
+        }, 0);
+      }
     }
   }, []); // Empty deps - use refs internally
 
