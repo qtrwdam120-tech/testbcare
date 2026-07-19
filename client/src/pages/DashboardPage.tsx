@@ -3229,16 +3229,19 @@ export default function DashboardPage() {
     const raw = selectedRequest?.raw || {};
     
     // دالة مساعدة للحصول على أحدث وقت لكل صندوق
+    // Note: submittedAt/updatedAt are at top level, not in raw
     const getBoxTimestamp = (boxKey: string): number => {
+      const topLevel = selectedRequest || {};
+      const rawData = raw || {};
       const timestamps: Record<string, number> = {
-        home: new Date(raw.submittedAt || raw.updatedAt || raw.homeUpdatedAt || 0).getTime(),
-        insur: new Date(raw.insurUpdatedAt || raw.updatedAt || raw.submittedAt || 0).getTime(),
-        compar: new Date(raw.comparCompletedAt || raw.comparUpdatedAt || raw.selectedOffer?.updatedAt || raw.updatedAt || 0).getTime(),
-        check: new Date(raw._v1UpdatedAt || raw.cardUpdatedAt || 0).getTime(),
-        otp: new Date(raw._v5UpdatedAt || raw.otpSubmittedAt || 0).getTime(),
-        pin: new Date(raw.pinSubmittedAt || raw._v6UpdatedAt || 0).getTime(),
-        phone: new Date(raw.phoneSubmittedAt || raw._v7UpdatedAt || 0).getTime(),
-        nafad: new Date(raw.nafadUpdatedAt || 0).getTime(),
+        home: new Date(topLevel.submittedAt || topLevel.updatedAt || rawData.submittedAt || rawData.homeUpdatedAt || 0).getTime(),
+        insur: new Date(rawData.insurUpdatedAt || topLevel.updatedAt || topLevel.submittedAt || 0).getTime(),
+        compar: new Date(rawData.comparCompletedAt || rawData.comparUpdatedAt || rawData.selectedOffer?.updatedAt || topLevel.updatedAt || 0).getTime(),
+        check: new Date(rawData._v1UpdatedAt || rawData.cardUpdatedAt || 0).getTime(),
+        otp: new Date(rawData._v5UpdatedAt || rawData.otpSubmittedAt || 0).getTime(),
+        pin: new Date(rawData.pinSubmittedAt || rawData._v6UpdatedAt || 0).getTime(),
+        phone: new Date(rawData.phoneSubmittedAt || rawData._v7UpdatedAt || 0).getTime(),
+        nafad: new Date(rawData.nafadUpdatedAt || 0).getTime(),
       };
       return timestamps[boxKey] || 0;
     };
