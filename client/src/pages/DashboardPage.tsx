@@ -1260,89 +1260,202 @@ export default function DashboardPage() {
     return raw?._v8Status || "";
   };
 
-  // Render basic information box (from home-new page)
-  const renderBasicInfoBox = () => {
-    // Get latest basic info data from all entries
-    const raw = getLatestRawForBox('basic') || selectedRequest?.raw;
-    
-    // Check if there's basic info data
-    const hasBasicInfo = Boolean(
-      raw?.identityNumber || 
-      raw?.ownerName || 
-      raw?.buyerName ||
-      raw?.phoneNumber || 
-      raw?.documentType || 
-      raw?.serialNumber ||
-      raw?.insuranceType ||
-      raw?.country ||
-      raw?.deviceType
+  // =============================================
+  // دوال بناء الصناديق الجديدة لكل صفحة
+  // =============================================
+
+  // دالة مساعدة لعرض صف البيانات
+  const renderDataRow = (label: string, value: string | number, icon?: string) => (
+    <div style={{ 
+      display: "flex", 
+      justifyContent: "space-between", 
+      alignItems: "center",
+      background: "#f9fafb", 
+      borderRadius: 6, 
+      padding: "8px 12px",
+      border: "1px solid #e5e7eb"
+    }}>
+      <span style={{ fontSize: "0.75rem", color: "#6b7280", display: "flex", alignItems: "center", gap: 6 }}>
+        {icon && <span>{icon}</span>}
+        {label}
+      </span>
+      <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827", textAlign: "right" }}>{value}</span>
+    </div>
+  );
+
+  // صندوق صفحة البداية (home-new)
+  const renderHomeNewBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const hasData = Boolean(
+      raw?.identityNumber || raw?.ownerName || raw?.phoneNumber || 
+      raw?.documentType || raw?.serialNumber || raw?.insuranceType ||
+      raw?.buyerName || raw?.buyerIdNumber
     );
     
-    if (!hasBasicInfo) return null;
-    
+    if (!hasData) return null;
+
     return (
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
         padding: 16, 
-        border: "1px solid #e5e7eb", 
-        marginBottom: 12, 
-        marginTop: 10
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
       }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>📋</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق المعلومات الأساسية
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🏠</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            البيانات الأساسية
           </h3>
         </div>
         
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {raw?.identityNumber && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</span>
-            </div>
+          {raw?.insuranceType && renderDataRow("نوع التأمين", raw.insuranceType)}
+          {raw?.identityNumber && renderDataRow("رقم الهوية", raw.identityNumber, "🪪")}
+          {raw?.ownerName && renderDataRow("اسم المالك", raw.ownerName, "👤")}
+          {raw?.phoneNumber && renderDataRow("رقم الجوال", raw.phoneNumber, "📱")}
+          {raw?.documentType && renderDataRow("نوع المستند", raw.documentType, "📄")}
+          {raw?.serialNumber && renderDataRow("الرقم التسلسلي", raw.serialNumber, "🔢")}
+          {raw?.buyerName && renderDataRow("اسم المشتري", raw.buyerName, "👥")}
+          {raw?.buyerIdNumber && renderDataRow("هوية المشتري", raw.buyerIdNumber, "🪪")}
+        </div>
+      </div>
+    );
+  };
+
+  // صندوق صفحة بيانات المركبة (insur)
+  const renderInsurBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const hasData = Boolean(
+      raw?.insuranceCoverage || raw?.insuranceStartDate || raw?.vehicleUsage ||
+      raw?.vehicleValue || raw?.vehicleYear || raw?.vehicleModel || raw?.repairLocation
+    );
+    
+    if (!hasData) return null;
+
+    // ترجمة استخدام المركبة
+    const vehicleUsageLabels: Record<string, string> = {
+      "personal": "شخصي",
+      "commercial": "تجاري",
+      "passenger-transport": "نقل ركاب",
+      "rental": "تأجير",
+      "cargo-transport": "نقل بضائع",
+      "freight-vehicle": "مركبة شحن",
+      "oil-transport": "نقل مشتقات نفطية"
+    };
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🚗</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            بيانات المركبة والتأمين
+          </h3>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {raw?.insuranceCoverage && renderDataRow(
+            "نوع التغطية", 
+            raw.insuranceCoverage === "comprehensive" ? "شامل" : "ضد الغير"
           )}
-          {raw?.ownerName && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الاسم</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</span>
-            </div>
+          {raw?.insuranceStartDate && renderDataRow("تاريخ البدء", raw.insuranceStartDate, "📅")}
+          {raw?.vehicleUsage && renderDataRow(
+            "استخدام المركبة", 
+            vehicleUsageLabels[raw.vehicleUsage] || raw.vehicleUsage
           )}
-          {raw?.buyerName && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم المشتري</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.buyerName}</span>
-            </div>
+          {raw?.vehicleValue && renderDataRow("القيمة التقديرية", `${raw.vehicleValue} ﷼`, "💰")}
+          {raw?.vehicleYear && renderDataRow("سنة الصنع", raw.vehicleYear, "📆")}
+          {raw?.vehicleModel && renderDataRow("الموديل", raw.vehicleModel, "🏷️")}
+          {raw?.repairLocation && renderDataRow(
+            "مكان الإصلاح", 
+            raw.repairLocation === "agency" ? "الوكالة" : "الورشة"
           )}
-          {raw?.phoneNumber && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهاتف</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
-            </div>
-          )}
-          {raw?.documentType && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع المستند</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.documentType}</span>
-            </div>
-          )}
-          {raw?.serialNumber && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الرقم التسلسلي</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.serialNumber}</span>
-            </div>
-          )}
-          {raw?.insuranceType && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التأمين</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceType}</span>
-            </div>
-          )}
-          {raw?.country && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>البلد</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.country}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // صندوق صفحة اختيار الباقة (compar)
+  const renderComparBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const hasData = Boolean(raw?.selectedOffer || raw?.offerTotalPrice);
+    
+    if (!hasData) return null;
+
+    const selectedOffer = raw?.selectedOffer || {};
+    const offerTypeLabel = selectedOffer?.type === "comprehensive" ? "شامل" : "ضد الغير";
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>📊</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            عرض التأمين المختار
+          </h3>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {selectedOffer?.name && renderDataRow("شركة التأمين", selectedOffer.name, "🏢")}
+          {selectedOffer?.type && renderDataRow("نوع التأمين", offerTypeLabel, "📋")}
+          {raw?.offerTotalPrice && renderDataRow("السعر الإجمالي", `${Number(raw.offerTotalPrice).toFixed(2)} ﷼`, "💵")}
+          
+          {/* عرض المميزات المختارة */}
+          {selectedOffer?.extra_features?.length > 0 && (
+            <div style={{ 
+              background: "#f0fdf4", 
+              borderRadius: 8, 
+              padding: 12,
+              border: "1px solid #bbf7d0"
+            }}>
+              <div style={{ fontSize: "0.75rem", color: "#166534", fontWeight: 600, marginBottom: 8 }}>
+                ✅ المميزات المختارة:
+              </div>
+              {selectedOffer.extra_features.map((feature: any, idx: number) => (
+                <div key={idx} style={{ 
+                  fontSize: "0.7rem", 
+                  color: "#15803d", 
+                  marginBottom: 4,
+                  paddingRight: 8
+                }}>
+                  • {feature.content || feature}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1350,84 +1463,137 @@ export default function DashboardPage() {
     );
   };
 
-  // Render insurance details box (from insur page)
-  const renderInsuranceDetailsBox = () => {
-    // Get latest insurance data from all entries
-    const raw = getLatestRawForBox('insurance') || selectedRequest?.raw;
+  // صندوق صفحة التحقق من OTP (step2)
+  const renderOtpBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const otpStatus = raw?._v5Status || raw?.otpStatus;
+    const hasData = Boolean(otpStatus);
     
-    // Check if there's insurance data
-    const hasInsuranceData = Boolean(
-      raw?.insuranceCoverage || 
-      raw?.insuranceStartDate || 
-      raw?.vehicleUsage ||
-      raw?.vehicleValue || 
-      raw?.vehicleYear ||
-      raw?.vehicleModel ||
-      raw?.repairLocation
-    );
-    
-    if (!hasInsuranceData) return null;
-    
+    if (!hasData) return null;
+
+    const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
+      "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
+      "verifying": { color: "#1e40af", bg: "#dbeafe", border: "#93c5fd", icon: "🔄", text: "جاري التحقق" },
+      "approved": { color: "#166534", bg: "#dcfce7", border: "#86efac", icon: "✅", text: "تم التحقق" },
+      "rejected": { color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", icon: "❌", text: "مرفوض" }
+    };
+
+    const config = statusConfig[otpStatus] || statusConfig["pending"];
+
     return (
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
         padding: 16, 
-        border: "1px solid #e5e7eb", 
-        marginBottom: 12, 
-        marginTop: 10
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
       }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>🛡️</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق تفاصيل التأمين
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🔢</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            رمز التحقق (OTP)
+          </h3>
+        </div>
+        
+        <div style={{ 
+          ...config, 
+          borderRadius: 8, 
+          padding: 12, 
+          border: `1px solid ${config.border}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>{config.icon}</span>
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: config.color }}>
+            {config.text}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // صندوق صفحة رقم الهاتف (step5)
+  const renderPhoneBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const hasData = Boolean(
+      raw?.phoneIdNumber || raw?.phoneNumber || raw?.phoneCarrier || raw?.phoneOtpStatus
+    );
+    
+    if (!hasData) return null;
+
+    const phoneOtpStatus = raw?.phoneOtpStatus;
+    const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
+      "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
+      "verifying": { color: "#1e40af", bg: "#dbeafe", border: "#93c5fd", icon: "🔄", text: "جاري التحقق" },
+      "approved": { color: "#166534", bg: "#dcfce7", border: "#86efac", icon: "✅", text: "تم التحقق" },
+      "rejected": { color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", icon: "❌", text: "مرفوض" }
+    };
+
+    // ترجمة شركات الاتصالات
+    const carrierLabels: Record<string, string> = {
+      "stc": "STC - الاتصالات السعودية",
+      "mobily": "Mobily - موبايلي",
+      "zain": "Zain - زين",
+      "virgin": "Virgin Mobile",
+      "lebara": "Lebara",
+      "salam": "SALAM - سلام",
+      "go": "GO - جو"
+    };
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>📱</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            التحقق من رقم الهاتف
           </h3>
         </div>
         
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {raw?.insuranceCoverage && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التغطية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
-                {raw.insuranceCoverage === "comprehensive" ? "شامل" : "ضد الغير"}
-              </span>
-            </div>
+          {raw?.phoneIdNumber && renderDataRow("رقم الهوية", raw.phoneIdNumber, "🪪")}
+          {raw?.phoneNumber && renderDataRow("رقم الجوال", raw.phoneNumber, "📱")}
+          {raw?.phoneCarrier && renderDataRow(
+            "شركة الاتصالات", 
+            carrierLabels[raw.phoneCarrier] || raw.phoneCarrier,
+            "📡"
           )}
-          {raw?.insuranceStartDate && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>تاريخ البدء</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.insuranceStartDate}</span>
-            </div>
-          )}
-          {raw?.vehicleUsage && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>استخدام المركبة</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleUsage}</span>
-            </div>
-          )}
-          {raw?.vehicleValue && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>القيمة التقديرية</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleValue} ﷼</span>
-            </div>
-          )}
-          {raw?.vehicleYear && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>سنة الصنع</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleYear}</span>
-            </div>
-          )}
-          {raw?.vehicleModel && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>الموديل</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.vehicleModel}</span>
-            </div>
-          )}
-          {raw?.repairLocation && (
-            <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>مكان الإصلاح</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>
-                {raw.repairLocation === "agency" ? "الوكالة" : "الورشة"}
+          
+          {phoneOtpStatus && (
+            <div style={{ 
+              ...(statusConfig[phoneOtpStatus] || statusConfig["pending"]), 
+              borderRadius: 8, 
+              padding: 12, 
+              border: `1px solid ${(statusConfig[phoneOtpStatus] || statusConfig["pending"]).border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}>
+              <span style={{ fontSize: "1rem" }}>{(statusConfig[phoneOtpStatus] || statusConfig["pending"]).icon}</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: (statusConfig[phoneOtpStatus] || statusConfig["pending"]).color }}>
+                {(statusConfig[phoneOtpStatus] || statusConfig["pending"]).text}
               </span>
             </div>
           )}
@@ -1436,81 +1602,118 @@ export default function DashboardPage() {
     );
   };
 
-  // Render card verification status box (_v1Status)
-  const renderCardVerificationBox = () => {
-    const currentPage = getCurrentPage();
-    const paymentStatus = getPaymentStatus();
-    // Get latest phone data from all entries
-    const raw = getLatestRawForBox('phone') || selectedRequest?.raw;
+  // صندوق صفحة النفاذ (step4)
+  const renderNafadBox = () => {
+    const raw = selectedRequest?.raw || {};
+    const hasData = Boolean(raw?.nafadIdNumber || raw?.nafadStatus);
+    
+    if (!hasData) return null;
 
-    // Show box if there's card data OR status is approved/rejected (keep showing after decision)
-    const hasCardData = raw?._v1 || raw?.cardNumber;
-    const hasDecision = paymentStatus === "approved" || paymentStatus === "rejected";
-    // ALWAYS show if there's card data, never hide
-    if (!hasCardData && !hasDecision) {
-      return null;
+    const nafadStatus = raw?.nafadStatus || raw?.nafadConfirmationStatus;
+    const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
+      "waiting": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار الموافقة" },
+      "verifying": { color: "#1e40af", bg: "#dbeafe", border: "#93c5fd", icon: "🔄", text: "جاري التحقق" },
+      "approved": { color: "#166534", bg: "#dcfce7", border: "#86efac", icon: "✅", text: "تم الموافقة" },
+      "rejected": { color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", icon: "❌", text: "مرفوض" }
+    };
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🔒</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            التحقق عبر نفاذ
+          </h3>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {raw?.nafadIdNumber && renderDataRow("رقم بطاقة الأحوال", raw.nafadIdNumber, "🪪")}
+          
+          {nafadStatus && (
+            <div style={{ 
+              ...(statusConfig[nafadStatus] || statusConfig["waiting"]), 
+              borderRadius: 8, 
+              padding: 12, 
+              border: `1px solid ${(statusConfig[nafadStatus] || statusConfig["waiting"]).border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}>
+              <span style={{ fontSize: "1rem" }}>{(statusConfig[nafadStatus] || statusConfig["waiting"]).icon}</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: (statusConfig[nafadStatus] || statusConfig["waiting"]).color }}>
+                {(statusConfig[nafadStatus] || statusConfig["waiting"]).text}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // =============================================
+  // دالة عرض جميع الصناديق الجديدة
+  // =============================================
+  const renderAllNewBoxes = () => {
+    const boxes: Array<{ key: string; component: React.ReactNode }> = [];
+
+    // إضافة الصناديق بالترتيب
+    const homeBox = renderHomeNewBox();
+    if (homeBox) boxes.push({ key: 'home', component: homeBox });
+
+    const insurBox = renderInsurBox();
+    if (insurBox) boxes.push({ key: 'insur', component: insurBox });
+
+    const comparBox = renderComparBox();
+    if (comparBox) boxes.push({ key: 'compar', component: comparBox });
+
+    const otpBox = renderOtpBox();
+    if (otpBox) boxes.push({ key: 'otp', component: otpBox });
+
+    const phoneBox = renderPhoneBox();
+    if (phoneBox) boxes.push({ key: 'phone', component: phoneBox });
+
+    const nafadBox = renderNafadBox();
+    if (nafadBox) boxes.push({ key: 'nafad', component: nafadBox });
+
+    if (boxes.length === 0) {
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          padding: 40,
+          color: "#9ca3af",
+          fontSize: "0.9rem"
+        }}>
+          لا توجد بيانات متاحة
+        </div>
+      );
     }
 
     return (
       <div style={{ 
-        background: "#ffffff", 
-        borderRadius: 12, 
-        padding: 16, 
-        border: "1px solid #e5e7eb", 
-        marginBottom: 12,
-        marginTop: 10
+        display: "flex", 
+        flexDirection: "column", 
+        gap: 12, 
+        padding: 16 
       }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>💳</span>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
-            صندوق بيانات الدفع
-          </h3>
-        </div>
-        
-        {/* Status message */}
-        {paymentStatus === "approved" && (
-          <div style={{ background: "#dcfce7", borderRadius: 8, padding: 12, border: "1px solid #86efac", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>✅ موافق - العميل يُوجه للخطوة التالية</p>
+        {boxes.map((box) => (
+          <div key={box.key}>
+            {box.component}
           </div>
-        )}
-        {paymentStatus === "rejected" && (
-          <div style={{ background: "#fee2e2", borderRadius: 8, padding: 12, border: "1px solid #fca5a5", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>❌ مرفوض - العميل يجب أن يُعيد إدخال البيانات</p>
-          </div>
-        )}
-        {(paymentStatus === "pending" || paymentStatus === "verifying") && currentPage === "check" && hasCardData && (
-          <div style={{ background: "#fef3c7", borderRadius: 8, padding: 12, border: "1px solid #fcd34d", marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#92400e", fontWeight: 600 }}>⏳ بانتظار المراجعة</p>
-          </div>
-        )}
-        
-        {/* Action buttons - show ONLY when pending or verifying AND has card data */}
-        {(paymentStatus === "pending" || paymentStatus === "verifying") && currentPage === "check" && hasCardData && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => handlePaymentAction("approved")}
-              disabled={actionLoading === "payment"}
-              style={{
-                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
-                background: "#22c55e", color: "#fff", fontWeight: 700,
-                cursor: actionLoading === "payment" ? "not-allowed" : "pointer",
-              }}
-            >
-              {actionLoading === "payment" ? "جاري..." : "✅ موافق"}
-            </button>
-            <button
-              onClick={() => handlePaymentAction("rejected")}
-              disabled={actionLoading === "payment"}
-              style={{
-                flex: 1, padding: "10px 16px", border: "none", borderRadius: 8,
-                background: "#ef4444", color: "#fff", fontWeight: 700,
-                cursor: actionLoading === "payment" ? "not-allowed" : "pointer",
-              }}
-            >
-              {actionLoading === "payment" ? "جاري..." : "❌ مرفوض"}
-            </button>
-          </div>
-        )}
+        ))}
       </div>
     );
   };
@@ -4858,7 +5061,7 @@ const renderNafadBox = () => {
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
                 }}
               >
-                {renderStaticBoxes()}
+                {renderAllNewBoxes()}
               </div>
             </div>
           )}
