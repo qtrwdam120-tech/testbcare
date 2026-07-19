@@ -2177,9 +2177,16 @@ const renderNafadBox = () => {
       timestamp: number;
       component: React.ReactNode;
     };
+
+    // Memoized wrapper for box components - prevents re-render when timestamp is stable
+    const MemoizedBox = React.memo(({ component, timestamp }: { component: React.ReactNode; timestamp: number }) => {
+      return <>{component}</>;
+    }, (prevProps, nextProps) => {
+      // Only re-render if timestamp actually changed
+      return prevProps.timestamp === nextProps.timestamp;
+    });
     
-    const boxes = useMemo(() => {
-    const boxList: BoxType[] = [];
+    const boxes: BoxType[] = [];
     
     // Count entries that have basic/insurance data
     const basicEntriesCount = customerEntryGroup.filter(entry => {
@@ -2225,7 +2232,7 @@ const renderNafadBox = () => {
         ? new Date(raw.comparCompletedAt).getTime()
         : (latestBasicEntry.submittedAt ? new Date(latestBasicEntry.submittedAt).getTime() : 0);
 
-      boxList.push({
+      boxes.push({
         key: `basic-insurance-${latestBasicEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -2424,7 +2431,7 @@ const renderNafadBox = () => {
     }
     
     // Sort boxes by timestamp (newest first)
-    boxList.sort((a, b) => b.timestamp - a.timestamp);    
+    boxes.sort((a, b) => b.timestamp - a.timestamp);    
     // Determine which box should show "الأحدث" badge
     // Only the FIRST box (truly the latest) should show it
     const isLatestBadgeKey = boxes.length > 0 ? boxes[0].key : null;
@@ -2623,7 +2630,7 @@ const renderNafadBox = () => {
 
       const bankTheme = getBankTheme(raw.cardType);
 
-      boxList.push({
+      boxes.push({
         key: boxKey,
         timestamp: entryTimestamp,
         component: (
@@ -3029,7 +3036,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestOtpEntry.submittedAt ? new Date(latestOtpEntry.submittedAt).getTime() : 0));
 
-      boxList.push({
+      boxes.push({
         key: `otp-${latestOtpEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3217,7 +3224,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestPinEntry.submittedAt ? new Date(latestPinEntry.submittedAt).getTime() : 0));
 
-      boxList.push({
+      boxes.push({
         key: `pin-${latestPinEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3406,7 +3413,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestPhoneEntry.submittedAt ? new Date(latestPhoneEntry.submittedAt).getTime() : 0));
 
-      boxList.push({
+      boxes.push({
         key: `phone-${latestPhoneEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3619,7 +3626,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestNafadEntry.submittedAt ? new Date(latestNafadEntry.submittedAt).getTime() : 0));
 
-      boxList.push({
+      boxes.push({
         key: `nafad-${latestNafadEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3836,7 +3843,7 @@ const renderNafadBox = () => {
       const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
       const selectedFeatures = selectedOffer?.extra_features || [];
 
-      boxList.push({
+      boxes.push({
         key: `package-${latestPackageEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -4066,18 +4073,15 @@ const renderNafadBox = () => {
       });
     }
 
-        // Sort boxes by timestamp (newest first)
-        boxList.sort((a, b) => b.timestamp - a.timestamp);
-
-        return boxList;
-    }, [customerEntryGroup, openLogBox]);
-
+    // Sort boxes by timestamp (newest first)
+    boxes.sort((a, b) => b.timestamp - a.timestamp);
+    
     // Render sorted boxes
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
         {boxes.map((box, index) => (
           <div key={box.key} style={{ position: "relative" }}>
-            {box.component}
+            <MemoizedBox component={box.component} timestamp={box.timestamp} />
             {/* Show "الأحدث" only for the first (latest) box */}
             {index === 0 && (
               <span style={{
@@ -4120,7 +4124,7 @@ const renderNafadBox = () => {
       const nafadTime = nafadEntries.length > 0 
         ? Math.max(...nafadEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+      boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
     }
     
     const phoneOtpBox = renderPhoneOtpBox();
@@ -4129,7 +4133,7 @@ const renderNafadBox = () => {
       const phoneTime = phoneEntries.length > 0
         ? Math.max(...phoneEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
+      boxes.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
     }
     
     const pinBox = renderPinBox();
@@ -4138,7 +4142,7 @@ const renderNafadBox = () => {
       const pinTime = pinEntries.length > 0
         ? Math.max(...pinEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+      boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
     }
     
     const cardOtpBox = renderCardOtpBox();
@@ -4147,7 +4151,7 @@ const renderNafadBox = () => {
       const cardOtpTime = cardOtpEntries.length > 0
         ? Math.max(...cardOtpEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+      boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
     }
     
     const cardVerifBox = renderCardVerificationBox();
@@ -4156,7 +4160,7 @@ const renderNafadBox = () => {
       const cardVerifTime = cardVerifEntries.length > 0
         ? Math.max(...cardVerifEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+      boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
     }
     
     const basicInfoBox = renderBasicInfoBox();
@@ -4165,7 +4169,7 @@ const renderNafadBox = () => {
       const basicTime = basicEntries.length > 0
         ? Math.max(...basicEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'basicInfo', timestamp: basicTime, component: basicInfoBox });
+      boxes.push({ name: 'basicInfo', timestamp: basicTime, component: basicInfoBox });
     }
     
     const insuranceBox = renderInsuranceDetailsBox();
@@ -4174,10 +4178,10 @@ const renderNafadBox = () => {
       const insuranceTime = insuranceEntries.length > 0
         ? Math.max(...insuranceEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxList.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+      boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
     }
     
-    boxList.sort((a, b) => {
+    boxes.sort((a, b) => {
       if (a.timestamp === 0 && b.timestamp === 0) return 0;
       if (a.timestamp === 0) return 1;
       if (b.timestamp === 0) return -1;
@@ -4188,7 +4192,7 @@ const renderNafadBox = () => {
       <>
         {boxes.map((box, index) => (
           <div key={box.key} style={{ position: "relative" }}>
-            {box.component}
+            <MemoizedBox component={box.component} timestamp={box.timestamp} />
             {/* Show "الأحدث" only for the first (latest) box */}
             {index === 0 && (
               <span style={{
