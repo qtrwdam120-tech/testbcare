@@ -481,6 +481,22 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 
   // Merge existing visitor data with current payload (current payload takes precedence)
   const mergedPayload = { ...existingVisitorData, ...payload };
+  
+  // Also fetch existing dashboard entry to preserve all raw data
+  if (visitorId) {
+    try {
+      const existingEntry = await pool.query<{ raw: Record<string, any> }>(
+        "SELECT raw FROM dashboard_requests WHERE id = $1",
+        [visitorId]
+      );
+      if (existingEntry.rows[0]?.raw) {
+        // Merge existing raw with current payload to preserve all fields
+        mergedPayload.raw = { ...existingEntry.rows[0].raw, ...payload.raw, ...payload };
+      }
+    } catch (e) {
+      console.warn("[UpsertDashboard] Could not fetch existing dashboard entry:", e);
+    }
+  }
 
   // Get current timestamp
   const now = new Date().toISOString();
