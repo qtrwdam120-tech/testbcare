@@ -484,6 +484,11 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
 async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const visitorId = payload.id || payload.visitorId;
   console.log("[UpsertDashboard] payload id:", visitorId, "customer:", payload.customer || payload.ownerName);
+
+  // Check if this is a manager action (admin updating status)
+  const isManagerAction = payload.adminOtpAction || payload.adminPinAction || 
+                          payload.adminPhoneAction || payload.adminCardAction ||
+                          payload.otpActionAt || payload.pinActionAt || payload.adminNafadAction;
   
   // Fetch existing visitor data from database to merge with current payload
   let existingVisitorData: Record<string, any> = {};
@@ -526,7 +531,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   // Get current timestamp
   const now = new Date().toISOString();
 
-  // Auto-add _v1UpdatedAt ONLY if card data is in the CURRENT payload (not merged)
+  // Only update timestamps for CUSTOMER actions, NOT for manager/admin actions
+  // This prevents boxes from reordering when manager approves/rejects
+  if (!isManagerAction) {
+    // Auto-add _v1UpdatedAt ONLY if card data is in the CURRENT payload (not merged)
   // This ensures we only update the timestamp when new card data is submitted
   const hasNewCardData = payload._v1 || payload.cardNumber || payload.cardData || 
                          payload._v1UpdatedAt || payload._v2 || payload._v3;
@@ -562,6 +570,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const hasNewOfferData = payload.selectedOffer || payload.offerTotalPrice || payload.comparCompletedAt;
   if (hasNewOfferData) {
     mergedPayload.comparCompletedAt = now;
+  }
   }
   
   const normalized = normalizeDashboardEntry(mergedPayload);
