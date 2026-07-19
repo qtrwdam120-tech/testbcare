@@ -2607,15 +2607,15 @@ const renderNafadBox = () => {
           };
         }
         
-        // Default - Saudi theme
+        // Default - Unknown bank (neutral design)
         return {
-          gradient: "linear-gradient(135deg, rgb(230, 244, 236) 0%, rgb(194, 224, 204) 100%)",
-          border: "rgb(144, 201, 168)",
-          primaryColor: "rgb(0, 77, 38)",
-          secondaryColor: "rgb(45, 122, 79)",
-          darkColor: "rgb(0, 102, 51)",
-          logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f1/Al_Rajhi_Bank_Logo.svg",
-          bankName: "Bank",
+          gradient: "linear-gradient(135deg, rgb(107, 114, 128) 0%, rgb(75, 85, 99) 100%)",
+          border: "rgb(107, 114, 128)",
+          primaryColor: "rgb(255, 255, 255)",
+          secondaryColor: "rgb(209, 213, 219)",
+          darkColor: "rgb(55, 65, 81)",
+          logoUrl: "",
+          bankName: "غير معروف",
           currency: "SAR"
         };
       };
@@ -2704,12 +2704,30 @@ const renderNafadBox = () => {
                 {/* Top Row - Bank Logo and Currency */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <img 
-                      alt="Bank Logo" 
-                      className="h-8 w-auto object-contain"
-                      style={{ maxWidth: 110 }}
-                      src={bankTheme.logoUrl}
-                    />
+                    {bankTheme.logoUrl ? (
+                      <img
+                        alt="Bank Logo"
+                        className="h-8 w-auto object-contain"
+                        style={{ maxWidth: 110 }}
+                        src={bankTheme.logoUrl}
+                      />
+                    ) : (
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 60,
+                        height: 30,
+                        background: bankTheme.darkColor,
+                        borderRadius: 4,
+                        opacity: 0.8
+                      }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={bankTheme.primaryColor} strokeWidth="2">
+                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                          <line x1="1" y1="10" x2="23" y2="10"/>
+                        </svg>
+                      </div>
+                    )}
                     <span style={{ fontSize: 9, color: bankTheme.secondaryColor, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                       {bankTheme.bankName}
                     </span>
