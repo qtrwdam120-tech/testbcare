@@ -2058,7 +2058,7 @@ const renderNafadBox = () => {
     // Phone: _v7UpdatedAt (auto-updated on each phone submission)
     const getPhoneTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw._v7UpdatedAt || raw.phoneSubmittedAt || raw.phoneUpdatedAt;
+      const ts = raw.phoneOtpUpdatedAt || raw._v7UpdatedAt || raw.phoneSubmittedAt || raw.phoneUpdatedAt;
       return ts ? new Date(ts).getTime() : 0;
     };
     
@@ -4207,7 +4207,7 @@ const renderNafadBox = () => {
     if (phoneOtpBox) {
       const phoneEntries = customerEntryGroup.filter(e => e.raw?.phoneNumber || e.raw?.phoneOtpStatus);
       const phoneTime = phoneEntries.length > 0
-        ? Math.max(...phoneEntries.map(e => { const ts = e.raw?._v7UpdatedAt || e.raw?.phoneSubmittedAt || e.raw?.phoneUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
+        ? Math.max(...phoneEntries.map(e => { const ts = e.raw?.phoneOtpUpdatedAt || e.raw?._v7UpdatedAt || e.raw?.phoneSubmittedAt || e.raw?.phoneUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
     }

@@ -522,8 +522,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   }
 
   // Auto-add _v7UpdatedAt ONLY if phone data is in the CURRENT payload
-  const hasNewPhoneData = payload.phoneNumber || payload._v7 || payload.phoneOtp || 
-                          payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt;
+  const hasNewPhoneData = payload.phoneNumber || payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt;
   if (hasNewPhoneData) {
     mergedPayload._v7UpdatedAt = now;
   }

