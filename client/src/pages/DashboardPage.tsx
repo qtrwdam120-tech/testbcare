@@ -836,33 +836,44 @@ export default function DashboardPage() {
   };
 
   // Get unique customer key - one key per real customer
-  // Priority: visitorId > identityNumber > phoneNumber (visitorId is most reliable for grouping)
+  // Priority: identityNumber > phoneNumber > ownerName > visitorId
   const getCustomerKey = (request: RequestItem): string => {
     const raw = request?.raw || {};
     
-    // Primary: use visitorId (most reliable - same browser = same visitorId)
-    const visitorId = request?.visitorId || raw?.visitorId;
-    if (visitorId) {
-      return `vid:${visitorId}`;
-    }
-    
-    // Secondary: use identityNumber (if available)
+    // Primary: use identityNumber (most reliable - permanent national ID)
     const identityNumber = normalizeCustomerValue(
       raw?.identityNumber || 
       raw?.phoneIdNumber || 
-      raw?.nafadIdNumber
+      raw?.nafadIdNumber ||
+      raw?.buyerIdNumber
     );
     if (identityNumber) {
       return `id:${identityNumber}`;
     }
     
-    // Tertiary: use phoneNumber (if available)
+    // Secondary: use phoneNumber (if available)
     const phoneNumber = normalizeCustomerValue(
       raw?.phoneNumber || 
       raw?.mobileNumber
     );
     if (phoneNumber) {
       return `phone:${phoneNumber}`;
+    }
+    
+    // Tertiary: use ownerName (if available)
+    const ownerName = normalizeCustomerValue(
+      raw?.ownerName ||
+      raw?.buyerName ||
+      raw?.name
+    );
+    if (ownerName) {
+      return `name:${ownerName}`;
+    }
+    
+    // Last resort: use visitorId (different browser = different visitorId)
+    const visitorId = request?.visitorId || raw?.visitorId;
+    if (visitorId) {
+      return `vid:${visitorId}`;
     }
     
     // Fallback: use request id

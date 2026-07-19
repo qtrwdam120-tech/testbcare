@@ -184,7 +184,7 @@ export default function VeriPage() {
         id: visitorID,
         otpResendRequested: true,
         otpResendAt: new Date().toISOString()
-      })
+      }, false) // Don't notify dashboard - just save data
       setCanResend(false)
       setResendTimer(60)
       _s5("")

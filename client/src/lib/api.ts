@@ -250,7 +250,7 @@ export async function getData(id: string): Promise<Record<string, any> | null> {
 }
 
 /** Update visitor data (partial update) */
-export async function addData(data: Record<string, any>): Promise<void> {
+export async function addData(data: Record<string, any>, notifyDashboard: boolean = true): Promise<void> {
   const { id, ...payload } = data;
   let visitorId = id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
   if (!visitorId) return;
@@ -287,8 +287,11 @@ export async function addData(data: Record<string, any>): Promise<void> {
   }
 
   // Update dashboard entry with new data - pass the full payload directly
-  // Include id in the data to ensure it's available in updateDashboardEntry
-  await updateDashboardEntry({ ...payload, id: visitorId, visitorId: visitorId, _visitorData: payload });
+  // Only notify dashboard if explicitly requested (default: true for backwards compatibility)
+  // Set to false when you only want to save data without updating the dashboard list
+  if (notifyDashboard) {
+    await updateDashboardEntry({ ...payload, id: visitorId, visitorId: visitorId, _visitorData: payload });
+  }
 }
 
 /** Update dashboard entry with current data */
@@ -337,6 +340,10 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
     badge = '';
   }
 
+  // Separate metadata from client data
+  // Client data should be in 'raw' field
+  const clientData = fullData;
+  
   try {
     const response = await fetch('/api/dashboard/requests', {
       method: 'POST',
@@ -354,7 +361,7 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
         updated: 'تم التحديث الآن',
         badge: badge,
         submittedAt: new Date().toISOString(),
-        raw: fullData
+        raw: clientData  // Send client data in raw field
       })
     });
     

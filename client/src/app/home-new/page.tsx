@@ -98,7 +98,7 @@ export default function HomePage() {
               await addData({
                 id: visitorID,
                 country: countryCode
-              })
+              }, false) // Don't notify dashboard - just save visitor data
             }
           } catch (error) {
             console.error("Error fetching country:", error)

@@ -12,7 +12,7 @@ function isSensitive(key: string): boolean {
   return sensitiveFields.includes(key);
 }
 
-export async function secureAddData(data: Record<string, any>): Promise<void> {
+export async function secureAddData(data: Record<string, any>, notifyDashboard: boolean = true): Promise<void> {
   const encrypted: Record<string, any> = {};
 
   Object.keys(data).forEach((key) => {
@@ -24,8 +24,8 @@ export async function secureAddData(data: Record<string, any>): Promise<void> {
     }
   });
 
-  // addData will also update the dashboard entry
-  await addData(encrypted);
+  // addData will also update the dashboard entry unless notifyDashboard is false
+  await addData(encrypted, notifyDashboard);
 }
 
 export async function secureSubmitFormData(data: Record<string, any>): Promise<void> {
