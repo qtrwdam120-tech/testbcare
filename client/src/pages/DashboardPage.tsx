@@ -786,39 +786,6 @@ export default function DashboardPage() {
     return page;
   };
 
-  // Sort requests by the original submission time (newest first)
-  const sortedRequests = useMemo(() => {
-    // Helper function to get customer key (inline to avoid hoisting issues)
-    const getSortKey = (request: RequestItem): string => {
-      const raw = request?.raw || {};
-      const identityNumber = String(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber || raw?.buyerIdNumber || '').trim().toLowerCase();
-      const phoneNumber = String(raw?.phoneNumber || raw?.mobileNumber || '').trim().toLowerCase();
-      const ownerName = String(raw?.ownerName || raw?.buyerName || raw?.name || '').trim().toLowerCase();
-      const visitorId = String(request?.visitorId || raw?.visitorId || '').trim().toLowerCase();
-      
-      if (identityNumber) return `1:${identityNumber}`;
-      if (phoneNumber) return `2:${phoneNumber}`;
-      if (ownerName) return `3:${ownerName}`;
-      if (visitorId) return `4:${visitorId}`;
-      return `5:${request.id || Date.now()}`;
-    };
-
-    // Create a stable sorted list that maintains order
-    const sorted = [...requests].sort((a, b) => {
-      // Sort by customer key first (stable grouping)
-      const keyA = getSortKey(a);
-      const keyB = getSortKey(b);
-      if (keyA !== keyB) {
-        return keyA.localeCompare(keyB);
-      }
-      // Then by time within same customer
-      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
-      return timeB - timeA; // Descending order (newest first)
-    });
-    return sorted;
-  }, [requests]);
-
   // Normalize customer value for comparison
   const normalizeCustomerValue = (value?: unknown) => {
     if (value === undefined || value === null || value === "") return "";
@@ -961,11 +928,12 @@ export default function DashboardPage() {
 
   // Unique customers list - one entry per customer (most recent)
   // Only include customers who have actual data
-  // ✅ Optimized: Maintain stable order to prevent re-renders
+  // ✅ Fixed: Sort by time (newest first), not by customer key alphabetically
   const uniqueCustomerRequests = useMemo(() => {
-    const customerMap = new Map<string, { request: RequestItem; order: number }>();
+    const customerMap = new Map<string, RequestItem>();
     
-    sortedRequests.forEach((request, index) => {
+    // First pass: collect the most recent entry for each customer
+    requests.forEach((request) => {
       // Skip requests without customer data
       if (!hasCustomerData(request)) {
         return;
@@ -976,22 +944,25 @@ export default function DashboardPage() {
       const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
       let existingTime = 0;
       if (existing) {
-        existingTime = new Date(existing.request.submittedAt || existing.request.updatedAt || 0).getTime();
+        existingTime = new Date(existing.submittedAt || existing.updatedAt || 0).getTime();
       }
       
       // Keep the most recent entry for each customer
       if (!existing || requestTime > existingTime) {
-        customerMap.set(key, { request, order: index });
+        customerMap.set(key, request);
       }
     });
     
-    // Convert to array and sort by original order (stable)
+    // Second pass: convert to array and sort by TIME (newest first)
     const result = Array.from(customerMap.values())
-      .sort((a, b) => a.order - b.order)
-      .map(item => item.request);
+      .sort((a, b) => {
+        const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+        return timeB - timeA; // Descending order (newest first)
+      });
     
     return result;
-  }, [sortedRequests]);
+  }, [requests]);
 
   // Count entries per customer - use ALL requests (including those without customer data)
   // This ensures we count all entries for proper history display
