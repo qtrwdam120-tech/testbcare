@@ -790,7 +790,11 @@ async function startServer() {
     }
     
     try {
-      await upsertVisitor(String(visitorId), payload);
+      const merged = await upsertVisitor(String(visitorId), payload);
+      
+      // Broadcast new visitor via Socket.IO for real-time dashboard updates
+      broadcastToDashboard("visitor:new", merged);
+      
       res.json({ visitorId: String(visitorId) });
     } catch (error) {
       console.error("visitor create error", error);
@@ -856,6 +860,10 @@ async function startServer() {
   app.patch("/api/visitors/:id", async (req, res) => {
     try {
       const merged = await upsertVisitor(req.params.id, req.body || {});
+      
+      // Broadcast visitor update via Socket.IO for real-time dashboard updates
+      broadcastToDashboard("visitor:update", merged);
+      
       res.json(merged);
     } catch (error) {
       console.error("visitor patch error", error);
@@ -874,8 +882,8 @@ async function startServer() {
       await pool.query("DELETE FROM visitor_events WHERE visitor_id = $1", [visitorId]);
       await pool.query("DELETE FROM visitor_snapshots WHERE visitor_id = $1", [visitorId]);
       
-      // Broadcast to dashboards
-      broadcastToDashboard("dashboard:delete", { id: visitorId });
+      // Broadcast to dashboards via Socket.IO
+      broadcastToDashboard("visitor:delete", { id: visitorId });
       
       res.json({ success: true, message: "Visitor permanently deleted" });
     } catch (error) {

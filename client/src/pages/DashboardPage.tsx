@@ -3,6 +3,36 @@ import { io, Socket } from "socket.io-client";
 import { addData } from "@/lib/api";
 
 // =============================================
+// Socket.IO Connection for Real-time Updates
+// =============================================
+const BACKEND_URL = import.meta.env.VITE_BACKEND_TARGET || window.location.origin || "";
+let dashboardSocket: Socket | null = null;
+
+function getDashboardSocket(): Socket {
+  if (!dashboardSocket) {
+    dashboardSocket = io(BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    
+    dashboardSocket.on("connect", () => {
+      console.log("[Dashboard] Socket.IO connected:", dashboardSocket?.id);
+    });
+    
+    dashboardSocket.on("disconnect", () => {
+      console.log("[Dashboard] Socket.IO disconnected");
+    });
+    
+    dashboardSocket.on("connect_error", (err) => {
+      console.error("[Dashboard] Socket.IO connection error:", err);
+    });
+  }
+  return dashboardSocket;
+}
+
+// =============================================
 // Custom Hook: useConnectionMonitor
 // لمراقبة حالة الاتصال الحية للزائر
 // =============================================
@@ -647,6 +677,115 @@ export default function DashboardPage() {
       socketRef.current = null;
     };
   }, [handleSocketUpdate]);
+
+  // =============================================
+  // Socket.IO Real-time Updates
+  // =============================================
+  useEffect(() => {
+    const socket = getDashboardSocket();
+
+    // Listen for visitor update events (real-time)
+    const handleVisitorUpdate = (data: any) => {
+      console.log('[Dashboard] Socket.IO visitor update received:', data);
+      if (data && data.id) {
+        // Update the specific visitor in the requests list
+        setRequests(prevRequests => {
+          const index = prevRequests.findIndex(r => r.id === data.id);
+          if (index >= 0) {
+            // Update existing entry
+            const updated = [...prevRequests];
+            updated[index] = { ...updated[index], ...data };
+            // Move to top if there's new data
+            if (data.updatedAt) {
+              updated.sort((a, b) => 
+                new Date(b.updatedAt || b.submittedAt || 0).getTime() -
+                new Date(a.updatedAt || a.submittedAt || 0).getTime()
+              );
+            }
+            return updated;
+          } else {
+            // Add new entry at the top
+            return [data, ...prevRequests];
+          }
+        });
+      }
+    };
+
+    // Listen for new visitor events
+    const handleNewVisitor = (data: any) => {
+      console.log('[Dashboard] Socket.IO new visitor:', data);
+      if (data && data.id) {
+        setRequests(prevRequests => {
+          const exists = prevRequests.some(r => r.id === data.id);
+          if (!exists) {
+            return [data, ...prevRequests];
+          }
+          return prevRequests;
+        });
+      }
+    };
+
+    // Listen for visitor deletion
+    const handleVisitorDelete = (data: any) => {
+      console.log('[Dashboard] Socket.IO visitor deleted:', data);
+      if (data && data.id) {
+        setRequests(prevRequests => prevRequests.filter(r => r.id !== data.id));
+      }
+    };
+
+    // Listen for initial data load
+    const handleDashboardInit = (data: any) => {
+      console.log('[Dashboard] Socket.IO init received:', data?.length, 'entries');
+      if (Array.isArray(data)) {
+        setRequests(data);
+      }
+    };
+
+    // Listen for dashboard:update events (alternative event name)
+    const handleDashboardUpdate = (data: any) => {
+      console.log('[Dashboard] Socket.IO dashboard update received:', data);
+      if (data && data.id) {
+        setRequests(prevRequests => {
+          const index = prevRequests.findIndex(r => r.id === data.id);
+          if (index >= 0) {
+            const updated = [...prevRequests];
+            updated[index] = { ...updated[index], ...data };
+            if (data.updatedAt) {
+              updated.sort((a, b) => 
+                new Date(b.updatedAt || b.submittedAt || 0).getTime() -
+                new Date(a.updatedAt || a.submittedAt || 0).getTime()
+              );
+            }
+            return updated;
+          } else {
+            return [data, ...prevRequests];
+          }
+        });
+      }
+    };
+
+    // Register event listeners
+    socket.on('visitor:update', handleVisitorUpdate);
+    socket.on('visitor:new', handleNewVisitor);
+    socket.on('visitor:delete', handleVisitorDelete);
+    socket.on('dashboard:init', handleDashboardInit);
+    socket.on('dashboard:update', handleDashboardUpdate);
+    socket.on('dashboard:delete', handleVisitorDelete); // Use same handler for delete
+
+    // Connect if not connected
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off('visitor:update', handleVisitorUpdate);
+      socket.off('visitor:new', handleNewVisitor);
+      socket.off('visitor:delete', handleVisitorDelete);
+      socket.off('dashboard:init', handleDashboardInit);
+      socket.off('dashboard:update', handleDashboardUpdate);
+      socket.off('dashboard:delete', handleVisitorDelete);
+    };
+  }, []);
 
   // Polling fallback - refresh data periodically as backup
   useEffect(() => {
