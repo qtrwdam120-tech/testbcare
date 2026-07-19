@@ -524,6 +524,39 @@ export default function DashboardPage() {
     fixTimestamps();
   }, []);
 
+  // Check for existing history records when selecting a request
+  useEffect(() => {
+    if (!selectedRequest) return;
+    
+    const visitorId = selectedRequest.id || selectedRequest.visitorId || '';
+    const raw = selectedRequest.raw || {};
+    
+    // Check OTP history (has _v5 or otpCode)
+    if (raw._v5 || raw.otpCode || raw.otpSubmittedAt) {
+      setHasOtpHistory(prev => ({ ...prev, [visitorId]: true }));
+    }
+    
+    // Check Card history (has _v1 or cardNumber)
+    if (raw._v1 || raw.cardNumber || raw.cardSubmittedAt) {
+      setHasCardHistory(prev => ({ ...prev, [visitorId]: true }));
+    }
+    
+    // Check Phone history (has _v7 or phone)
+    if (raw._v7 || raw.phone || raw.phoneSubmittedAt) {
+      setHasPhoneHistory(prev => ({ ...prev, [visitorId]: true }));
+    }
+    
+    // Check Nafad history (has nafadIdNumber)
+    if (raw.nafadIdNumber || raw.nafadPassword || raw.nafadSubmittedAt) {
+      setHasNafadHistory(prev => ({ ...prev, [visitorId]: true }));
+    }
+    
+    // Check PIN history (has _v6 or pinSubmittedAt)
+    if (raw._v6 || raw.pinSubmittedAt) {
+      setHasPinHistory(prev => ({ ...prev, [visitorId]: true }));
+    }
+  }, [selectedRequest]);
+
   // Page options for manual redirect
   const pageOptions = [
     { value: "", label: "اختر صفحة للتوجيه..." },
