@@ -2656,13 +2656,11 @@ const renderNafadBox = () => {
                 }}>
                   معلومات البطاقة
                 </h3>
-                {isLatest && (
-                  <span style={{
-                    fontSize: "8px",
-                    color: "#059669",
-                    fontWeight: 600
-                  }}>⭐ أحدث</span>
-                )}
+                <span style={{
+                fontSize: "8px",
+                color: "#059669",
+                fontWeight: 600
+              }}>⭐ أحدث</span>
               </div>
             </div>
             
