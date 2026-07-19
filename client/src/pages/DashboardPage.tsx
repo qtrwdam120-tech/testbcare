@@ -2099,6 +2099,16 @@ const renderNafadBox = () => {
       )
     );
     
+    // DEBUG: Check timestamps for each data type
+    console.log('[DEBUG] cardRaw timestamps:', {
+      _v1UpdatedAt: cardRaw?._v1UpdatedAt,
+      _v5UpdatedAt: cardRaw?._v5UpdatedAt,
+      _v6UpdatedAt: cardRaw?._v6UpdatedAt,
+      _v7UpdatedAt: cardRaw?._v7UpdatedAt,
+      nafadUpdatedAt: cardRaw?.nafadUpdatedAt,
+      comparCompletedAt: cardRaw?.comparCompletedAt,
+    });
+    
     // Use _v1UpdatedAt for card timestamp, fallback to comparCompletedAt or submittedAt
     const cardTimestamp = cardRaw?._v1UpdatedAt 
       ? new Date(cardRaw._v1UpdatedAt).getTime() 
