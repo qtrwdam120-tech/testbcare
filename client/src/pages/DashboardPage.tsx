@@ -526,8 +526,10 @@ export default function DashboardPage() {
 
   // Check for existing history records when selecting a request
   useEffect(() => {
-    // Access requests directly instead of selectedRequest to avoid hoisting issues
-    const currentSelectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
+    if (!selectedRequestId || requests.length === 0) return;
+    
+    // Find the selected request from requests array
+    const currentSelectedRequest = requests.find((r) => r.id === selectedRequestId);
     if (!currentSelectedRequest) return;
     
     const visitorId = currentSelectedRequest.id || currentSelectedRequest.visitorId || '';
@@ -557,7 +559,7 @@ export default function DashboardPage() {
     if (raw._v6 || raw.pinSubmittedAt) {
       setHasPinHistory(prev => ({ ...prev, [visitorId]: true }));
     }
-  }, [selectedRequestId, requests, filteredRequests]);
+  }, [selectedRequestId, requests]);
 
   // Page options for manual redirect
   const pageOptions = [
