@@ -799,11 +799,20 @@ export default function DashboardPage() {
 
   // Sort requests by the original submission time (newest first)
   const sortedRequests = useMemo(() => {
-    return [...requests].sort((a, b) => {
+    // Create a stable sorted list that maintains order
+    const sorted = [...requests].sort((a, b) => {
+      // Sort by customer key first (stable grouping)
+      const keyA = getCustomerKey(a);
+      const keyB = getCustomerKey(b);
+      if (keyA !== keyB) {
+        return keyA.localeCompare(keyB);
+      }
+      // Then by time within same customer
       const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
       const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
       return timeB - timeA; // Descending order (newest first)
     });
+    return sorted;
   }, [requests]);
 
   // Normalize customer value for comparison
@@ -925,30 +934,31 @@ export default function DashboardPage() {
   };
 
   // Unique customers list - one entry per customer (most recent)
+  // ✅ Optimized: Maintain stable order to prevent re-renders
   const uniqueCustomerRequests = useMemo(() => {
-    const customerMap = new Map<string, RequestItem>();
+    const customerMap = new Map<string, { request: RequestItem; order: number }>();
     
-    sortedRequests.forEach((request) => {
+    sortedRequests.forEach((request, index) => {
       const key = getCustomerKey(request);
       const existing = customerMap.get(key);
       const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
       let existingTime = 0;
       if (existing) {
-        existingTime = new Date(existing.submittedAt || existing.updatedAt || 0).getTime();
+        existingTime = new Date(existing.request.submittedAt || existing.request.updatedAt || 0).getTime();
       }
       
       // Keep the most recent entry for each customer
       if (!existing || requestTime > existingTime) {
-        customerMap.set(key, request);
+        customerMap.set(key, { request, order: index });
       }
     });
     
-    // Convert to array and sort by most recent
-    return Array.from(customerMap.values()).sort((a, b) => {
-      const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
-      return timeB - timeA;
-    });
+    // Convert to array and sort by original order (stable)
+    const result = Array.from(customerMap.values())
+      .sort((a, b) => a.order - b.order)
+      .map(item => item.request);
+    
+    return result;
   }, [sortedRequests]);
 
   // Count entries per customer
@@ -1091,20 +1101,31 @@ export default function DashboardPage() {
     const socket = getDashboardSocket();
 
     // Listen for visitor update events (real-time)
-    // ✅ Optimized: Only update the specific item, don't trigger full list re-sort
+    // ✅ Optimized: Update data in-place without reordering the list
     const handleVisitorUpdate = (data: any) => {
       if (!data || !data.id) return;
       
       setRequests(prevRequests => {
         const index = prevRequests.findIndex(r => r.id === data.id);
         if (index >= 0) {
-          // Update only the specific item
+          // Update only the specific item IN PLACE - don't reorder
           const updated = [...prevRequests];
           updated[index] = { ...updated[index], ...data };
           return updated;
         } else {
-          // Add new entry at the top
-          return [data, ...prevRequests];
+          // New entry - insert based on customer key to maintain stable order
+          const customerKey = data.raw?.identityNumber || data.raw?.phoneNumber || data.raw?.ownerName || data.id;
+          const insertIndex = prevRequests.findIndex(r => {
+            const rKey = r.raw?.identityNumber || r.raw?.phoneNumber || r.raw?.ownerName || r.id;
+            return String(rKey) > String(customerKey);
+          });
+          
+          if (insertIndex === -1) {
+            return [...prevRequests, data];
+          }
+          const updated = [...prevRequests];
+          updated.splice(insertIndex, 0, data);
+          return updated;
         }
       });
     };
@@ -1136,18 +1157,20 @@ export default function DashboardPage() {
     };
 
     // Listen for dashboard:update events (alternative event name)
-    // ✅ Optimized: Only update the specific item
+    // ✅ Optimized: Update data in-place without reordering
     const handleDashboardUpdate = (data: any) => {
       if (!data || !data.id) return;
       
       setRequests(prevRequests => {
         const index = prevRequests.findIndex(r => r.id === data.id);
         if (index >= 0) {
+          // Update only - don't reorder
           const updated = [...prevRequests];
           updated[index] = { ...updated[index], ...data };
           return updated;
         } else {
-          return [data, ...prevRequests];
+          // Add at the end - maintain stable order
+          return [...prevRequests, data];
         }
       });
     };
@@ -1331,6 +1354,7 @@ export default function DashboardPage() {
   };
 
   // Filter requests (unique customers only for sidebar)
+  // ✅ Optimized: Maintain stable order to prevent flickering
   const filteredRequests = useMemo(() => {
     // Use unique customers for the sidebar list
     let filtered = uniqueCustomerRequests;
@@ -1352,24 +1376,8 @@ export default function DashboardPage() {
       );
     }
     
-    // Sort by latest activity (most recent first)
-    filtered = [...filtered].sort((a, b) => {
-      const aRaw = a.raw || {};
-      const bRaw = b.raw || {};
-      
-      const aTimestamp = 
-        new Date(aRaw.checkUpdatedAt || aRaw.cardUpdatedAt || aRaw.otpSubmittedAt || 
-                 aRaw.pinSubmittedAt || aRaw.phoneSubmittedAt || aRaw.nafadUpdatedAt || 
-                 aRaw.createdAt || aRaw.submittedAt || a.submittedAt || a.updatedAt || 0).getTime();
-      
-      const bTimestamp = 
-        new Date(bRaw.checkUpdatedAt || bRaw.cardUpdatedAt || bRaw.otpSubmittedAt || 
-                 bRaw.pinSubmittedAt || bRaw.phoneSubmittedAt || bRaw.nafadUpdatedAt || 
-                 bRaw.createdAt || bRaw.submittedAt || b.submittedAt || b.updatedAt || 0).getTime();
-      
-      return bTimestamp - aTimestamp;
-    });
-    
+    // Don't re-sort on every update - maintain stable order
+    // The order is already determined by uniqueCustomerRequests
     return filtered;
   }, [uniqueCustomerRequests, filterMode, searchQuery]); // ✅ Removed nowTick - was causing re-render every 30s
 
