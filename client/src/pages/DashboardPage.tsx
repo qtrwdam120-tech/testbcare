@@ -2477,6 +2477,151 @@ const renderNafadBox = () => {
       const boxKey = `card-${latestCardEntry.id}`;
       boxTimestamps.push({ type: 'card', timestamp: entryTimestamp, key: boxKey });
 
+      // Bank card themes
+      const getBankTheme = (cardType: string | undefined) => {
+        const cardTypeLower = (cardType || "").toLowerCase();
+        
+        // Bank Gulf (الخليجية)
+        if (cardTypeLower.includes("gulf") || cardTypeLower.includes("الخليجية") || cardTypeLower.includes("الخليجي")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(25, 118, 210) 0%, rgb(66, 165, 245) 100%)",
+            border: "rgb(25, 118, 210)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(179, 229, 252)",
+            darkColor: "rgb(13, 71, 161)",
+            logoUrl: "https://www.gulfbank.com.kw/assets/img/logo.png",
+            bankName: "Gulf Bank",
+            currency: "KWD"
+          };
+        }
+        
+        // Saudi (السعودية)
+        if (cardTypeLower.includes("saudi") || cardTypeLower.includes("السعودية") || cardTypeLower.includes("snb") || cardTypeLower.includes("الاهلي")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(0, 77, 64) 0%, rgb(0, 150, 136) 100%)",
+            border: "rgb(0, 77, 64)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(204, 245, 232)",
+            darkColor: "rgb(0, 77, 64)",
+            logoUrl: "https://www.alahli.com/sites/all/themes/alahli/images/logo.svg",
+            bankName: "Saudi National Bank",
+            currency: "SAR"
+          };
+        }
+        
+        // Al Rajhi (الراجحي)
+        if (cardTypeLower.includes("rajhi") || cardTypeLower.includes("الراجحي") || cardTypeLower.includes("alrajhi")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(230, 244, 236) 0%, rgb(194, 224, 204) 100%)",
+            border: "rgb(144, 201, 168)",
+            primaryColor: "rgb(0, 77, 38)",
+            secondaryColor: "rgb(45, 122, 79)",
+            darkColor: "rgb(0, 102, 51)",
+            logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f1/Al_Rajhi_Bank_Logo.svg",
+            bankName: "Bank",
+            currency: "SAR"
+          };
+        }
+        
+        // Alawwal (ال.awwal)
+        if (cardTypeLower.includes("alawwal") || cardTypeLower.includes(".awwal") || cardTypeLower.includes("ال.awwal")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(103, 58, 183) 0%, rgb(156, 39, 176) 100%)",
+            border: "rgb(103, 58, 183)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(209, 196, 233)",
+            darkColor: "rgb(74, 20, 140)",
+            logoUrl: "",
+            bankName: "Alawwal Bank",
+            currency: "SAR"
+          };
+        }
+        
+        // Riyad (الرياض)
+        if (cardTypeLower.includes("riyad") || cardTypeLower.includes("الرياض") || cardTypeLower.includes("rib")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(33, 33, 33) 0%, rgb(66, 66, 66) 100%)",
+            border: "rgb(33, 33, 33)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(189, 189, 189)",
+            darkColor: "rgb(0, 0, 0)",
+            logoUrl: "",
+            bankName: "Riyad Bank",
+            currency: "SAR"
+          };
+        }
+        
+        // SABB
+        if (cardTypeLower.includes("sabb") || cardTypeLower.includes("ال british") || cardTypeLower.includes("ال британский")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(0, 78, 162) 0%, rgb(0, 113, 200) 100%)",
+            border: "rgb(0, 78, 162)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(187, 222, 251)",
+            darkColor: "rgb(0, 56, 112)",
+            logoUrl: "",
+            bankName: "SABB",
+            currency: "SAR"
+          };
+        }
+        
+        // Samba (السامبا)
+        if (cardTypeLower.includes("samba") || cardTypeLower.includes("السامبا") || cardTypeLower.includes("smb")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(0, 150, 136) 0%, rgb(0, 188, 212) 100%)",
+            border: "rgb(0, 150, 136)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(178, 235, 244)",
+            darkColor: "rgb(0, 96, 100)",
+            logoUrl: "",
+            bankName: "Samba Bank",
+            currency: "SAR"
+          };
+        }
+        
+        // QNB (قطر الوطني)
+        if (cardTypeLower.includes("qnb") || cardTypeLower.includes("قطر") || cardTypeLower.includes("qatar")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(139, 27, 45) 0%, rgb(198, 40, 68) 100%)",
+            border: "rgb(139, 27, 45)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(255, 205, 210)",
+            darkColor: "rgb(122, 0, 25)",
+            logoUrl: "",
+            bankName: "QNB",
+            currency: "QAR"
+          };
+        }
+        
+        // Kuwait Finance House (KFH)
+        if (cardTypeLower.includes("kfh") || cardTypeLower.includes("التمويل") || cardTypeLower.includes("ال 占戈")) {
+          return {
+            gradient: "linear-gradient(135deg, rgb(0, 121, 107) 0%, rgb(0, 150, 136) 100%)",
+            border: "rgb(0, 121, 107)",
+            primaryColor: "rgb(255, 255, 255)",
+            secondaryColor: "rgb(178, 223, 219)",
+            darkColor: "rgb(0, 77, 64)",
+            logoUrl: "",
+            bankName: "KFH",
+            currency: "KWD"
+          };
+        }
+        
+        // Default - Saudi theme
+        return {
+          gradient: "linear-gradient(135deg, rgb(230, 244, 236) 0%, rgb(194, 224, 204) 100%)",
+          border: "rgb(144, 201, 168)",
+          primaryColor: "rgb(0, 77, 38)",
+          secondaryColor: "rgb(45, 122, 79)",
+          darkColor: "rgb(0, 102, 51)",
+          logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f1/Al_Rajhi_Bank_Logo.svg",
+          bankName: "Bank",
+          currency: "SAR"
+        };
+      };
+
+      const bankTheme = getBankTheme(raw.cardType);
+
       boxes.push({
         key: boxKey,
         timestamp: entryTimestamp,
@@ -2523,9 +2668,9 @@ const renderNafadBox = () => {
             
             {/* Credit Card Design */}
             <div style={{
-              background: "linear-gradient(135deg, rgb(230, 244, 236) 0%, rgb(194, 224, 204) 100%)",
+              background: bankTheme.gradient,
               borderRadius: 16,
-              border: "1.5px solid rgb(144, 201, 168)",
+              border: `1.5px solid ${bankTheme.border}`,
               aspectRatio: "1.586 / 1",
               minHeight: 170,
               padding: 16,
@@ -2542,7 +2687,7 @@ const renderNafadBox = () => {
                 width: "55%",
                 height: "100%",
                 borderRadius: "50%",
-                background: "rgb(0, 102, 51)",
+                background: bankTheme.darkColor,
                 opacity: 0.06
               }} />
               <div style={{
@@ -2552,7 +2697,7 @@ const renderNafadBox = () => {
                 width: "45%",
                 height: "80%",
                 borderRadius: "50%",
-                background: "rgb(0, 102, 51)",
+                background: bankTheme.darkColor,
                 opacity: 0.06
               }} />
               
@@ -2565,10 +2710,10 @@ const renderNafadBox = () => {
                       alt="Bank Logo" 
                       className="h-8 w-auto object-contain"
                       style={{ maxWidth: 110 }}
-                      src="https://upload.wikimedia.org/wikipedia/commons/f/f1/Al_Rajhi_Bank_Logo.svg"
+                      src={bankTheme.logoUrl}
                     />
-                    <span style={{ fontSize: 9, color: "rgb(45, 122, 79)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                      Al Rajhi Banking
+                    <span style={{ fontSize: 9, color: bankTheme.secondaryColor, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {bankTheme.bankName}
                     </span>
                   </div>
                   <div style={{ 
@@ -2577,10 +2722,10 @@ const renderNafadBox = () => {
                     padding: "2px 8px", 
                     fontSize: 11, 
                     fontWeight: "bold", 
-                    color: "rgb(0, 102, 51)", 
+                    color: bankTheme.darkColor, 
                     letterSpacing: "0.05em"
                   }}>
-                    SAR
+                    {bankTheme.currency}
                   </div>
                 </div>
                 
@@ -2590,7 +2735,7 @@ const renderNafadBox = () => {
                   fontSize: 18,
                   fontWeight: "bold",
                   letterSpacing: "0.15em",
-                  color: "rgb(0, 77, 38)",
+                  color: bankTheme.darkColor,
                   direction: "ltr",
                   textAlign: "left"
                 }}>
@@ -2600,30 +2745,44 @@ const renderNafadBox = () => {
                 {/* Bottom Row - Owner, Expiry, CVV, Card Type */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ fontSize: 11, fontWeight: "bold", color: "rgb(0, 77, 38)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <span style={{ 
+                      fontSize: 11, 
+                      fontWeight: "bold", 
+                      color: bankTheme.darkColor, 
+                      letterSpacing: "0.05em", 
+                      textTransform: "uppercase" 
+                    }}>
                       {raw.cardOwner || "CARD HOLDER"}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div>
-                        <span style={{ fontSize: 8, color: "rgb(45, 122, 79)", letterSpacing: "0.05em" }}>EXPIRES</span>
-                        <div style={{ fontSize: 12, fontWeight: "bold", color: "rgb(0, 77, 38)", direction: "ltr" }}>
+                        <span style={{ fontSize: 8, color: bankTheme.secondaryColor, letterSpacing: "0.05em" }}>EXPIRES</span>
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: bankTheme.darkColor, direction: "ltr" }}>
                           {raw.cardExpiry || "**/**"}
                         </div>
                       </div>
                       <div>
-                        <span style={{ fontSize: 8, color: "rgb(45, 122, 79)", letterSpacing: "0.05em" }}>CVV</span>
-                        <div style={{ fontSize: 12, fontWeight: "bold", color: "rgb(0, 77, 38)" }}>
+                        <span style={{ fontSize: 8, color: bankTheme.secondaryColor, letterSpacing: "0.05em" }}>CVV</span>
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: bankTheme.darkColor }}>
                           {raw.cvv || "***"}
                         </div>
                       </div>
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                    <span style={{ fontSize: 9, fontWeight: "bold", color: "rgb(45, 122, 79)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                    <span style={{ 
+                      fontSize: 9, 
+                      fontWeight: "bold", 
+                      color: bankTheme.secondaryColor, 
+                      letterSpacing: "0.08em", 
+                      textTransform: "uppercase" 
+                    }}>
                       {raw.cardType || "DEBIT"} · Visa
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 14 }}>🇸🇦</span>
+                      <span style={{ fontSize: 14 }}>
+                        {bankTheme.currency === "KWD" ? "🇰🇼" : bankTheme.currency === "QAR" ? "🇶🇦" : "🇸🇦"}
+                      </span>
                     </div>
                   </div>
                 </div>
