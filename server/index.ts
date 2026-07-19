@@ -2241,6 +2241,18 @@ async function startServer() {
   const fallbackIndexPath = path.resolve(__dirname, "..", "client", "index.html");
   const useFallback = isDevelopment && fs.existsSync(fallbackIndexPath);
 
+  // Dashboard route - serve vanilla JS dashboard
+  const dashboardPath = path.join(staticPath, "dashboard");
+  const dashboardIndexPath = path.join(dashboardPath, "index.html");
+  
+  app.get("/dashboard", (_req, res) => {
+    if (fs.existsSync(dashboardIndexPath)) {
+      res.sendFile(dashboardIndexPath);
+    } else {
+      res.status(404).send("Dashboard not found. Make sure to run 'npm run build' to include dashboard files.");
+    }
+  });
+
   if (useFallback) {
     app.get("/", (_req, res) => {
       res.sendFile(fallbackIndexPath);
@@ -2255,6 +2267,9 @@ async function startServer() {
 
   // Handle client-side routing - serve index.html for all routes
   app.get("*", (_req, res) => {
+    // Skip dashboard route
+    if (_req.path.startsWith("/dashboard")) return;
+    
     if (useFallback && fs.existsSync(fallbackIndexPath)) {
       res.sendFile(fallbackIndexPath);
       return;
