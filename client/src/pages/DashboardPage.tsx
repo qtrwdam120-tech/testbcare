@@ -526,11 +526,18 @@ export default function DashboardPage() {
 
   // Check for existing history records when selecting a request
   useEffect(() => {
-    if (!selectedRequestId || requests.length === 0) return;
+    console.log('[Dashboard] Checking history for request:', selectedRequestId);
+    if (!selectedRequestId || requests.length === 0) {
+      console.log('[Dashboard] Skipping - no request selected or empty');
+      return;
+    }
     
     // Find the selected request from requests array
     const currentSelectedRequest = requests.find((r) => r.id === selectedRequestId);
-    if (!currentSelectedRequest) return;
+    if (!currentSelectedRequest) {
+      console.log('[Dashboard] Request not found in requests array');
+      return;
+    }
     
     const visitorId = currentSelectedRequest.id || currentSelectedRequest.visitorId || '';
     const raw = currentSelectedRequest.raw || {};
