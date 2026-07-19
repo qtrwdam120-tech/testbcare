@@ -10,6 +10,7 @@ const _rawSocketUrl = (import.meta.env.VITE_SOCKET_URL || '').trim();
 const SOCKET_URL = _rawSocketUrl || (typeof window !== 'undefined' ? window.location.origin : '');
 
 let socket: Socket | null = null;
+let heartbeatInterval: NodeJS.Timeout | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
@@ -28,6 +29,10 @@ export function disconnectSocket(): void {
     socket.disconnect();
     socket = null;
   }
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
 }
 
 export function visitorJoin(_visitorId: string): void {
@@ -42,8 +47,41 @@ export function visitorSaveData(_visitorId: string, _payload: Record<string, any
   // Persistence is now handled through the REST API.
 }
 
+// Send heartbeat to track online visitors
+export function sendHeartbeat(visitorId: string): void {
+  fetch('/api/online-visitors/heartbeat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visitorId }),
+  }).catch(err => {
+    console.log('[Heartbeat] Failed to send heartbeat:', err);
+  });
+}
+
+// Start sending heartbeats every 5 seconds
+export function startHeartbeat(visitorId: string): void {
+  // Stop any existing heartbeat
+  stopHeartbeat();
+  
+  // Send initial heartbeat
+  sendHeartbeat(visitorId);
+  
+  // Send heartbeat every 5 seconds
+  heartbeatInterval = setInterval(() => {
+    sendHeartbeat(visitorId);
+  }, 5000);
+}
+
+// Stop sending heartbeats
+export function stopHeartbeat(): void {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+}
+
 export function visitorHeartbeat(_visitorId: string): void {
-  // Persistence is now handled through the REST API.
+  // Now handled via startHeartbeat/stopHeartbeat
 }
 
 export function visitorSendMessage(_visitorId: string, _message: string, _senderName?: string): void {

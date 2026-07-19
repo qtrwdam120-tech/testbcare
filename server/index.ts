@@ -26,6 +26,23 @@ type DashboardEntry = {
 // SSE clients for real-time updates
 const sseClients = new Set<express.Response>();
 
+// Track online visitors in real-time (visitorId -> lastHeartbeat)
+const onlineVisitors = new Map<string, number>();
+
+// Clean up stale visitors (no heartbeat for 10 seconds)
+function cleanupStaleVisitors(io: SocketIOServer) {
+  const now = Date.now();
+  const timeout = 10000; // 10 seconds
+  
+  for (const [visitorId, lastHeartbeat] of onlineVisitors.entries()) {
+    if (now - lastHeartbeat > timeout) {
+      onlineVisitors.delete(visitorId);
+      io.emit("online:count", { count: onlineVisitors.size, onlineVisitors: Array.from(onlineVisitors.keys()) });
+      console.log(`[OnlineVisitors] Visitor disconnected (timeout): ${visitorId}, count: ${onlineVisitors.size}`);
+    }
+  }
+}
+
 // Broadcast event to all SSE clients
 function broadcastSSE(event: string, data: any) {
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -642,9 +659,75 @@ async function startServer() {
       socket.emit("dashboard:init", entries);
     });
 
+    // Send current online count to new dashboard client
+    socket.emit("online:count", { 
+      count: onlineVisitors.size, 
+      onlineVisitors: Array.from(onlineVisitors.keys()) 
+    });
+
+    // Handle visitor heartbeat from visitor pages
+    socket.on("visitor:heartbeat", (data: { visitorId: string }) => {
+      if (data?.visitorId) {
+        const wasNew = !onlineVisitors.has(data.visitorId);
+        onlineVisitors.set(data.visitorId, Date.now());
+        
+        // Only broadcast if this is a new visitor
+        if (wasNew) {
+          io.emit("online:count", { 
+            count: onlineVisitors.size, 
+            onlineVisitors: Array.from(onlineVisitors.keys()) 
+          });
+          console.log(`[OnlineVisitors] Visitor connected: ${data.visitorId}, count: ${onlineVisitors.size}`);
+        }
+      }
+    });
+
+    // Handle visitor disconnect
+    socket.on("visitor:disconnect", (data: { visitorId: string }) => {
+      if (data?.visitorId && onlineVisitors.has(data.visitorId)) {
+        onlineVisitors.delete(data.visitorId);
+        io.emit("online:count", { 
+          count: onlineVisitors.size, 
+          onlineVisitors: Array.from(onlineVisitors.keys()) 
+        });
+        console.log(`[OnlineVisitors] Visitor disconnected: ${data.visitorId}, count: ${onlineVisitors.size}`);
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log("[Socket.IO] Dashboard client disconnected:", socket.id);
     });
+  });
+
+  // Cleanup stale visitors every 5 seconds
+  setInterval(() => cleanupStaleVisitors(io), 5000);
+
+  // API endpoint to get online visitor count
+  app.get("/api/online-visitors/count", (req, res) => {
+    res.json({ 
+      count: onlineVisitors.size, 
+      onlineVisitors: Array.from(onlineVisitors.keys()) 
+    });
+  });
+
+  // API endpoint for visitor heartbeat
+  app.post("/api/online-visitors/heartbeat", (req, res) => {
+    const { visitorId } = req.body;
+    if (visitorId) {
+      const wasNew = !onlineVisitors.has(visitorId);
+      onlineVisitors.set(visitorId, Date.now());
+      
+      // Broadcast to all dashboard clients
+      io.emit("online:count", { 
+        count: onlineVisitors.size, 
+        onlineVisitors: Array.from(onlineVisitors.keys()) 
+      });
+      
+      res.json({ success: true, count: onlineVisitors.size });
+      console.log(`[OnlineVisitors] Heartbeat: ${visitorId}, wasNew: ${wasNew}, count: ${onlineVisitors.size}`);
+    } else {
+      res.status(400).json({ error: "Missing visitorId" });
+    }
   });
 
   // Broadcast to all dashboard clients via Socket.IO
