@@ -2098,10 +2098,11 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
-    // Use _v1UpdatedAt for card timestamp
+    // Use _v1UpdatedAt for card timestamp, fallback to comparCompletedAt or submittedAt
     const cardTimestamp = cardRaw?._v1UpdatedAt 
       ? new Date(cardRaw._v1UpdatedAt).getTime() 
-      : Date.now();
+      : (cardRaw?.comparCompletedAt ? new Date(cardRaw.comparCompletedAt).getTime() 
+        : (cardEntry?.submittedAt ? new Date(cardEntry.submittedAt).getTime() : 0));
     
     // Calculate the overall latest timestamp from all box types to determine "الأحدث"
     // This will be set after all boxes are created and sorted
@@ -2123,10 +2124,11 @@ const renderNafadBox = () => {
     });
     const otpRaw = otpEntry?.raw || null;
     const hasOtpData = Boolean(otpRaw && (otpRaw._v5 || otpRaw.otpCode));
-    // Use _v5UpdatedAt for OTP timestamp
+    // Use _v5UpdatedAt for OTP timestamp, fallback to comparCompletedAt or submittedAt
     const otpTimestamp = otpRaw?._v5UpdatedAt 
       ? new Date(otpRaw._v5UpdatedAt).getTime() 
-      : Date.now();
+      : (otpRaw?.comparCompletedAt ? new Date(otpRaw.comparCompletedAt).getTime() 
+        : (otpEntry?.submittedAt ? new Date(otpEntry.submittedAt).getTime() : 0));
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
     const pinEntry = customerEntryGroup.find(e => {
@@ -2138,10 +2140,11 @@ const renderNafadBox = () => {
     const hasPinData = Boolean(
       pinRaw && (pinRaw._v6 || pinRaw.pinCode)
     );
-    // Use _v6UpdatedAt for PIN timestamp
+    // Use _v6UpdatedAt for PIN timestamp, fallback to comparCompletedAt or submittedAt
     const pinTimestamp = pinRaw?._v6UpdatedAt 
       ? new Date(pinRaw._v6UpdatedAt).getTime() 
-      : Date.now();
+      : (pinRaw?.comparCompletedAt ? new Date(pinRaw.comparCompletedAt).getTime() 
+        : (pinEntry?.submittedAt ? new Date(pinEntry.submittedAt).getTime() : 0));
     
     // Get phone data and its timestamp - ONLY show if actual phone data exists
     const phoneEntry = customerEntryGroup.find(e => {
@@ -2155,10 +2158,11 @@ const renderNafadBox = () => {
         phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7
       )
     );
-    // Use _v7UpdatedAt for phone timestamp
+    // Use _v7UpdatedAt for phone timestamp, fallback to comparCompletedAt or submittedAt
     const phoneTimestamp = phoneRaw?._v7UpdatedAt 
       ? new Date(phoneRaw._v7UpdatedAt).getTime() 
-      : Date.now();
+      : (phoneRaw?.comparCompletedAt ? new Date(phoneRaw.comparCompletedAt).getTime() 
+        : (phoneEntry?.submittedAt ? new Date(phoneEntry.submittedAt).getTime() : 0));
     
     // Get nafad data and its timestamp - ONLY show if actual nafad data exists
     const nafadEntry = customerEntryGroup.find(e => {
@@ -2169,10 +2173,11 @@ const renderNafadBox = () => {
     const hasNafadData = Boolean(
       nafadRaw && (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword)
     );
-    // Use nafadUpdatedAt for nafad timestamp
+    // Use nafadUpdatedAt for nafad timestamp, fallback to comparCompletedAt or submittedAt
     const nafadTimestamp = nafadRaw?.nafadUpdatedAt 
       ? new Date(nafadRaw.nafadUpdatedAt).getTime() 
-      : Date.now();
+      : (nafadRaw?.comparCompletedAt ? new Date(nafadRaw.comparCompletedAt).getTime() 
+        : (nafadEntry?.submittedAt ? new Date(nafadEntry.submittedAt).getTime() : 0));
     
     // Build boxes array - ONE BOX per TYPE (not per entry)
     // Each type (basic, insurance, card, etc.) gets ONE box with the latest data
@@ -2204,10 +2209,10 @@ const renderNafadBox = () => {
       const hasInsurance = raw.insuranceCoverage || raw.vehicleModel ||
                            raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
       if (hasBasic || hasInsurance) {
-        // Use basicUpdatedAt or insuranceUpdatedAt for timestamp
-        const ts = raw.basicUpdatedAt || raw.insuranceUpdatedAt
-          ? new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime()
-          : Date.now();
+        // Use submittedAt or comparCompletedAt for timestamp (these are the real times from DB)
+        const ts = raw.comparCompletedAt
+          ? new Date(raw.comparCompletedAt).getTime()
+          : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0);
         if (ts >= latestBasicTimestamp) {
           latestBasicTimestamp = ts;
           latestBasicEntry = entry;
@@ -2223,10 +2228,10 @@ const renderNafadBox = () => {
       const hasInsurance = raw.insuranceCoverage || raw.vehicleModel ||
                            raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
       
-      // Use basicUpdatedAt or insuranceUpdatedAt for timestamp
-      let entryTimestamp = raw.basicUpdatedAt || raw.insuranceUpdatedAt
-        ? new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime()
-        : Date.now();
+      // Use submittedAt or comparCompletedAt for timestamp (real times from database)
+      let entryTimestamp = raw.comparCompletedAt
+        ? new Date(raw.comparCompletedAt).getTime()
+        : (latestBasicEntry.submittedAt ? new Date(latestBasicEntry.submittedAt).getTime() : 0);
 
       boxes.push({
         key: `basic-insurance-${latestBasicEntry.id}`,
@@ -2453,10 +2458,11 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v1 || raw.cardNumber) {
-        // Use _v1UpdatedAt for card timestamp, fallback to submittedAt
+        // Use _v1UpdatedAt for card timestamp, fallback to comparCompletedAt or submittedAt
         const ts = raw._v1UpdatedAt 
           ? new Date(raw._v1UpdatedAt).getTime()
-          : Date.now();
+          : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+            : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0));
         if (ts >= latestCardTimestamp) {
           latestCardTimestamp = ts;
           latestCardEntry = entry;
@@ -2471,10 +2477,11 @@ const renderNafadBox = () => {
     // Create ONE box for Card (latest entry only)
     if (latestCardEntry) {
       const raw = latestCardEntry.raw || {};
-      // Use _v1UpdatedAt for Card box timestamp
+      // Use _v1UpdatedAt for Card box timestamp, fallback to comparCompletedAt or submittedAt
       let entryTimestamp = raw._v1UpdatedAt 
         ? new Date(raw._v1UpdatedAt).getTime()
-        : Date.now();
+        : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+          : (latestCardEntry.submittedAt ? new Date(latestCardEntry.submittedAt).getTime() : 0));
 
       const boxKey = `card-${latestCardEntry.id}`;
       boxTimestamps.push({ type: 'card', timestamp: entryTimestamp, key: boxKey });
@@ -2646,11 +2653,12 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v5 || raw.otpCode) {
-        // Use _v5UpdatedAt for OTP timestamp, fallback to submittedAt
+        // Use _v5UpdatedAt for OTP timestamp, fallback to comparCompletedAt or submittedAt
         const rawEntry = entry.raw || {};
         const ts = rawEntry._v5UpdatedAt 
           ? new Date(rawEntry._v5UpdatedAt).getTime()
-          : Date.now();
+          : (rawEntry.comparCompletedAt ? new Date(rawEntry.comparCompletedAt).getTime() 
+            : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0));
         if (ts >= latestOtpTimestamp) {
           latestOtpTimestamp = ts;
           latestOtpEntry = entry;
@@ -2662,10 +2670,11 @@ const renderNafadBox = () => {
     if (latestOtpEntry) {
       const raw = latestOtpEntry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-      // Use _v5UpdatedAt for OTP box timestamp
+      // Use _v5UpdatedAt for OTP box timestamp, fallback to comparCompletedAt or submittedAt
       let entryTimestamp = raw._v5UpdatedAt 
         ? new Date(raw._v5UpdatedAt).getTime()
-        : Date.now();
+        : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+          : (latestOtpEntry.submittedAt ? new Date(latestOtpEntry.submittedAt).getTime() : 0));
 
       boxes.push({
         key: `otp-${latestOtpEntry.id}`,
@@ -2810,10 +2819,11 @@ const renderNafadBox = () => {
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v6 || raw.pinCode) {
-        // Use _v6UpdatedAt for PIN timestamp, fallback to submittedAt
+        // Use _v6UpdatedAt for PIN timestamp, fallback to comparCompletedAt or submittedAt
         const ts = raw._v6UpdatedAt 
           ? new Date(raw._v6UpdatedAt).getTime()
-          : Date.now();
+          : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+            : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0));
         if (ts >= latestPinTimestamp) {
           latestPinTimestamp = ts;
           latestPinEntry = entry;
@@ -2825,10 +2835,11 @@ const renderNafadBox = () => {
     if (latestPinEntry) {
       const raw = latestPinEntry.raw || {};
       const pinCode = raw._v6 || raw.pinCode;
-      // Use _v6UpdatedAt for PIN box timestamp
+      // Use _v6UpdatedAt for PIN box timestamp, fallback to comparCompletedAt or submittedAt
       let entryTimestamp = raw._v6UpdatedAt 
         ? new Date(raw._v6UpdatedAt).getTime()
-        : Date.now();
+        : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+          : (latestPinEntry.submittedAt ? new Date(latestPinEntry.submittedAt).getTime() : 0));
 
       boxes.push({
         key: `pin-${latestPinEntry.id}`,
@@ -2974,10 +2985,11 @@ const renderNafadBox = () => {
       const raw = entry.raw || {};
       const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
       if (hasPhoneVerification) {
-        // Use _v7UpdatedAt for phone timestamp, fallback to submittedAt
+        // Use _v7UpdatedAt for phone timestamp, fallback to comparCompletedAt or submittedAt
         const ts = raw._v7UpdatedAt 
           ? new Date(raw._v7UpdatedAt).getTime()
-          : Date.now();
+          : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+            : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0));
         if (ts >= latestPhoneTimestamp) {
           latestPhoneTimestamp = ts;
           latestPhoneEntry = entry;
@@ -2988,10 +3000,11 @@ const renderNafadBox = () => {
     // Create ONE box for Phone (latest entry only)
     if (latestPhoneEntry) {
       const raw = latestPhoneEntry.raw || {};
-      // Use _v7UpdatedAt for Phone box timestamp
+      // Use _v7UpdatedAt for Phone box timestamp, fallback to comparCompletedAt or submittedAt
       let entryTimestamp = raw._v7UpdatedAt 
         ? new Date(raw._v7UpdatedAt).getTime()
-        : Date.now();
+        : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+          : (latestPhoneEntry.submittedAt ? new Date(latestPhoneEntry.submittedAt).getTime() : 0));
 
       boxes.push({
         key: `phone-${latestPhoneEntry.id}`,
@@ -3161,10 +3174,11 @@ const renderNafadBox = () => {
       const raw = entry.raw || {};
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
       if (hasNafad) {
-        // Use nafadUpdatedAt for nafad timestamp, fallback to submittedAt
+        // Use nafadUpdatedAt for nafad timestamp, fallback to comparCompletedAt or submittedAt
         const ts = raw.nafadUpdatedAt 
           ? new Date(raw.nafadUpdatedAt).getTime()
-          : Date.now();
+          : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+            : (entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0));
         if (ts >= latestNafadTimestamp) {
           latestNafadTimestamp = ts;
           latestNafadEntry = entry;
@@ -3175,10 +3189,11 @@ const renderNafadBox = () => {
     // Create ONE box for Nafad (latest entry only)
     if (latestNafadEntry) {
       const raw = latestNafadEntry.raw || {};
-      // Use nafadUpdatedAt for Nafad box timestamp
+      // Use nafadUpdatedAt for Nafad box timestamp, fallback to comparCompletedAt or submittedAt
       let entryTimestamp = raw.nafadUpdatedAt 
         ? new Date(raw.nafadUpdatedAt).getTime()
-        : Date.now();
+        : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
+          : (latestNafadEntry.submittedAt ? new Date(latestNafadEntry.submittedAt).getTime() : 0));
 
       boxes.push({
         key: `nafad-${latestNafadEntry.id}`,
