@@ -1280,9 +1280,6 @@ export default function DashboardPage() {
     
     if (!hasBasicInfo) return null;
     
-    // Get timestamp for sorting
-    const timestamp = getEntryTimestamp(raw);
-
     return (
       <div style={{ 
         background: "#ffffff", 
@@ -1290,26 +1287,8 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12, 
-        marginTop: 10,
-        position: "relative",
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
-        {timestamp > 0 && (
-          <div style={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            fontSize: "0.65rem",
-            color: "#9ca3af",
-            background: "#f3f4f6",
-            padding: "2px 6px",
-            borderRadius: 4
-          }}>
-            {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
-          </div>
-        )}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>📋</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
@@ -1389,9 +1368,6 @@ export default function DashboardPage() {
     
     if (!hasInsuranceData) return null;
     
-    // Get timestamp for sorting
-    const timestamp = getEntryTimestamp(raw);
-
     return (
       <div style={{ 
         background: "#ffffff", 
@@ -1399,26 +1375,8 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12, 
-        marginTop: 10,
-        position: "relative",
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
-        {timestamp > 0 && (
-          <div style={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            fontSize: "0.65rem",
-            color: "#9ca3af",
-            background: "#f3f4f6",
-            padding: "2px 6px",
-            borderRadius: 4
-          }}>
-            {new Date(timestamp).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
-          </div>
-        )}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🛡️</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
@@ -1500,10 +1458,7 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12,
-        marginTop: 10,
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>💳</span>
@@ -1586,17 +1541,13 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12,
-        marginTop: 10,
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🔐</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق رمز التحقق من البطاقة
           </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>{formatRelativeTimeLabel(selectedRequest?.submittedAt || selectedRequest?.updatedAt)}</span>
         </div>
         
         {/* Show OTP code when submitted */}
@@ -1660,17 +1611,13 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12,
-        marginTop: 10,
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🔑</span>
           <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
             صندوق رمز PIN
           </h3>
-          <span style={{ fontSize: "0.75rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>{formatRelativeTimeLabel(selectedRequest?.submittedAt || selectedRequest?.updatedAt)}</span>
         </div>
         
         <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 12 }}>
@@ -1760,10 +1707,7 @@ export default function DashboardPage() {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12,
-        marginTop: 10,
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>📱</span>
@@ -1873,10 +1817,7 @@ const renderNafadBox = () => {
         padding: 16, 
         border: "1px solid #e5e7eb", 
         marginBottom: 12,
-        marginTop: 10,
-        width: "40%",
-        marginRight: 0,
-        marginLeft: "auto"
+        marginTop: 10
       }}>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: "1.2rem" }}>🇸🇦</span>
@@ -2268,8 +2209,7 @@ const renderNafadBox = () => {
             padding: 16,
             border: "2px solid #3b82f6",
             width: "45%",
-            marginRight: 0,
-            marginLeft: "auto",
+            
             position: "relative",
             marginBottom: 16
           }}>
@@ -2665,9 +2605,6 @@ const renderNafadBox = () => {
             borderRadius: 8, 
             padding: 8, 
             border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             <div style={{ marginBottom: 8 }}>
@@ -3071,9 +3008,6 @@ const renderNafadBox = () => {
             borderRadius: 8, 
             padding: 8, 
             border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             <div style={{ marginBottom: 8 }}>
@@ -3259,9 +3193,6 @@ const renderNafadBox = () => {
             borderRadius: 8, 
             padding: 8, 
             border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             <div style={{ marginBottom: 8 }}>
@@ -3448,9 +3379,6 @@ const renderNafadBox = () => {
             borderRadius: 8, 
             padding: 8, 
             border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             <div style={{ marginBottom: 8 }}>
@@ -3661,9 +3589,6 @@ const renderNafadBox = () => {
             borderRadius: 8, 
             padding: 8, 
             border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             <div style={{ marginBottom: 8 }}>
@@ -3889,10 +3814,6 @@ const renderNafadBox = () => {
             background: "#f9fafb",
             borderRadius: 8,
             padding: 8,
-            border: "1px solid #d1d5db",
-            width: "40%",
-            marginRight: 0,
-            marginLeft: "auto",
             fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
             {/* Header with date and title */}
@@ -4276,35 +4197,14 @@ const renderNafadBox = () => {
       boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
     }
     
-    boxes.sort((a, b) => {
-      if (a.timestamp === 0 && b.timestamp === 0) return 0;
-      if (a.timestamp === 0) return 1;
-      if (b.timestamp === 0) return -1;
-      return b.timestamp - a.timestamp;
-    });
+    // ترتيب ثابت - لا نرتب حسب الوقت
+    // boxes.sort((a, b) => b.timestamp - a.timestamp);
     
     return (
       <>
-        {boxes.map((box, index) => (
-          <div key={box.key} style={{ position: "relative" }}>
+        {boxes.map((box) => (
+          <div key={box.key}>
             <MemoizedBox component={box.component} timestamp={box.timestamp} />
-            {/* Show "الأحدث" only for the first (latest) box */}
-            {index === 0 && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600,
-                zIndex: 10
-              }}>
-                الأحدث
-              </span>
-            )}
           </div>
         ))}
       </>
