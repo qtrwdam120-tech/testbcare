@@ -68,7 +68,8 @@ function useConnectionMonitor(visitorId?: string) {
       if (!visitorId || !isMountedRef.current) return;
       
       const now = Date.now();
-      if (now - lastFetchRef.current < 2000) return;
+      // ✅ Increased throttle to 5 seconds to reduce re-renders
+      if (now - lastFetchRef.current < 5000) return;
       lastFetchRef.current = now;
       
       try {
@@ -87,11 +88,12 @@ function useConnectionMonitor(visitorId?: string) {
                           (data.badge === "new" || hasRecentActivity);
           const lastSeen = data.lastSeenAt || data.lastActivityAt || data.updatedAt;
           
-          setConnectionStatus({
-            isOnline,
-            lastSeen: lastSeen || null,
-            isLive: true,
-            latency
+          // ✅ Only update if values actually changed
+          setConnectionStatus(prev => {
+            if (prev.isOnline !== isOnline || prev.lastSeen !== lastSeen) {
+              return { isOnline, lastSeen: lastSeen || null, isLive: true, latency };
+            }
+            return prev;
           });
         } else if (isMountedRef.current) {
           setConnectionStatus(prev => ({ ...prev, isLive: false }));
@@ -152,7 +154,7 @@ function useConnectionMonitor(visitorId?: string) {
       if (visitorId && isMountedRef.current) {
         fetch(`/api/visitors/${visitorId}/heartbeat`, { method: "POST" }).catch(() => {});
       }
-    }, 15000);
+    }, 30000); // ✅ Increased to 30 seconds - less frequent heartbeats
 
     return () => {
       isMountedRef.current = false;
@@ -489,20 +491,14 @@ export default function DashboardPage() {
   const [settingsTab, setSettingsTab] = useState<"security" | "cards">("security");
   const [blockedCards, setBlockedCards] = useState<string[]>([]);
   const [newBlockedCard, setNewBlockedCard] = useState("");
-  const [currentTime, setCurrentTime] = useState(Date.now());
   const [openLogBox, setOpenLogBox] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
-  const currentTimeRef = useRef(Date.now());
+  const currentTimeRef = useRef(Date.now()); // ✅ Use ref instead of state - no re-render
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
   const settingsModalRef = useRef<HTMLDivElement | null>(null);
 
-  // Update current time every minute for timer display
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, []);
+  // ✅ REMOVED: setCurrentTime state update every minute
+  // Now using currentTimeRef.current directly for time calculations
 
   // Fix timestamps for existing records on page load
   useEffect(() => {
@@ -880,83 +876,65 @@ export default function DashboardPage() {
     const socket = getDashboardSocket();
 
     // Listen for visitor update events (real-time)
+    // ✅ Optimized: Only update the specific item, don't trigger full list re-sort
     const handleVisitorUpdate = (data: any) => {
-      console.log('[Dashboard] Socket.IO visitor update received:', data);
-      if (data && data.id) {
-        // Update the specific visitor in the requests list
-        setRequests(prevRequests => {
-          const index = prevRequests.findIndex(r => r.id === data.id);
-          if (index >= 0) {
-            // Update existing entry
-            const updated = [...prevRequests];
-            updated[index] = { ...updated[index], ...data };
-            // Move to top if there's new data
-            if (data.updatedAt) {
-              updated.sort((a, b) => 
-                new Date(b.updatedAt || b.submittedAt || 0).getTime() -
-                new Date(a.updatedAt || a.submittedAt || 0).getTime()
-              );
-            }
-            return updated;
-          } else {
-            // Add new entry at the top
-            return [data, ...prevRequests];
-          }
-        });
-      }
+      if (!data || !data.id) return;
+      
+      setRequests(prevRequests => {
+        const index = prevRequests.findIndex(r => r.id === data.id);
+        if (index >= 0) {
+          // Update only the specific item
+          const updated = [...prevRequests];
+          updated[index] = { ...updated[index], ...data };
+          return updated;
+        } else {
+          // Add new entry at the top
+          return [data, ...prevRequests];
+        }
+      });
     };
 
     // Listen for new visitor events
     const handleNewVisitor = (data: any) => {
-      console.log('[Dashboard] Socket.IO new visitor:', data);
-      if (data && data.id) {
-        setRequests(prevRequests => {
-          const exists = prevRequests.some(r => r.id === data.id);
-          if (!exists) {
-            return [data, ...prevRequests];
-          }
-          return prevRequests;
-        });
-      }
+      if (!data || !data.id) return;
+      
+      setRequests(prevRequests => {
+        const exists = prevRequests.some(r => r.id === data.id);
+        if (!exists) {
+          return [data, ...prevRequests];
+        }
+        return prevRequests;
+      });
     };
 
     // Listen for visitor deletion
     const handleVisitorDelete = (data: any) => {
-      console.log('[Dashboard] Socket.IO visitor deleted:', data);
-      if (data && data.id) {
-        setRequests(prevRequests => prevRequests.filter(r => r.id !== data.id));
-      }
+      if (!data || !data.id) return;
+      setRequests(prevRequests => prevRequests.filter(r => r.id !== data.id));
     };
 
     // Listen for initial data load
     const handleDashboardInit = (data: any) => {
-      console.log('[Dashboard] Socket.IO init received:', data?.length, 'entries');
       if (Array.isArray(data)) {
         setRequests(data);
       }
     };
 
     // Listen for dashboard:update events (alternative event name)
+    // ✅ Optimized: Only update the specific item
     const handleDashboardUpdate = (data: any) => {
-      console.log('[Dashboard] Socket.IO dashboard update received:', data);
-      if (data && data.id) {
-        setRequests(prevRequests => {
-          const index = prevRequests.findIndex(r => r.id === data.id);
-          if (index >= 0) {
-            const updated = [...prevRequests];
-            updated[index] = { ...updated[index], ...data };
-            if (data.updatedAt) {
-              updated.sort((a, b) => 
-                new Date(b.updatedAt || b.submittedAt || 0).getTime() -
-                new Date(a.updatedAt || a.submittedAt || 0).getTime()
-              );
-            }
-            return updated;
-          } else {
-            return [data, ...prevRequests];
-          }
-        });
-      }
+      if (!data || !data.id) return;
+      
+      setRequests(prevRequests => {
+        const index = prevRequests.findIndex(r => r.id === data.id);
+        if (index >= 0) {
+          const updated = [...prevRequests];
+          updated[index] = { ...updated[index], ...data };
+          return updated;
+        } else {
+          return [data, ...prevRequests];
+        }
+      });
     };
 
     // Register event listeners
@@ -989,20 +967,28 @@ export default function DashboardPage() {
   }, []);
 
   // Polling fallback - refresh data periodically as backup
+  // ✅ Optimized: Only update if data actually changed
   useEffect(() => {
+    let lastDataHash = '';
+    
     const pollInterval = setInterval(async () => {
       try {
         const response = await fetch('/api/dashboard/requests');
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data)) {
-            setRequests(data);
+            // Create a simple hash to detect changes
+            const currentHash = data.map(d => d.id + '-' + (d.updatedAt || '')).join('|');
+            if (currentHash !== lastDataHash) {
+              lastDataHash = currentHash;
+              setRequests(data);
+            }
           }
         }
       } catch (error) {
-        console.log('[Dashboard] Polling fallback error:', error);
+        // Silent fail for polling
       }
-    }, 10000); // Poll every 10 seconds as backup
+    }, 30000); // ✅ Increased to 30 seconds - less frequent polling
 
     return () => clearInterval(pollInterval);
   }, []);
@@ -1016,11 +1002,12 @@ export default function DashboardPage() {
   }, []);
 
   // Update UI every 30 seconds for request sorting
+  // ⚠️ NOTE: removed setNowTick - causing unnecessary re-renders
+  // Sorting is now done reactively when data changes via Socket.IO
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNowTick(Date.now());
-    }, 30000);
-    return () => clearInterval(interval);
+    // No-op: nowTick was causing full re-render every 30 seconds
+    // The filteredRequests will still update reactively when requests change
+    return () => {};
   }, []);
 
   // Close header menu when clicking outside
@@ -1169,7 +1156,7 @@ export default function DashboardPage() {
     });
     
     return filtered;
-  }, [uniqueCustomerRequests, filterMode, searchQuery, nowTick]);
+  }, [uniqueCustomerRequests, filterMode, searchQuery]); // ✅ Removed nowTick - was causing re-render every 30s
 
   const toggleRequestSelection = (requestId: string) => {
     setSelectedRequestIds((prev) =>
@@ -3705,7 +3692,7 @@ export default function DashboardPage() {
                 raw.submittedAt ? new Date(raw.submittedAt).getTime() :
                 item.submittedAt ? new Date(item.submittedAt).getTime() : 0;
               
-              const timeSinceSubmit = latestTimestamp > 0 ? currentTime - latestTimestamp : 0;
+              const timeSinceSubmit = latestTimestamp > 0 ? currentTimeRef.current - latestTimestamp : 0; // ✅ Use ref
               const minutesSince = Math.floor(timeSinceSubmit / 60000);
               const hoursSince = Math.floor(minutesSince / 60);
               const daysSince = Math.floor(hoursSince / 24);
