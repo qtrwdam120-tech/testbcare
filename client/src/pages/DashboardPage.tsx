@@ -51,6 +51,9 @@ function useConnectionMonitor(visitorId?: string) {
   
   const eventSourceRef = useRef<EventSource | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0); // Track reconnection attempts
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchRef = useRef<number>(0); // Track last fetch time to prevent spam
 
   useEffect(() => {
     if (!visitorId) {
@@ -58,9 +61,17 @@ function useConnectionMonitor(visitorId?: string) {
       return;
     }
 
-    // دالة لجلب حالة الزائر من السيرفر
+    // دالة لجلب حالة الزائر من السيرفر (with debounce)
     const fetchVisitorStatus = async () => {
       if (!visitorId) return;
+      
+      // Debounce: skip if we fetched in the last 2 seconds
+      const now = Date.now();
+      if (now - lastFetchRef.current < 2000) {
+        return;
+      }
+      lastFetchRef.current = now;
+      
       try {
         const start = Date.now();
         const res = await fetch(`/api/visitors/${visitorId}`, { 
@@ -95,8 +106,15 @@ function useConnectionMonitor(visitorId?: string) {
 
     // الاتصال بـ SSE للبث الحي
     const connectSSE = () => {
+      // Limit reconnection attempts to 5
+      if (reconnectAttemptsRef.current >= 5) {
+        console.log("[ConnectionMonitor] SSE reconnection limit reached (5), stopping");
+        return;
+      }
+      
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
 
       const eventSource = new EventSource(`/api/visitor/${visitorId}/stream`);
@@ -104,6 +122,7 @@ function useConnectionMonitor(visitorId?: string) {
 
       eventSource.onopen = () => {
         console.log("[ConnectionMonitor] SSE connected for visitor:", visitorId);
+        reconnectAttemptsRef.current = 0; // Reset on successful connection
         setConnectionStatus(prev => ({ ...prev, isLive: true }));
         fetchVisitorStatus();
       };
@@ -125,7 +144,17 @@ function useConnectionMonitor(visitorId?: string) {
         console.log("[ConnectionMonitor] SSE error, will retry...");
         setConnectionStatus(prev => ({ ...prev, isLive: false }));
         eventSource.close();
-        setTimeout(connectSSE, 3000);
+        eventSourceRef.current = null;
+        
+        reconnectAttemptsRef.current++;
+        
+        // Exponential backoff: 3s, 6s, 12s, 24s, 48s
+        const delay = 3000 * Math.pow(2, reconnectAttemptsRef.current - 1);
+        console.log(`[ConnectionMonitor] Reconnection attempt ${reconnectAttemptsRef.current}/5, waiting ${delay}ms`);
+        
+        if (reconnectAttemptsRef.current < 5) {
+          reconnectTimeoutRef.current = setTimeout(connectSSE, delay);
+        }
       };
     };
 
@@ -147,6 +176,9 @@ function useConnectionMonitor(visitorId?: string) {
       }
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
   }, [visitorId]);
@@ -716,6 +748,7 @@ export default function DashboardPage() {
   // Handle Socket.IO update
   // Use ref to avoid re-renders and socket reconnections
   const selectedRequestIdRef = useRef<string | null>(null);
+  const lastUpdateRef = useRef<string>(''); // Track last update to prevent duplicate updates
   
   // Keep ref in sync with state
   useEffect(() => {
@@ -723,6 +756,15 @@ export default function DashboardPage() {
   }, [selectedRequestId]);
 
   const handleSocketUpdate = useCallback((updatedRequest: any) => {
+    const updateKey = `${updatedRequest.id || updatedRequest.visitorId}_${updatedRequest.updatedAt || Date.now()}`;
+    
+    // Skip if this is the same update we just processed (debounce duplicate events)
+    if (lastUpdateRef.current === updateKey) {
+      console.log("[Socket Update] Skipping duplicate update:", updatedRequest.id);
+      return;
+    }
+    lastUpdateRef.current = updateKey;
+    
     console.log("[Socket Update] Received:", updatedRequest.id, "visitorId:", updatedRequest.visitorId);
     
     const incomingRequest = {
@@ -803,8 +845,8 @@ export default function DashboardPage() {
     const socket = io(DASHBOARD_BACKEND_URL, {
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: Infinity,
+      reconnectionDelay: 5000, // Increased from 1000ms to 5s
+      reconnectionAttempts: 10, // Limited from Infinity to 10
     });
     
     socketRef.current = socket;
@@ -844,7 +886,7 @@ export default function DashboardPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [handleSocketUpdate]);
+  }, []); // Empty deps - socket connection only on mount
 
   // =============================================
   // Socket.IO Real-time Updates
