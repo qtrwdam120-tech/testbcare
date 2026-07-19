@@ -3792,36 +3792,43 @@ const renderNafadBox = () => {
       });
     }
     
-    // Create a box for each entry that has Package/Offer data
-    // Find the most recent Package timestamp first
+        // Count entries that have Package/Offer data
+    const packageEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw.selectedOffer || raw.offerTotalPrice;
+    }).length;
+    
+    // Find the most recent entry with Package data
+    let latestPackageEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestPackageTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw.selectedOffer || raw.offerTotalPrice) {
         const ts = raw.comparCompletedAt
           ? new Date(raw.comparCompletedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestPackageTimestamp) {
+        if (ts >= latestPackageTimestamp) {
           latestPackageTimestamp = ts;
+          latestPackageEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
+    // Create ONE box for Package (latest entry only)
+    if (latestPackageEntry) {
+      const raw = latestPackageEntry.raw || {};
       const selectedOffer = raw.selectedOffer;
-      const hasPackage = selectedOffer?.name || raw.offerTotalPrice;
-      if (!hasPackage) return;
       let entryTimestamp = Date.now();
       if (raw.comparCompletedAt) {
         const comparTs = new Date(raw.comparCompletedAt).getTime();
         if (comparTs > 0) {
           entryTimestamp = comparTs;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestPackageEntry.submittedAt) {
+        entryTimestamp = new Date(latestPackageEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestPackageTimestamp;
+      boxTimestamps.push({ type: 'package', timestamp: entryTimestamp, key: `package-${latestPackageEntry.id}` });
 
       const offerName = selectedOffer?.name || "—";
       const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
@@ -3829,7 +3836,7 @@ const renderNafadBox = () => {
       const selectedFeatures = selectedOffer?.extra_features || [];
 
       boxes.push({
-        key: `package-${entry.id}`,
+        key: `package-${latestPackageEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{
@@ -3929,23 +3936,134 @@ const renderNafadBox = () => {
               {/* Selected Features */}
               {selectedFeatures.length > 0 && (
                 <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: "14px"
+                  background: "#f0fdf4",
+                  borderRadius: 6,
+                  padding: 8,
+                  marginTop: 8
                 }}>
-                  <span style={{ fontWeight: 600, color: "#4b5563" }}>المميزات المختارة:</span>
-                  <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>
-                    {selectedFeatures.length}
-                  </span>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#166534", marginBottom: 4 }}>
+                    الميزات المختارة:
+                  </div>
+                  {selectedFeatures.map((feature: string, idx: number) => (
+                    <div key={idx} style={{ fontSize: "11px", color: "#15803d", marginBottom: 2 }}>
+                      ✓ {feature}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+
+            {/* زر عرض السجل */}
+            {packageEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'package' ? null : 'package')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'package' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'package' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({packageEntriesCount} إدخالات)
+              </button>
+            )}
+
+            {/* سجل الإدخالات */}
+            {openLogBox === 'package' && packageEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12
+              }}>
+                <div style={{ 
+                  fontSize: "12px", 
+                  fontWeight: 600, 
+                  color: "#6b7280", 
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  سجل الإدخالات السابقة:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw.selectedOffer || raw.offerTotalPrice;
+                  })
+                  .filter(entry => entry.id !== latestPackageEntry.id)
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const entryOffer = raw.selectedOffer;
+                    const entryOfferName = entryOffer?.name || "—";
+                    const entryOfferPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
+                    return (
+                      <div key={entry.id} style={{
+                        marginBottom: 8,
+                        padding: 10,
+                        background: "#ffffff",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb"
+                      }}>
+                        <div style={{
+                          fontSize: "9px",
+                          color: "#9ca3af",
+                          marginBottom: 6
+                        }}>
+                          {entryTime}
+                        </div>
+                        <div style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "12px",
+                          marginBottom: 4
+                        }}>
+                          <span style={{ color: "#4b5563" }}>الشركة:</span>
+                          <span style={{ fontWeight: 600, color: "#111827" }}>{entryOfferName}</span>
+                        </div>
+                        <div style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "12px"
+                        }}>
+                          <span style={{ color: "#4b5563" }}>السعر:</span>
+                          <span style={{ fontWeight: 700, color: "#111827" }}>{entryOfferPrice}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
 
     // Sort boxes by timestamp (newest first)
     boxes.sort((a, b) => b.timestamp - a.timestamp);
