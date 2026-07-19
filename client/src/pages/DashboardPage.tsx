@@ -737,7 +737,7 @@ export default function DashboardPage() {
   // Handle Socket.IO update
   // Use ref to avoid re-renders and socket reconnections
   const selectedRequestIdRef = useRef<string | null>(null);
-  const lastUpdateRef = useRef<string>(''); // Track last update to prevent duplicate updates
+  const lastUpdateRef = useRef<number>(0); // Track last update timestamp
   
   // Keep ref in sync with state
   useEffect(() => {
@@ -745,16 +745,17 @@ export default function DashboardPage() {
   }, [selectedRequestId]);
 
   const handleSocketUpdate = useCallback((updatedRequest: any) => {
-    const updateKey = `${updatedRequest.id || updatedRequest.visitorId}_${updatedRequest.updatedAt || Date.now()}`;
+    const requestId = updatedRequest.id || updatedRequest.visitorId;
+    const now = Date.now();
     
-    // Skip if this is the same update we just processed (debounce duplicate events)
-    if (lastUpdateRef.current === updateKey) {
-      console.log("[Socket Update] Skipping duplicate update:", updatedRequest.id);
+    // Debounce: skip if same request was updated in last 500ms
+    if (now - lastUpdateRef.current < 500 && lastUpdateRef.current > 0) {
+      console.log("[Socket Update] Skipping rapid update for:", requestId);
       return;
     }
-    lastUpdateRef.current = updateKey;
+    lastUpdateRef.current = now;
     
-    console.log("[Socket Update] Received:", updatedRequest.id, "visitorId:", updatedRequest.visitorId);
+    console.log("[Socket Update] Received:", requestId);
     
     const incomingRequest = {
       ...updatedRequest,
@@ -828,57 +829,8 @@ export default function DashboardPage() {
     };
   }, []); // Empty deps - run only once on mount
 
-  // Socket.IO connection
-  useEffect(() => {
-    // Create Socket.IO connection to the backend server directly
-    const socket = io(DASHBOARD_BACKEND_URL, {
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionDelay: 5000, // Increased from 1000ms to 5s
-      reconnectionAttempts: 10, // Limited from Infinity to 10
-    });
-    
-    socketRef.current = socket;
-    
-    socket.on("connect", () => {
-      console.log("[Dashboard] Socket.IO connected:", socket.id);
-    });
-    
-    // Handle initial data from server
-    socket.on("dashboard:init", (data: RequestItem[]) => {
-      console.log("[Dashboard] Received initial data:", data.length, "requests");
-      console.log("[Dashboard] Request IDs:", data.map(r => r.id));
-      setRequests(data);
-    });
-    
-    // Handle real-time updates
-    socket.on("dashboard:update", (updatedRequest: RequestItem) => {
-      console.log("[Dashboard] Received update:", updatedRequest.id);
-      handleSocketUpdate(updatedRequest);
-    });
-    
-    // Handle delete events
-    socket.on("dashboard:delete", (data: { id: string }) => {
-      console.log("[Dashboard] Received delete:", data.id);
-      setRequests(prev => prev.filter(r => r.id !== data.id));
-    });
-    
-    socket.on("disconnect", () => {
-      console.log("[Dashboard] Socket.IO disconnected");
-    });
-    
-    socket.on("connect_error", (error) => {
-      console.log("[Dashboard] Socket.IO connection error:", error.message);
-    });
-    
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, []); // Empty deps - socket connection only on mount
-
   // =============================================
-  // Socket.IO Real-time Updates
+  // Socket.IO Real-time Updates (Unified)
   // =============================================
   useEffect(() => {
     const socket = getDashboardSocket();
