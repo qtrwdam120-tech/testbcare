@@ -51,25 +51,24 @@ function useConnectionMonitor(visitorId?: string) {
   
   const eventSourceRef = useRef<EventSource | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttemptsRef = useRef<number>(0); // Track reconnection attempts
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<number>(0); // Track last fetch time to prevent spam
+  const lastFetchRef = useRef<number>(0);
+  const isMountedRef = useRef<boolean>(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    let reconnectAttempts = 0;
+    
     if (!visitorId) {
       setConnectionStatus({ isOnline: false, lastSeen: null, isLive: false, latency: 0 });
       return;
     }
 
-    // دالة لجلب حالة الزائر من السيرفر (with debounce)
     const fetchVisitorStatus = async () => {
-      if (!visitorId) return;
+      if (!visitorId || !isMountedRef.current) return;
       
-      // Debounce: skip if we fetched in the last 2 seconds
       const now = Date.now();
-      if (now - lastFetchRef.current < 2000) {
-        return;
-      }
+      if (now - lastFetchRef.current < 2000) return;
       lastFetchRef.current = now;
       
       try {
@@ -80,35 +79,32 @@ function useConnectionMonitor(visitorId?: string) {
         });
         const latency = Date.now() - start;
         
-        if (res.ok) {
+        if (res.ok && isMountedRef.current) {
           const data = await res.json();
-          // التحقق من الاتصال: isOnline أو badge === "new" أو recent activity
           const hasRecentActivity = data.lastSeenAt && 
-            (Date.now() - new Date(data.lastSeenAt).getTime()) < 30000; // 30 seconds
+            (Date.now() - new Date(data.lastSeenAt).getTime()) < 30000;
           const isOnline = data.isOnline !== false && 
                           (data.badge === "new" || hasRecentActivity);
           const lastSeen = data.lastSeenAt || data.lastActivityAt || data.updatedAt;
           
-          setConnectionStatus(prev => ({
-            ...prev,
+          setConnectionStatus({
             isOnline,
-            lastSeen: lastSeen || prev.lastSeen,
+            lastSeen: lastSeen || null,
             isLive: true,
             latency
-          }));
-        } else {
+          });
+        } else if (isMountedRef.current) {
           setConnectionStatus(prev => ({ ...prev, isLive: false }));
         }
       } catch {
-        setConnectionStatus(prev => ({ ...prev, isLive: false }));
+        if (isMountedRef.current) {
+          setConnectionStatus(prev => ({ ...prev, isLive: false }));
+        }
       }
     };
 
-    // الاتصال بـ SSE للبث الحي
     const connectSSE = () => {
-      // Limit reconnection attempts to 5
-      if (reconnectAttemptsRef.current >= 5) {
-        console.log("[ConnectionMonitor] SSE reconnection limit reached (5), stopping");
+      if (!isMountedRef.current || reconnectAttempts >= 3) {
         return;
       }
       
@@ -121,70 +117,63 @@ function useConnectionMonitor(visitorId?: string) {
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
+        if (!isMountedRef.current) return;
         console.log("[ConnectionMonitor] SSE connected for visitor:", visitorId);
-        reconnectAttemptsRef.current = 0; // Reset on successful connection
+        reconnectAttempts = 0;
         setConnectionStatus(prev => ({ ...prev, isLive: true }));
         fetchVisitorStatus();
       };
 
-      eventSource.addEventListener("status_update", (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.field) {
-            fetchVisitorStatus();
-          }
-        } catch {}
-      });
-
-      eventSource.addEventListener("connected", (event) => {
-        console.log("[ConnectionMonitor] Visitor stream connected:", visitorId);
+      eventSource.addEventListener("status_update", () => {
+        if (isMountedRef.current) fetchVisitorStatus();
       });
 
       eventSource.onerror = () => {
+        if (!isMountedRef.current) return;
         console.log("[ConnectionMonitor] SSE error, will retry...");
         setConnectionStatus(prev => ({ ...prev, isLive: false }));
         eventSource.close();
         eventSourceRef.current = null;
         
-        reconnectAttemptsRef.current++;
+        reconnectAttempts++;
+        const delay = Math.min(5000 * reconnectAttempts, 30000);
+        console.log(`[ConnectionMonitor] Reconnection attempt ${reconnectAttempts}/3, waiting ${delay}ms`);
         
-        // Exponential backoff: 3s, 6s, 12s, 24s, 48s
-        const delay = 3000 * Math.pow(2, reconnectAttemptsRef.current - 1);
-        console.log(`[ConnectionMonitor] Reconnection attempt ${reconnectAttemptsRef.current}/5, waiting ${delay}ms`);
-        
-        if (reconnectAttemptsRef.current < 5) {
+        if (reconnectAttempts < 3) {
           reconnectTimeoutRef.current = setTimeout(connectSSE, delay);
         }
       };
     };
 
-    // بدء الاتصال
     fetchVisitorStatus();
     connectSSE();
 
-    // Heartbeat كل 10 ثواني
-    heartbeatIntervalRef.current = setInterval(async () => {
-      if (!visitorId) return;
-      try {
-        await fetch(`/api/visitors/${visitorId}/heartbeat`, { method: "POST" });
-      } catch {}
-    }, 10000);
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (visitorId && isMountedRef.current) {
+        fetch(`/api/visitors/${visitorId}/heartbeat`, { method: "POST" }).catch(() => {});
+      }
+    }, 15000);
 
     return () => {
+      isMountedRef.current = false;
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
   }, [visitorId]);
 
   return connectionStatus;
 }
+
 
 type RequestItem = {
   id: string;
