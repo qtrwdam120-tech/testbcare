@@ -2075,12 +2075,20 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
-    const cardTimestamp = cardRaw ? getCardTimestamp(cardRaw) : 0;
+    // Use _v1UpdatedAt for card timestamp, fallback to submittedAt only
+    const cardTimestamp = cardRaw?._v1UpdatedAt 
+      ? new Date(cardRaw._v1UpdatedAt).getTime() 
+      : (cardRaw?.submittedAt ? new Date(cardRaw.submittedAt).getTime() : 0);
+    
+    // Calculate the overall latest timestamp from all box types to determine "الأحدث"
+    // This will be set after all boxes are created and sorted
     
     // Get OTP data and its timestamp (step2) - separate from card data
+    // OTP should have its own timestamp, NOT linked to card timestamp
     const getOtpTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw.otpSubmittedAt || raw._v5UpdatedAt || raw.cardUpdatedAt || raw.submittedAt;
+      // OTP timestamp should use _v5UpdatedAt or its own submittedAt, NOT cardUpdatedAt
+      const ts = raw._v5UpdatedAt || raw.otpSubmittedAt || raw.submittedAt;
       return ts ? new Date(ts).getTime() : 0;
     };
     
@@ -2090,7 +2098,10 @@ const renderNafadBox = () => {
     });
     const otpRaw = otpEntry?.raw || null;
     const hasOtpData = Boolean(otpRaw && (otpRaw._v5 || otpRaw.otpCode));
-    const otpTimestamp = otpRaw ? getOtpTimestamp(otpRaw) : 0;
+    // Use dedicated OTP timestamp, fallback to submittedAt only
+    const otpTimestamp = otpRaw?._v5UpdatedAt 
+      ? new Date(otpRaw._v5UpdatedAt).getTime() 
+      : (otpRaw?.submittedAt ? new Date(otpRaw.submittedAt).getTime() : 0);
     
     // Get PIN data and its timestamp - ONLY show if actual PIN data exists
     const pinEntry = customerEntryGroup.find(e => {
@@ -2102,7 +2113,10 @@ const renderNafadBox = () => {
     const hasPinData = Boolean(
       pinRaw && (pinRaw._v6 || pinRaw.pinCode)
     );
-    const pinTimestamp = pinRaw ? getPinTimestamp(pinRaw) : 0;
+    // Use _v6UpdatedAt for PIN timestamp, fallback to submittedAt only
+    const pinTimestamp = pinRaw?._v6UpdatedAt 
+      ? new Date(pinRaw._v6UpdatedAt).getTime() 
+      : (pinRaw?.submittedAt ? new Date(pinRaw.submittedAt).getTime() : 0);
     
     // Get phone data and its timestamp - ONLY show if actual phone data exists
     const phoneEntry = customerEntryGroup.find(e => {
@@ -2116,7 +2130,10 @@ const renderNafadBox = () => {
         phoneRaw.phoneCarrier || phoneRaw.phoneOtp || phoneRaw._v7
       )
     );
-    const phoneTimestamp = phoneRaw ? getPhoneTimestamp(phoneRaw) : 0;
+    // Use _v7UpdatedAt for phone timestamp, fallback to submittedAt only
+    const phoneTimestamp = phoneRaw?._v7UpdatedAt 
+      ? new Date(phoneRaw._v7UpdatedAt).getTime() 
+      : (phoneRaw?.submittedAt ? new Date(phoneRaw.submittedAt).getTime() : 0);
     
     // Get nafad data and its timestamp - ONLY show if actual nafad data exists
     const nafadEntry = customerEntryGroup.find(e => {
@@ -2127,7 +2144,10 @@ const renderNafadBox = () => {
     const hasNafadData = Boolean(
       nafadRaw && (nafadRaw.nafadIdNumber || nafadRaw.nafadPassword)
     );
-    const nafadTimestamp = nafadRaw ? getNafadTimestamp(nafadRaw) : 0;
+    // Use nafadUpdatedAt for nafad timestamp, fallback to submittedAt only
+    const nafadTimestamp = nafadRaw?.nafadUpdatedAt 
+      ? new Date(nafadRaw.nafadUpdatedAt).getTime() 
+      : (nafadRaw?.submittedAt ? new Date(nafadRaw.submittedAt).getTime() : 0);
     
     // Build boxes array - ONE BOX per TYPE (not per entry)
     // Each type (basic, insurance, card, etc.) gets ONE box with the latest data
@@ -2203,19 +2223,6 @@ const renderNafadBox = () => {
             marginBottom: 16
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             
             {/* Basic Info Section */}
             {hasBasic && (
@@ -2399,9 +2406,16 @@ const renderNafadBox = () => {
     }
     
     // Sort boxes by timestamp (newest first)
-    boxes.sort((a, b) => b.timestamp - a.timestamp);
+    boxes.sort((a, b) => b.timestamp - a.timestamp);    
+    // Determine which box should show "الأحدث" badge
+    // Only the FIRST box (truly the latest) should show it
+    const isLatestBadgeKey = boxes.length > 0 ? boxes[0].key : null;
     
     
+    // Track the index of boxes for "الأحدث" badge (only first/latest box gets it)
+    // After sorting, the first box is the latest - only it should show "الأحدث"
+    // This prevents confusion when multiple boxes share the same timestamp
+
     // If still no boxes, return null
     if (boxes.length === 0) return null;
     
@@ -2428,6 +2442,10 @@ const renderNafadBox = () => {
       }
     });
 
+    // Track the box type with the highest timestamp for "الأحدث" badge
+    // Initialize with empty string - will be set after all boxes are created
+    const boxTimestamps: { type: string; timestamp: number; key: string }[] = [];
+
     // Create ONE box for Card (latest entry only)
     if (latestCardEntry) {
       const raw = latestCardEntry.raw || {};
@@ -2441,8 +2459,11 @@ const renderNafadBox = () => {
         entryTimestamp = new Date(latestCardEntry.submittedAt).getTime();
       }
 
+      const boxKey = `card-${latestCardEntry.id}`;
+      boxTimestamps.push({ type: 'card', timestamp: entryTimestamp, key: boxKey });
+
       boxes.push({
-        key: `card-${latestCardEntry.id}`,
+        key: boxKey,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
@@ -2456,19 +2477,6 @@ const renderNafadBox = () => {
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
             </div>
@@ -2660,19 +2668,6 @@ const renderNafadBox = () => {
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <span style={{ fontSize: "1rem" }}>🔐</span>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
@@ -2840,19 +2835,6 @@ const renderNafadBox = () => {
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
             </div>
@@ -3020,19 +3002,6 @@ const renderNafadBox = () => {
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
             </div>
@@ -3224,19 +3193,6 @@ const renderNafadBox = () => {
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            <span style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#3b82f6",
-              color: "#fff",
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: "0.65rem",
-              fontWeight: 600
-            }}>
-              الأحدث
-            </span>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
             </div>
@@ -3532,7 +3488,28 @@ const renderNafadBox = () => {
     // Render sorted boxes
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
-        {boxes.map(box => box.component)}
+        {boxes.map((box, index) => (
+          <div key={box.key} style={{ position: "relative" }}>
+            {box.component}
+            {/* Show "الأحدث" only for the first (latest) box */}
+            {index === 0 && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600,
+                zIndex: 10
+              }}>
+                الأحدث
+              </span>
+            )}
+          </div>
+        ))}
       </div>
     );
   };
@@ -3622,8 +3599,27 @@ const renderNafadBox = () => {
     
     return (
       <>
-        {boxes.map((box) => (
-          <div key={box.name}>{box.component}</div>
+        {boxes.map((box, index) => (
+          <div key={box.key} style={{ position: "relative" }}>
+            {box.component}
+            {/* Show "الأحدث" only for the first (latest) box */}
+            {index === 0 && (
+              <span style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "#3b82f6",
+                color: "#fff",
+                padding: "2px 8px",
+                borderRadius: 4,
+                fontSize: "0.65rem",
+                fontWeight: 600,
+                zIndex: 10
+              }}>
+                الأحدث
+              </span>
+            )}
+          </div>
         ))}
       </>
     );
