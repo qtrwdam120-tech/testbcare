@@ -1004,10 +1004,12 @@ export default function DashboardPage() {
     return result;
   }, [sortedRequests]);
 
-  // Count entries per customer
+  // Count entries per customer - use ALL requests (including those without customer data)
+  // This ensures we count all entries for proper history display
   const getCustomerEntryCount = (request: RequestItem): number => {
     const key = getCustomerKey(request);
-    return sortedRequests.filter(r => getCustomerKey(r) === key).length;
+    // Count from ALL requests, not just sortedRequests (which filters by hasCustomerData)
+    return requests.filter(r => getCustomerKey(r) === key).length;
   };
 
   // Stats derived from the real visitor data stream
