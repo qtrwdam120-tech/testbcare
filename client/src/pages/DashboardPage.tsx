@@ -232,6 +232,67 @@ function LiveTimer({ startTime }: { startTime: string }) {
   return <span style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{elapsed}</span>;
 }
 
+// Box timer component for individual boxes - updates every second
+function BoxTimer({ timestamp }: { timestamp?: string | number }) {
+  const [elapsed, setElapsed] = useState("");
+  
+  useEffect(() => {
+    if (!timestamp) {
+      setElapsed("");
+      return;
+    }
+    
+    const updateElapsed = () => {
+      const ts = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+      const diff = Date.now() - ts;
+      
+      if (diff < 0) {
+        setElapsed("الآن");
+        return;
+      }
+      
+      const seconds = Math.floor(diff / 1000);
+      if (seconds < 60) {
+        setElapsed(`منذ ${seconds} ثانية`);
+        return;
+      }
+      
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) {
+        setElapsed(`منذ ${minutes} ${minutes === 1 ? 'دقيقة' : 'دقائق'}`);
+        return;
+      }
+      
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        setElapsed(`منذ ${hours} ${hours === 1 ? 'ساعة' : 'ساعات'}`);
+        return;
+      }
+      
+      const days = Math.floor(hours / 24);
+      setElapsed(`منذ ${days} ${days === 1 ? 'يوم' : 'أيام'}`);
+    };
+    
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    
+    return () => clearInterval(interval);
+  }, [timestamp]);
+  
+  if (!timestamp || !elapsed) return null;
+  
+  return (
+    <span style={{ 
+      fontFamily: "monospace", 
+      fontSize: "0.7rem", 
+      color: "#9ca3af",
+      direction: "rtl"
+    }}>
+      {elapsed}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
   // =============================================
   // CSS Animations for Connection Status
@@ -1750,6 +1811,7 @@ export default function DashboardPage() {
   // صندوق صفحة البداية (home-new)
   const renderHomeNewBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.submittedAt || raw?.updatedAt || raw?.homeUpdatedAt;
 
     return (
       <div style={{ 
@@ -1784,6 +1846,13 @@ export default function DashboardPage() {
           {raw?.buyerName && renderDataRow("اسم المشتري", raw.buyerName, "👥")}
           {raw?.buyerIdNumber && renderDataRow("هوية المشتري", raw.buyerIdNumber, "🪪")}
         </div>
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
+          </div>
+        )}
       </div>
     );
   };
@@ -1791,6 +1860,7 @@ export default function DashboardPage() {
   // صندوق صفحة بيانات المركبة (insur)
   const renderInsurBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.insurUpdatedAt || raw?.updatedAt;
 
     // ترجمة استخدام المركبة
     const vehicleUsageLabels: Record<string, string> = {
@@ -1844,6 +1914,13 @@ export default function DashboardPage() {
             raw.repairLocation === "agency" ? "الوكالة" : "الورشة"
           )}
         </div>
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
+          </div>
+        )}
       </div>
     );
   };
@@ -1851,6 +1928,7 @@ export default function DashboardPage() {
   // صندوق صفحة اختيار الباقة (compar)
   const renderComparBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.comparUpdatedAt || raw?.selectedOffer?.updatedAt || raw?.updatedAt;
 
     const selectedOffer = raw?.selectedOffer || {};
     const offerTypeLabel = selectedOffer?.type === "comprehensive" ? "شامل" : "ضد الغير";
@@ -1907,6 +1985,13 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
+          </div>
+        )}
       </div>
     );
   };
@@ -2124,7 +2209,7 @@ export default function DashboardPage() {
             color: "#9ca3af",
             textAlign: "center"
           }}>
-            آخر تحديث: {formatElapsedTime(raw._v5UpdatedAt)}
+            <BoxTimer timestamp={raw._v5UpdatedAt} />
           </div>
         )}
       </div>
@@ -2417,7 +2502,7 @@ export default function DashboardPage() {
             color: "#9ca3af",
             textAlign: "center"
           }}>
-            آخر تحديث: {formatElapsedTime(raw.cardUpdatedAt)}
+            <BoxTimer timestamp={raw.cardUpdatedAt} />
           </div>
         )}
       </div>
@@ -2439,6 +2524,7 @@ export default function DashboardPage() {
   // صندوق صفحة رقم الهاتف (step5)
   const renderPhoneBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.phoneSubmittedAt || raw?.phoneUpdatedAt || raw?.updatedAt;
 
     const phoneOtpStatus = raw?.phoneOtpStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -2683,6 +2769,13 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
+          </div>
+        )}
       </div>
     );
   };
@@ -2690,6 +2783,7 @@ export default function DashboardPage() {
   // صندوق صفحة النفاذ (step4)
   const renderNafadBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.nafadUpdatedAt || raw?.updatedAt;
 
     const nafadStatus = raw?.nafadStatus || raw?.nafadConfirmationStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -2894,6 +2988,13 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
+          </div>
+        )}
       </div>
     );
   };
@@ -2901,6 +3002,7 @@ export default function DashboardPage() {
   // صندوق صفحة PIN (step3)
   const renderPinBox = () => {
     const raw = selectedRequest?.raw || {};
+    const timestamp = raw?.pinSubmittedAt || raw?.pinUpdatedAt || raw?.updatedAt;
     
     const pinStatus = raw?._v6Status || raw?.pinStatus;
     const pinCode = raw?._v6 || raw?.pinCode || "";
@@ -3107,6 +3209,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        
+        {/* عداد التحديث */}
+        {timestamp && (
+          <div style={{ marginTop: 12, textAlign: "center", paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <BoxTimer timestamp={timestamp} />
           </div>
         )}
       </div>
