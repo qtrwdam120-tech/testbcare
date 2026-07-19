@@ -758,6 +758,12 @@ async function startServer() {
       return;
     }
 
+    // Debug: log all nafad-related fields
+    console.log("[Dashboard POST] Received payload keys:", Object.keys(payload));
+    if (payload.nafadPassword) {
+      console.log("[Dashboard POST] nafadPassword:", payload.nafadPassword ? "***" : "empty");
+    }
+
     try {
       const normalized = await upsertDashboardRequest(payload);
       
