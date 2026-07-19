@@ -809,7 +809,7 @@ async function startServer() {
     }
   });
 
-  // HARD DELETE - Permanently delete visitors from all tables
+  // HARD DELETE - Permanently delete ALL customer entries (old and new) from all tables
   app.post("/api/visitors/delete", async (req, res) => {
     try {
       const { ids } = req.body;
@@ -820,26 +820,83 @@ async function startServer() {
         return;
       }
       
+      // First, get all records that match these IDs and their customer identifiers
+      const { rows: targetRecords } = await pool.query(
+        `SELECT id, raw FROM dashboard_requests WHERE id = ANY($1)`,
+        [ids]
+      );
+      
+      // Collect ALL IDs to delete (all entries for the same customer)
+      const allIdsToDelete: string[] = [...ids];
+      
+      for (const record of targetRecords) {
+        const raw = record.raw || {};
+        
+        // Find all records with the same customer identifiers
+        const identityNumber = raw.identityNumber || raw.phoneIdNumber || raw.nafadIdNumber || raw.buyerIdNumber;
+        const phoneNumber = raw.phoneNumber || raw.mobileNumber;
+        const visitorId = raw.visitorId;
+        
+        // Build query to find all matching records
+        const conditions: string[] = [];
+        const params: any[] = [];
+        let paramIndex = 1;
+        
+        if (identityNumber) {
+          conditions.push(`(raw->>'identityNumber' = $${paramIndex} OR raw->>'phoneIdNumber' = $${paramIndex} OR raw->>'nafadIdNumber' = $${paramIndex} OR raw->>'buyerIdNumber' = $${paramIndex})`);
+          params.push(identityNumber);
+          paramIndex++;
+        }
+        
+        if (phoneNumber) {
+          conditions.push(`(raw->>'phoneNumber' = $${paramIndex} OR raw->>'mobileNumber' = $${paramIndex})`);
+          params.push(phoneNumber);
+          paramIndex++;
+        }
+        
+        if (visitorId) {
+          conditions.push(`raw->>'visitorId' = $${paramIndex}`);
+          params.push(visitorId);
+          paramIndex++;
+        }
+        
+        if (conditions.length > 0) {
+          const { rows: matchingRecords } = await pool.query(
+            `SELECT id FROM dashboard_requests WHERE ${conditions.join(' OR ')}`,
+            params
+          );
+          
+          // Add matching IDs to delete list
+          for (const match of matchingRecords) {
+            if (!allIdsToDelete.includes(match.id)) {
+              allIdsToDelete.push(match.id);
+            }
+          }
+        }
+      }
+      
+      console.log("[DELETE] Total IDs to delete:", allIdsToDelete.length);
+      
       // HARD DELETE from all tables in database
-      const placeholders = ids.map((_: any, i: number) => `$${i + 1}`).join(", ");
+      const placeholders = allIdsToDelete.map((_: any, i: number) => `$${i + 1}`).join(", ");
       
       // Delete from visitors table
-      await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, ids);
+      await pool.query(`DELETE FROM visitors WHERE id IN (${placeholders})`, allIdsToDelete);
       // Delete from dashboard_requests table
-      await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, ids);
+      await pool.query(`DELETE FROM dashboard_requests WHERE id IN (${placeholders})`, allIdsToDelete);
       // Delete from visitor_events table
-      await pool.query(`DELETE FROM visitor_events WHERE visitor_id IN (${placeholders})`, ids);
+      await pool.query(`DELETE FROM visitor_events WHERE visitor_id IN (${placeholders})`, allIdsToDelete);
       // Delete from visitor_snapshots table
-      await pool.query(`DELETE FROM visitor_snapshots WHERE visitor_id IN (${placeholders})`, ids);
+      await pool.query(`DELETE FROM visitor_snapshots WHERE visitor_id IN (${placeholders})`, allIdsToDelete);
       
-      console.log("[DELETE] HARD DELETE completed - data wiped from all tables");
+      console.log("[DELETE] HARD DELETE completed - all customer data wiped from all tables");
       
       // Broadcast delete to all connected dashboards
-      ids.forEach(id => {
+      allIdsToDelete.forEach(id => {
         broadcastToDashboard("dashboard:delete", { id });
       });
       
-      res.json({ success: true, message: `${ids.length} visitors permanently deleted` });
+      res.json({ success: true, message: `${allIdsToDelete.length} records permanently deleted for customer` });
     } catch (error) {
       console.error("visitors delete error", error);
       res.status(500).json({ error: "Failed to delete visitors" });

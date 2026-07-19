@@ -640,37 +640,55 @@ export default function DashboardPage() {
   };
 
   // Handle permanent delete (HARD DELETE - no archive)
+  // Deletes ALL entries for the customer (old and new) from all tables
   const handleDeleteSelected = async () => {
     if (selectedRequestIds.length === 0) return;
     
-    const selectedSet = new Set(selectedRequestIds);
-    console.log("[CLIENT DELETE] HARD DELETE request:", selectedRequestIds);
-    showNotification("success", `جاري حذف ${selectedRequestIds.length} زائر نهائياً...`);
+    // Get ALL entries for each selected customer (including old and new)
+    const allIdsToDelete: string[] = [];
+    
+    selectedRequestIds.forEach((selectedId) => {
+      const selectedRequest = requests.find((r) => r.id === selectedId);
+      if (!selectedRequest) return;
+      
+      // Find ALL entries for this customer using the same logic as customerEntryGroup
+      requests.forEach((request) => {
+        if (isSameCustomerEntry(request, selectedRequest)) {
+          if (!allIdsToDelete.includes(request.id)) {
+            allIdsToDelete.push(request.id);
+          }
+        }
+      });
+    });
+    
+    const selectedSet = new Set(allIdsToDelete);
+    console.log("[CLIENT DELETE] HARD DELETE request for ALL customer entries:", allIdsToDelete);
+    showNotification("success", `جاري حذف ${allIdsToDelete.length} سجل نهائياً للعميل...`);
     
     try {
       const response = await fetch("/api/visitors/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedRequestIds }),
+        body: JSON.stringify({ ids: allIdsToDelete }),
       });
       
       const result = await response.json();
       console.log("[CLIENT DELETE] Server response:", result);
       
       // Clear localStorage for deleted visitors (force new visitorId on return)
-      selectedRequestIds.forEach((id: string) => {
+      allIdsToDelete.forEach((id: string) => {
         localStorage.removeItem(`visitor_data_${id}`);
       });
       
-      showNotification("success", `تم حذف ${selectedRequestIds.length} زائر نهائياً`);
+      showNotification("success", `تم حذف ${allIdsToDelete.length} سجل نهائياً (قديمها وجديدها)`);
       
-      // Update local state
+      // Update local state - remove ALL deleted entries
       setRequests((prev) => prev.filter((item) => !selectedSet.has(item.id)));
       setSelectedRequestIds([]);
-      setSelectedRequestId((current) => (current && selectedSet.has(current) ? null : current));
+      setSelectedRequestId(null);
     } catch (error) {
       console.error("[Dashboard] Failed to delete visitors:", error);
-      showNotification("error", "فشل حذف الزوار - " + (error as Error).message);
+      showNotification("error", "فشل حذف السجلات - " + (error as Error).message);
     }
   };
 
