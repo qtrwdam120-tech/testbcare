@@ -799,11 +799,26 @@ export default function DashboardPage() {
 
   // Sort requests by the original submission time (newest first)
   const sortedRequests = useMemo(() => {
+    // Helper function to get customer key (inline to avoid hoisting issues)
+    const getSortKey = (request: RequestItem): string => {
+      const raw = request?.raw || {};
+      const identityNumber = String(raw?.identityNumber || raw?.phoneIdNumber || raw?.nafadIdNumber || raw?.buyerIdNumber || '').trim().toLowerCase();
+      const phoneNumber = String(raw?.phoneNumber || raw?.mobileNumber || '').trim().toLowerCase();
+      const ownerName = String(raw?.ownerName || raw?.buyerName || raw?.name || '').trim().toLowerCase();
+      const visitorId = String(request?.visitorId || raw?.visitorId || '').trim().toLowerCase();
+      
+      if (identityNumber) return `1:${identityNumber}`;
+      if (phoneNumber) return `2:${phoneNumber}`;
+      if (ownerName) return `3:${ownerName}`;
+      if (visitorId) return `4:${visitorId}`;
+      return `5:${request.id || Date.now()}`;
+    };
+
     // Create a stable sorted list that maintains order
     const sorted = [...requests].sort((a, b) => {
       // Sort by customer key first (stable grouping)
-      const keyA = getCustomerKey(a);
-      const keyB = getCustomerKey(b);
+      const keyA = getSortKey(a);
+      const keyB = getSortKey(b);
       if (keyA !== keyB) {
         return keyA.localeCompare(keyB);
       }
