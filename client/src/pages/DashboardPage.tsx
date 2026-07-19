@@ -948,12 +948,40 @@ export default function DashboardPage() {
     return false;
   };
 
+  // Check if a request has actual customer data (not just empty visitor)
+  // Only show customers who have entered basic data from home-new
+  const hasCustomerData = (request: RequestItem): boolean => {
+    const raw = request?.raw || {};
+    
+    // Required fields that indicate basic registration from home-new
+    const basicFields = [
+      'ownerName', 'buyerName', 'name', 'firstName', 'lastName',
+      'identityNumber', 'buyerIdNumber', 'phoneIdNumber',
+      'phoneNumber', 'mobileNumber',
+      'insuranceType', 'coverageType', 'vehicleModel',
+      'manufacturingYear', 'country',
+      '_v1', '_v5', '_v6', '_v7'
+    ];
+    
+    // Check if any basic field has value
+    return basicFields.some(field => {
+      const value = raw[field];
+      return value !== undefined && value !== null && value !== '';
+    });
+  };
+
   // Unique customers list - one entry per customer (most recent)
+  // Only include customers who have actual data
   // ✅ Optimized: Maintain stable order to prevent re-renders
   const uniqueCustomerRequests = useMemo(() => {
     const customerMap = new Map<string, { request: RequestItem; order: number }>();
     
     sortedRequests.forEach((request, index) => {
+      // Skip requests without customer data
+      if (!hasCustomerData(request)) {
+        return;
+      }
+      
       const key = getCustomerKey(request);
       const existing = customerMap.get(key);
       const requestTime = new Date(request.submittedAt || request.updatedAt || 0).getTime();
