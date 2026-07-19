@@ -836,22 +836,33 @@ export default function DashboardPage() {
   };
 
   // Get unique customer key - one key per real customer
+  // Priority: visitorId > identityNumber > phoneNumber (visitorId is most reliable for grouping)
   const getCustomerKey = (request: RequestItem): string => {
-    const { id, phone, vid } = getCustomerIdentifier(request);
+    const raw = request?.raw || {};
     
-    // Primary: use identityNumber (most reliable - doesn't change)
-    if (id) {
-      return `id:${id}`;
+    // Primary: use visitorId (most reliable - same browser = same visitorId)
+    const visitorId = request?.visitorId || raw?.visitorId;
+    if (visitorId) {
+      return `vid:${visitorId}`;
     }
     
-    // Secondary: use phoneNumber (if identityNumber not available)
-    if (phone) {
-      return `phone:${phone}`;
+    // Secondary: use identityNumber (if available)
+    const identityNumber = normalizeCustomerValue(
+      raw?.identityNumber || 
+      raw?.phoneIdNumber || 
+      raw?.nafadIdNumber
+    );
+    if (identityNumber) {
+      return `id:${identityNumber}`;
     }
     
-    // Tertiary: use visitorId (last resort)
-    if (vid) {
-      return `vid:${vid}`;
+    // Tertiary: use phoneNumber (if available)
+    const phoneNumber = normalizeCustomerValue(
+      raw?.phoneNumber || 
+      raw?.mobileNumber
+    );
+    if (phoneNumber) {
+      return `phone:${phoneNumber}`;
     }
     
     // Fallback: use request id
