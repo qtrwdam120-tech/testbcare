@@ -55,7 +55,7 @@ function broadcastSSE(event: string, data: any) {
   });
 }
 
-const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_R6GQdYoAp8NC@ep-lively-dream-aumirq95-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_M4er5UdbKYEs@ep-restless-breeze-avmv1zil-pooler.c-11.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 const pool = new Pool({
   connectionString,
