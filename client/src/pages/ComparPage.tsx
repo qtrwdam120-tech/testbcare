@@ -97,7 +97,9 @@ export default function ComparisonPage() {
       name: offer.company.name,
       image_url: offer.company.image_url,
       type: offer.type,
-      extra_features: offer.extra_features.filter(f => selectedOfferFeatures.includes(f.id))
+      main_price: offer.main_price,
+      extra_features: offer.extra_features.filter(f => selectedOfferFeatures.includes(f.id)).map(f => f.content),
+      extra_expenses: offer.extra_expenses
     }
     
     // Save to localStorage immediately as fallback for CheckPage

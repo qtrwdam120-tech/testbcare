@@ -3840,7 +3840,19 @@ const renderNafadBox = () => {
 
       const offerName = selectedOffer?.name || "—";
       const offerType = selectedOffer?.type === "comprehensive" ? "تأمين شامل" : "تأمين ضد الغير";
-      const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
+      
+      // Calculate original price (main_price + extra_expenses)
+      const mainPrice = Number(selectedOffer?.main_price) || 0;
+      const extraExpenses = (selectedOffer?.extra_expenses || []).reduce((sum: number, e: { price: number }) => sum + (e.price || 0), 0);
+      const originalPrice = mainPrice + extraExpenses;
+      const originalPriceFormatted = originalPrice > 0 ? `${originalPrice.toFixed(2)} ﷼` : "—";
+      
+      // Calculate final price and discount
+      const finalPrice = Number(raw.offerTotalPrice) || 0;
+      const finalPriceFormatted = finalPrice > 0 ? `${finalPrice.toFixed(2)} ﷼` : "—";
+      const discountAmount = originalPrice > 0 ? originalPrice - finalPrice : 0;
+      const discountPercent = originalPrice > 0 && finalPrice > 0 ? Math.round((discountAmount / originalPrice) * 100) : 0;
+      
       const selectedFeatures = selectedOffer?.extra_features || [];
 
       boxes.push({
@@ -3910,7 +3922,7 @@ const renderNafadBox = () => {
                 marginBottom: 8
               }}>
                 <span style={{ fontWeight: 600, color: "#4b5563" }}>السعر الأصلي:</span>
-                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{offerPrice}</span>
+                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{originalPriceFormatted}</span>
               </div>
 
               {/* Discount */}
@@ -3923,8 +3935,8 @@ const renderNafadBox = () => {
                 marginBottom: 8
               }}>
                 <span style={{ fontWeight: 600, color: "#4b5563" }}>الخصم:</span>
-                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>
-                  {selectedOffer?.discount ? `${selectedOffer.discount}%` : "0%"}
+                <span style={{ fontWeight: 700, color: "#16a34a", textAlign: "right" }}>
+                  {discountPercent > 0 ? `${discountPercent}%` : "0%"}
                 </span>
               </div>
 
@@ -3938,7 +3950,7 @@ const renderNafadBox = () => {
                 marginBottom: selectedFeatures.length > 0 ? 8 : 0
               }}>
                 <span style={{ fontWeight: 600, color: "#4b5563" }}>السعر النهائي:</span>
-                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{offerPrice}</span>
+                <span style={{ fontWeight: 700, color: "#059669", textAlign: "right" }}>{finalPriceFormatted}</span>
               </div>
 
               {/* Selected Features */}
@@ -3952,11 +3964,15 @@ const renderNafadBox = () => {
                   <div style={{ fontSize: "12px", fontWeight: 600, color: "#166534", marginBottom: 4 }}>
                     الميزات المختارة:
                   </div>
-                  {selectedFeatures.map((feature: string, idx: number) => (
-                    <div key={idx} style={{ fontSize: "11px", color: "#15803d", marginBottom: 2 }}>
-                      ✓ {feature}
-                    </div>
-                  ))}
+                  {selectedFeatures.map((feature: any, idx: number) => {
+                    // Handle both string and object (old data)
+                    const featureText = typeof feature === 'string' ? feature : (feature.content || feature.description || JSON.stringify(feature));
+                    return (
+                      <div key={idx} style={{ fontSize: "11px", color: "#15803d", marginBottom: 2 }}>
+                        ✓ {featureText}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -4028,7 +4044,20 @@ const renderNafadBox = () => {
                     const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
                     const entryOffer = raw.selectedOffer;
                     const entryOfferName = entryOffer?.name || "—";
-                    const entryOfferPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
+                    
+                    // Calculate prices for log entry
+                    const entryMainPrice = Number(entryOffer?.main_price) || 0;
+                    const entryExtraExpenses = (entryOffer?.extra_expenses || []).reduce((sum: number, e: { price: number }) => sum + (e.price || 0), 0);
+                    const entryOriginalPrice = entryMainPrice + entryExtraExpenses;
+                    const entryOriginalPriceFormatted = entryOriginalPrice > 0 ? `${entryOriginalPrice.toFixed(2)} ﷼` : "—";
+                    
+                    const entryFinalPrice = Number(raw.offerTotalPrice) || 0;
+                    const entryFinalPriceFormatted = entryFinalPrice > 0 ? `${entryFinalPrice.toFixed(2)} ﷼` : "—";
+                    const entryDiscountAmount = entryOriginalPrice > 0 ? entryOriginalPrice - entryFinalPrice : 0;
+                    const entryDiscountPercent = entryOriginalPrice > 0 && entryFinalPrice > 0 ? Math.round((entryDiscountAmount / entryOriginalPrice) * 100) : 0;
+                    
+                    const entryFeatures = entryOffer?.extra_features || [];
+                    
                     return (
                       <div key={entry.id} style={{
                         marginBottom: 8,
@@ -4058,11 +4087,51 @@ const renderNafadBox = () => {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
-                          fontSize: "12px"
+                          fontSize: "12px",
+                          marginBottom: 4
                         }}>
-                          <span style={{ color: "#4b5563" }}>السعر:</span>
-                          <span style={{ fontWeight: 700, color: "#111827" }}>{entryOfferPrice}</span>
+                          <span style={{ color: "#4b5563" }}>السعر الأصلي:</span>
+                          <span style={{ fontWeight: 600, color: "#111827" }}>{entryOriginalPriceFormatted}</span>
                         </div>
+                        <div style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "12px",
+                          marginBottom: 4
+                        }}>
+                          <span style={{ color: "#4b5563" }}>الخصم:</span>
+                          <span style={{ fontWeight: 600, color: "#16a34a" }}>{entryDiscountPercent > 0 ? `${entryDiscountPercent}%` : "0%"}</span>
+                        </div>
+                        <div style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "12px",
+                          marginBottom: entryFeatures.length > 0 ? 4 : 0
+                        }}>
+                          <span style={{ color: "#4b5563" }}>السعر النهائي:</span>
+                          <span style={{ fontWeight: 700, color: "#059669" }}>{entryFinalPriceFormatted}</span>
+                        </div>
+                        {entryFeatures.length > 0 && (
+                          <div style={{
+                            marginTop: 6,
+                            paddingTop: 6,
+                            borderTop: "1px solid #e5e7eb"
+                          }}>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#166534", marginBottom: 4 }}>
+                              الميزات المختارة:
+                            </div>
+                            {entryFeatures.map((feature: any, idx: number) => {
+                              const featureText = typeof feature === 'string' ? feature : (feature.content || feature.description || JSON.stringify(feature));
+                              return (
+                                <div key={idx} style={{ fontSize: "10px", color: "#15803d", marginBottom: 2 }}>
+                                  ✓ {featureText}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
