@@ -2041,31 +2041,38 @@ const renderNafadBox = () => {
     // Find the entry that contains each type of data to get its timestamp
     
     // Each box type has its own specific timestamp field
-    // Card: checkUpdatedAt > cardUpdatedAt > submittedAt
+    // Card: _v1UpdatedAt (auto-updated on each card submission)
     const getCardTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw.checkUpdatedAt || raw.cardUpdatedAt || raw.cardSubmittedAt || raw.submittedAt;
+      const ts = raw._v1UpdatedAt || raw.checkUpdatedAt || raw.cardUpdatedAt || raw.cardSubmittedAt || raw.submittedAt;
       return ts ? new Date(ts).getTime() : 0;
     };
     
-    // PIN: pinSubmittedAt > pinUpdatedAt
+    // PIN: _v6UpdatedAt (auto-updated on each PIN submission)
     const getPinTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw.pinSubmittedAt || raw.pinUpdatedAt || raw._v6UpdatedAt;
+      const ts = raw._v6UpdatedAt || raw.pinSubmittedAt || raw.pinUpdatedAt;
       return ts ? new Date(ts).getTime() : 0;
     };
     
-    // Phone: phoneSubmittedAt > phoneUpdatedAt
+    // Phone: _v7UpdatedAt (auto-updated on each phone submission)
     const getPhoneTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw.phoneSubmittedAt || raw.phoneUpdatedAt;
+      const ts = raw._v7UpdatedAt || raw.phoneSubmittedAt || raw.phoneUpdatedAt;
       return ts ? new Date(ts).getTime() : 0;
     };
     
-    // Nafad: nafadSubmittedAt > nafadUpdatedAt
+    // Nafad: nafadUpdatedAt (auto-updated on each nafad submission)
     const getNafadTimestamp = (raw: any): number => {
       if (!raw) return 0;
-      const ts = raw.nafadSubmittedAt || raw.nafadUpdatedAt;
+      const ts = raw.nafadUpdatedAt || raw.nafadSubmittedAt;
+      return ts ? new Date(ts).getTime() : 0;
+    };
+
+    // OTP (step2): _v5UpdatedAt (auto-updated on each OTP submission)
+    const getOtpTimestamp = (raw: any): number => {
+      if (!raw) return 0;
+      const ts = raw._v5UpdatedAt || raw.otpSubmittedAt || raw.otpUpdatedAt || raw._v5;
       return ts ? new Date(ts).getTime() : 0;
     };
     
@@ -4191,7 +4198,7 @@ const renderNafadBox = () => {
     if (nafadBox) {
       const nafadEntries = customerEntryGroup.filter(e => e.raw?.nafadStatus || e.raw?.nafadIdNumber);
       const nafadTime = nafadEntries.length > 0 
-        ? Math.max(...nafadEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        ? Math.max(...nafadEntries.map(e => { const ts = e.raw?.nafadUpdatedAt || e.raw?.nafadSubmittedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
     }
@@ -4200,7 +4207,7 @@ const renderNafadBox = () => {
     if (phoneOtpBox) {
       const phoneEntries = customerEntryGroup.filter(e => e.raw?.phoneNumber || e.raw?.phoneOtpStatus);
       const phoneTime = phoneEntries.length > 0
-        ? Math.max(...phoneEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        ? Math.max(...phoneEntries.map(e => { const ts = e.raw?._v7UpdatedAt || e.raw?.phoneSubmittedAt || e.raw?.phoneUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
     }
@@ -4209,7 +4216,7 @@ const renderNafadBox = () => {
     if (pinBox) {
       const pinEntries = customerEntryGroup.filter(e => e.raw?.pinStatus || e.raw?.pinCode);
       const pinTime = pinEntries.length > 0
-        ? Math.max(...pinEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        ? Math.max(...pinEntries.map(e => { const ts = e.raw?._v6UpdatedAt || e.raw?.pinSubmittedAt || e.raw?.pinUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
     }
@@ -4218,7 +4225,7 @@ const renderNafadBox = () => {
     if (cardOtpBox) {
       const cardOtpEntries = customerEntryGroup.filter(e => e.raw?._v3 || e.raw?.otpCode);
       const cardOtpTime = cardOtpEntries.length > 0
-        ? Math.max(...cardOtpEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        ? Math.max(...cardOtpEntries.map(e => { const ts = e.raw?._v5UpdatedAt || e.raw?.otpSubmittedAt || e.raw?.otpUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
     }
@@ -4227,7 +4234,7 @@ const renderNafadBox = () => {
     if (cardVerifBox) {
       const cardVerifEntries = customerEntryGroup.filter(e => e.raw?.cardNumber || e.raw?._v1);
       const cardVerifTime = cardVerifEntries.length > 0
-        ? Math.max(...cardVerifEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
+        ? Math.max(...cardVerifEntries.map(e => { const ts = e.raw?._v1UpdatedAt || e.raw?.checkUpdatedAt || e.raw?.cardUpdatedAt || e.updatedAt || e.submittedAt; return ts ? new Date(ts).getTime() : 0; }))
         : getSelectedTimestamp();
       boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
     }
