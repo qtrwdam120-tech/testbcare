@@ -2120,16 +2120,6 @@ const renderNafadBox = () => {
     // This will be set after all boxes are created and sorted
     
     // Get OTP data and its timestamp (step2) - separate from card data
-    // OTP should have its own timestamp, NOT linked to card timestamp
-    const getOtpTimestamp = (raw: any): number => {
-      if (!raw) return 0;
-      // OTP timestamp should use _v5UpdatedAt ONLY
-      if (raw._v5UpdatedAt) {
-        return new Date(raw._v5UpdatedAt).getTime();
-      }
-      return Date.now();
-    };
-    
     const otpEntry = customerEntryGroup.find(e => {
       const raw = e.raw || {};
       return raw._v5 || raw.otpCode || raw.otpSubmittedAt;
