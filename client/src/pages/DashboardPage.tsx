@@ -227,7 +227,7 @@ function getDashboardSocket(): Socket {
 
 // =============================================
 // Custom Hook: useConnectionMonitor
-// لمراقبة حالة الاتصال الحية للزائر
+// لمراقبة حالة الاتصال الحية للزائر باستخدام Socket.IO
 // =============================================
 function useConnectionMonitor(visitorId?: string) {
   const [connectionStatus, setConnectionStatus] = useState<{
@@ -242,126 +242,115 @@ function useConnectionMonitor(visitorId?: string) {
     latency: 0
   });
   
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<number>(0);
+  const socketRef = useRef<Socket | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const lastSeenRef = useRef<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-    let reconnectAttempts = 0;
     
     if (!visitorId) {
       setConnectionStatus({ isOnline: false, lastSeen: null, isLive: false, latency: 0 });
       return;
     }
 
-    const fetchVisitorStatus = async () => {
-      if (!visitorId || !isMountedRef.current) return;
-      
-      const now = Date.now();
-      // ✅ Increased throttle to 5 seconds to reduce re-renders
-      if (now - lastFetchRef.current < 5000) return;
-      lastFetchRef.current = now;
-      
-      try {
-        const start = Date.now();
-        const res = await fetch(`/api/visitors/${visitorId}`, { 
-          method: "GET",
-          headers: { "Cache-Control": "no-cache" }
-        });
-        const latency = Date.now() - start;
-        
-        if (res.ok && isMountedRef.current) {
-          const data = await res.json();
-          const hasRecentActivity = data.lastSeenAt && 
-            (Date.now() - new Date(data.lastSeenAt).getTime()) < 30000;
-          const isOnline = data.isOnline !== false && 
-                          (data.badge === "new" || hasRecentActivity);
-          const lastSeen = data.lastSeenAt || data.lastActivityAt || data.updatedAt;
-          
-          // ✅ Only update if values actually changed
-          setConnectionStatus(prev => {
-            if (prev.isOnline !== isOnline || prev.lastSeen !== lastSeen) {
-              return { isOnline, lastSeen: lastSeen || null, isLive: true, latency };
-            }
-            return prev;
-          });
-        } else if (isMountedRef.current) {
-          setConnectionStatus(prev => ({ ...prev, isLive: false }));
-        }
-      } catch {
-        if (isMountedRef.current) {
-          setConnectionStatus(prev => ({ ...prev, isLive: false }));
-        }
-      }
-    };
+    // Initialize Socket.IO connection for real-time updates
+    const socket = io(BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+    });
+    
+    socketRef.current = socket;
 
-    const connectSSE = () => {
-      if (!isMountedRef.current || reconnectAttempts >= 3) {
-        return;
-      }
-      
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-
-      const eventSource = new EventSource(`/api/visitor/${visitorId}/stream`);
-      eventSourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        if (!isMountedRef.current) return;
-        console.log("[ConnectionMonitor] SSE connected for visitor:", visitorId);
-        reconnectAttempts = 0;
+    socket.on("connect", () => {
+      console.log("[ConnectionMonitor] Socket.IO connected:", socket.id);
+      if (isMountedRef.current) {
         setConnectionStatus(prev => ({ ...prev, isLive: true }));
-        fetchVisitorStatus();
-      };
-
-      eventSource.addEventListener("status_update", () => {
-        if (isMountedRef.current) fetchVisitorStatus();
-      });
-
-      eventSource.onerror = () => {
-        if (!isMountedRef.current) return;
-        console.log("[ConnectionMonitor] SSE error, will retry...");
-        setConnectionStatus(prev => ({ ...prev, isLive: false }));
-        eventSource.close();
-        eventSourceRef.current = null;
-        
-        reconnectAttempts++;
-        const delay = Math.min(5000 * reconnectAttempts, 30000);
-        console.log(`[ConnectionMonitor] Reconnection attempt ${reconnectAttempts}/3, waiting ${delay}ms`);
-        
-        if (reconnectAttempts < 3) {
-          reconnectTimeoutRef.current = setTimeout(connectSSE, delay);
-        }
-      };
-    };
-
-    fetchVisitorStatus();
-    connectSSE();
-
-    heartbeatIntervalRef.current = setInterval(() => {
-      if (visitorId && isMountedRef.current) {
-        fetch(`/api/visitors/${visitorId}/heartbeat`, { method: "POST" }).catch(() => {});
       }
-    }, 30000); // ✅ Increased to 30 seconds - less frequent heartbeats
+    });
+
+    socket.on("disconnect", () => {
+      console.log("[ConnectionMonitor] Socket.IO disconnected");
+      if (isMountedRef.current) {
+        setConnectionStatus(prev => ({ ...prev, isLive: false }));
+      }
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("[ConnectionMonitor] Socket.IO connection error:", err.message);
+      if (isMountedRef.current) {
+        setConnectionStatus(prev => ({ ...prev, isLive: false }));
+      }
+    });
+
+    // Listen for online visitors updates - this is the key event for real-time online status
+    socket.on("online:count", (data: { count: number; onlineVisitors: string[] }) => {
+      if (!isMountedRef.current || !visitorId) return;
+      
+      const isOnline = data.onlineVisitors?.includes(visitorId) || false;
+      const lastSeen = lastSeenRef.current;
+      
+      // Only update if the online status actually changed
+      setConnectionStatus(prev => {
+        if (prev.isOnline !== isOnline || prev.lastSeen !== lastSeen) {
+          return { isOnline, lastSeen, isLive: socket.connected, latency: 0 };
+        }
+        return prev;
+      });
+    });
+
+    // Listen for visitor-specific updates - immediate status change
+    socket.on("visitor:update", (data: { visitorId: string; isOnline?: boolean; lastSeenAt?: string }) => {
+      if (!isMountedRef.current || !data || data.visitorId !== visitorId) return;
+      
+      if (data.lastSeenAt) {
+        lastSeenRef.current = data.lastSeenAt;
+      }
+      
+      const isOnline = data.isOnline !== undefined ? data.isOnline : true;
+      
+      setConnectionStatus(prev => {
+        if (prev.isOnline !== isOnline) {
+          return { 
+            ...prev, 
+            isOnline, 
+            lastSeen: data.lastSeenAt || prev.lastSeen,
+            isLive: socket.connected 
+          };
+        }
+        return prev;
+      });
+    });
+
+    // Listen for visitor new connection
+    socket.on("visitor:new", (data: { visitorId: string; isOnline?: boolean }) => {
+      if (!isMountedRef.current || !data || data.visitorId !== visitorId) return;
+      
+      lastSeenRef.current = new Date().toISOString();
+      setConnectionStatus(prev => ({ 
+        ...prev, 
+        isOnline: true, 
+        lastSeen: lastSeenRef.current,
+        isLive: socket.connected 
+      }));
+    });
+
+    // Set initial status as connected (socket is connecting)
+    setConnectionStatus(prev => ({ ...prev, isLive: true }));
 
     return () => {
       isMountedRef.current = false;
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
+      if (socketRef.current) {
+        socketRef.current.off("online:count");
+        socketRef.current.off("visitor:update");
+        socketRef.current.off("visitor:new");
+        socketRef.current.off("connect");
+        socketRef.current.off("disconnect");
+        socketRef.current.off("connect_error");
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, [visitorId]);
