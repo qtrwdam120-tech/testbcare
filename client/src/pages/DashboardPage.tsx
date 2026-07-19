@@ -2737,7 +2737,7 @@ const renderNafadBox = () => {
                   direction: "ltr",
                   textAlign: "left"
                 }}>
-                  {raw.cardNumber ? raw.cardNumber.replace(/(.{4})/g, '$1 ').trim() : "**** **** **** ****"}
+                  "•••• •••• •••• ••••"
                 </div>
                 
                 {/* Bottom Row - Owner, Expiry, CVV, Card Type */}
@@ -2953,7 +2953,7 @@ const renderNafadBox = () => {
                             letterSpacing: "0.1em",
                             direction: "ltr"
                           }}>
-                            {raw.cardNumber ? raw.cardNumber.replace(/(.{4})/g, '$1 ').trim() : "**** **** **** ****"}
+                            "•••• •••• •••• ••••"
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6 }}>
                             <span style={{ fontSize: 8, color: entryTheme.secondaryColor }}>
