@@ -526,10 +526,12 @@ export default function DashboardPage() {
 
   // Check for existing history records when selecting a request
   useEffect(() => {
-    if (!selectedRequest) return;
+    // Access requests directly instead of selectedRequest to avoid hoisting issues
+    const currentSelectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
+    if (!currentSelectedRequest) return;
     
-    const visitorId = selectedRequest.id || selectedRequest.visitorId || '';
-    const raw = selectedRequest.raw || {};
+    const visitorId = currentSelectedRequest.id || currentSelectedRequest.visitorId || '';
+    const raw = currentSelectedRequest.raw || {};
     
     // Check OTP history (has _v5 or otpCode)
     if (raw._v5 || raw.otpCode || raw.otpSubmittedAt) {
@@ -555,7 +557,7 @@ export default function DashboardPage() {
     if (raw._v6 || raw.pinSubmittedAt) {
       setHasPinHistory(prev => ({ ...prev, [visitorId]: true }));
     }
-  }, [selectedRequest]);
+  }, [selectedRequestId, requests, filteredRequests]);
 
   // Page options for manual redirect
   const pageOptions = [
