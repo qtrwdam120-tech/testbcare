@@ -563,6 +563,12 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
     console.log("[Dashboard] DB QUERY SUCCESS - rows:", rows.length);
+    
+    // Debug: Log raw data structure
+    if (rows.length > 0) {
+      console.log("[Dashboard] First row raw keys:", Object.keys(rows[0].raw || {}));
+      console.log("[Dashboard] First row raw._v1UpdatedAt:", rows[0].raw?._v1UpdatedAt);
+    }
 
     return rows.map((row) => ({
       id: row.id,
