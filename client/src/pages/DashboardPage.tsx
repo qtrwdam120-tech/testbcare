@@ -1187,9 +1187,7 @@ export default function DashboardPage() {
 
     // Listen for dashboard:update events (alternative event name)
     // ✅ Optimized: Update data in-place without reordering
-    // ✅ Debounce rapid updates for the same request
-    const lastUpdateTime = new Map<string, number>();
-    const DEBOUNCE_MS = 500;
+    // ✅ Uses shared debounce from above
     
     const handleDashboardUpdate = (data: any) => {
       if (!data || !data.id) return;
