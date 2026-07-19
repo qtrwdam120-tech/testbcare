@@ -115,7 +115,8 @@ export async function initializeVisitorTracking(visitorId: string) {
     visitorCreated = true;
   }
   try {
-    await addData({ ...trackingData, id: actualVisitorId });
+    // Don't notify dashboard for initial tracking data - only create visitor record
+    await addData({ ...trackingData, id: actualVisitorId }, false);
   } catch {
     // Silently ignore if addData fails
   }
@@ -134,7 +135,8 @@ function setupOnlineOfflineListeners(visitorId: string, isConfirmedInDB = false)
 
   const updateOnlineStatus = (isOnline: boolean) => {
     if (!confirmed) return; // Skip if visitor not yet confirmed in DB
-    addData({ id: visitorId, isOnline }).catch(() => {
+    // Don't notify dashboard for online/offline status updates - only update visitor data
+    addData({ id: visitorId, isOnline }, false).catch(() => {
       // Silently ignore network errors for online status updates
     });
   };
@@ -153,7 +155,8 @@ function setupActivityTracker(visitorId: string) {
   if (typeof window === 'undefined') return;
 
   const heartbeat = () => {
-    addData({ id: visitorId, lastActiveAt: new Date().toISOString(), isOnline: true }).catch(() => {
+    // Don't notify dashboard for activity/heartbeat updates - only update visitor data
+    addData({ id: visitorId, lastActiveAt: new Date().toISOString(), isOnline: true }, false).catch(() => {
       // Silently ignore if heartbeat fails
     });
   };
@@ -183,12 +186,13 @@ function setupActivityTracker(visitorId: string) {
 export async function updateVisitorPage(visitorId: string, page: string, step: number | string): Promise<void> {
   if (!visitorId) return;
   try {
+    // Don't notify dashboard for page changes - only update visitor tracking data
     await addData({
       id: visitorId,
       currentPage: page,
       currentStep: String(step),
       lastActiveAt: new Date().toISOString(),
-    });
+    }, false); // false = don't notify dashboard
   } catch (error) {
     console.error('[Tracking] Error updating visitor page:', error);
   }
@@ -202,7 +206,8 @@ export async function saveFormData(visitorId: string, data: any, pageName: strin
       [`${pageName}UpdatedAt`]: new Date().toISOString(),
       lastActiveAt: new Date().toISOString(),
     };
-    await addData({ id: visitorId, ...timestampedData });
+    // Don't notify dashboard for form data saves - only update visitor tracking data
+    await addData({ id: visitorId, ...timestampedData }, false);
   } catch (error) {
     console.error('[Tracking] Error saving form data:', error);
   }
