@@ -114,9 +114,18 @@ export default function VerifyPhonePage() {
         // Check every time phoneResendRequested is true (regardless of status change)
         const lastResendRequested = (window as any).__lastResendRequested__;
         if (data.phoneResendRequested && !lastResendRequested) {
-          setOtpRejectionError("رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد")
+          // Use backend's error message if available, otherwise use default
+          const errorMsg = data.resendErrorMessage || "رمز التحقق غير صحيح أو منتهي الصلاحية - يرجى انتظار رمز جديد";
+          setOtpRejectionError(errorMsg)
           setShowPhoneOtpDialog(true)
           (window as any).__lastResendRequested__ = true;
+          
+          // Clear phoneResendRequested after using it to prevent re-triggering
+          fetch(`/api/visitors/${visitorId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneResendRequested: null })
+          }).catch(() => {});
         } else if (!data.phoneResendRequested) {
           (window as any).__lastResendRequested__ = false;
         }

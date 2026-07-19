@@ -1484,6 +1484,8 @@ async function startServer() {
         resendRequestedAt: new Date().toISOString(),
         resendErrorMessage: errorMessage || "رمز التحقق غير صحيح او منتهي الصلاحية يرجى انتظار رمز جديد",
         currentPage: targetPage || "step5",
+        // Set phoneResendRequested to trigger client to show error and open modal
+        phoneResendRequested: true,
         // Clear previous OTP
         phoneOtpStatus: null,
         _v7: null,
