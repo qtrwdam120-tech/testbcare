@@ -3379,112 +3379,115 @@ const renderNafadBox = () => {
         timestamp: entryTimestamp,
         component: (
           <div style={{
-            background: "#ffffff",
-            borderRadius: 12,
-            padding: 16,
-            border: isLatest ? "2px solid #10b981" : "1px solid #e5e7eb",
+            background: "#f9fafb",
+            borderRadius: 8,
+            padding: 8,
+            border: "1px solid #d1d5db",
             width: "40%",
             marginRight: 0,
             marginLeft: "auto",
-            position: "relative"
+            fontFamily: "Cairo, Tajawal, sans-serif"
           }}>
-            <TimeCounter timestamp={entryTimestamp} />
-            {isLatest && (
-              <span style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "#10b981",
-                color: "#fff",
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: "0.65rem",
-                fontWeight: 600
+            {/* Header with date and title */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ 
+                fontSize: "10px", 
+                color: "#6b7280", 
+                textAlign: "right",
+                marginBottom: 4
               }}>
-                الأحدث
-              </span>
-            )}
-            
-            <div style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-              marginTop: 20
-            }}>
+                {entryTimestamp > 0 ? (
+                  <TimeCounter timestamp={entryTimestamp} />
+                ) : "—"}
+              </div>
               <h3 style={{
-                margin: 0,
-                fontSize: "0.9rem",
+                fontSize: "14px",
                 fontWeight: 700,
-                color: "#111827"
+                color: "#1f2937",
+                textAlign: "center",
+                margin: 0
               }}>
-                🏢 الباقة المختارة
+                العرض المختار
               </h3>
             </div>
 
-            {/* Company Name */}
+            {/* Content Box */}
             <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              background: "#f3f4f6",
+              background: "#ffffff",
               borderRadius: 6,
               padding: 8,
-              marginBottom: 8
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
             }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>شركة التأمين</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{offerName}</span>
-            </div>
-
-            {/* Insurance Type */}
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              background: "#f3f4f6",
-              borderRadius: 6,
-              padding: 8,
-              marginBottom: 8
-            }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>نوع التأمين</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827" }}>{offerType}</span>
-            </div>
-
-            {/* Total Price */}
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              background: "#dcfce7",
-              borderRadius: 6,
-              padding: 8,
-              marginBottom: selectedFeatures.length > 0 ? 8 : 0
-            }}>
-              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>السعر الإجمالي</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#059669" }}>{offerPrice}</span>
-            </div>
-
-            {/* Selected Features */}
-            {selectedFeatures.length > 0 && (
+              {/* Company Name */}
               <div style={{
-                background: "#f0f9ff",
-                borderRadius: 6,
-                padding: 8
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "14px",
+                marginBottom: 8
               }}>
-                <span style={{ fontSize: "0.75rem", color: "#0369a1", fontWeight: 600, display: "block", marginBottom: 4 }}>
-                  الإضافات المختارة:
-                </span>
-                {selectedFeatures.map((feature: any, idx: number) => (
-                  <div key={idx} style={{
-                    fontSize: "0.75rem",
-                    color: "#075985",
-                    padding: "2px 0"
-                  }}>
-                    ✓ {feature.content}
-                    {feature.price > 0 && <span style={{ marginRight: 4, color: "#059669" }}>(+{feature.price} ﷼)</span>}
-                  </div>
-                ))}
+                <span style={{ fontWeight: 600, color: "#4b5563" }}>الشركة:</span>
+                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{offerName}</span>
               </div>
-            )}
 
+              {/* Original Price */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "14px",
+                marginBottom: 8
+              }}>
+                <span style={{ fontWeight: 600, color: "#4b5563" }}>السعر الأصلي:</span>
+                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{offerPrice}</span>
+              </div>
+
+              {/* Discount */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "14px",
+                marginBottom: 8
+              }}>
+                <span style={{ fontWeight: 600, color: "#4b5563" }}>الخصم:</span>
+                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>
+                  {selectedOffer?.discount ? `${selectedOffer.discount}%` : "0%"}
+                </span>
+              </div>
+
+              {/* Final Price */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "14px",
+                marginBottom: selectedFeatures.length > 0 ? 8 : 0
+              }}>
+                <span style={{ fontWeight: 600, color: "#4b5563" }}>السعر النهائي:</span>
+                <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>{offerPrice}</span>
+              </div>
+
+              {/* Selected Features */}
+              {selectedFeatures.length > 0 && (
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: "14px"
+                }}>
+                  <span style={{ fontWeight: 600, color: "#4b5563" }}>المميزات المختارة:</span>
+                  <span style={{ fontWeight: 700, color: "#111827", textAlign: "right" }}>
+                    {selectedFeatures.length}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )
       });
