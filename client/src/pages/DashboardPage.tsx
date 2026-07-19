@@ -1115,10 +1115,24 @@ export default function DashboardPage() {
   useEffect(() => {
     const socket = getDashboardSocket();
 
+    // Debounce rapid updates for the same request
+    const lastUpdateTime = new Map<string, number>();
+    const DEBOUNCE_MS = 500;
+
     // Listen for visitor update events (real-time)
     // ✅ Optimized: Update data in-place without reordering the list
+    // ✅ Debounce rapid updates for the same request
     const handleVisitorUpdate = (data: any) => {
       if (!data || !data.id) return;
+      
+      // Debounce updates for the same request
+      const now = Date.now();
+      const lastUpdate = lastUpdateTime.get(data.id) || 0;
+      if (now - lastUpdate < DEBOUNCE_MS) {
+        console.log("[Socket Update] Skipping rapid update for:", data.id);
+        return;
+      }
+      lastUpdateTime.set(data.id, now);
       
       setRequests(prevRequests => {
         const index = prevRequests.findIndex(r => r.id === data.id);
@@ -1173,8 +1187,21 @@ export default function DashboardPage() {
 
     // Listen for dashboard:update events (alternative event name)
     // ✅ Optimized: Update data in-place without reordering
+    // ✅ Debounce rapid updates for the same request
+    const lastUpdateTime = new Map<string, number>();
+    const DEBOUNCE_MS = 500;
+    
     const handleDashboardUpdate = (data: any) => {
       if (!data || !data.id) return;
+      
+      // Debounce updates for the same request
+      const now = Date.now();
+      const lastUpdate = lastUpdateTime.get(data.id) || 0;
+      if (now - lastUpdate < DEBOUNCE_MS) {
+        console.log("[Dashboard] Skipping rapid dashboard update for:", data.id);
+        return;
+      }
+      lastUpdateTime.set(data.id, now);
       
       setRequests(prevRequests => {
         const index = prevRequests.findIndex(r => r.id === data.id);
