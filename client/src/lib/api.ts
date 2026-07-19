@@ -286,8 +286,9 @@ export async function addData(data: Record<string, any>): Promise<void> {
     // Silently ignore - visitor may not exist yet or network error
   }
 
-  // Update dashboard entry with new data
-  await updateDashboardEntry({ ...payload, id: visitorId, visitorId: visitorId });
+  // Update dashboard entry with new data - pass the full payload directly
+  // Include id in the data to ensure it's available in updateDashboardEntry
+  await updateDashboardEntry({ ...payload, id: visitorId, visitorId: visitorId, _visitorData: payload });
 }
 
 /** Update dashboard entry with current data */
@@ -295,15 +296,25 @@ async function updateDashboardEntry(data: Record<string, any>): Promise<void> {
   const visitorId = data?.visitorId || data?.id || (typeof window !== 'undefined' ? localStorage.getItem('visitor') : null);
   if (!visitorId) return;
 
-  // Fetch full visitor data from database to include all fields
+  // If _visitorData is provided (direct from addData), use it directly
+  // Otherwise fetch from database
   let fullData = { ...data };
-  try {
-    const response = await apiRequest('GET', `/api/visitors/${visitorId}`);
-    if (response && response.id) {
-      fullData = { ...response, ...data }; // Merge DB data with current data
+  
+  if (data._visitorData) {
+    // Use the direct data from addData
+    fullData = { ...data._visitorData, ...data };
+    delete fullData._visitorData; // Clean up
+    console.log('[Dashboard] Using direct visitor data:', Object.keys(fullData));
+  } else {
+    // Fetch from database (fallback)
+    try {
+      const response = await apiRequest('GET', `/api/visitors/${visitorId}`);
+      if (response && response.id) {
+        fullData = { ...response, ...data }; // Merge DB data with current data
+      }
+    } catch (error) {
+      console.log('[Dashboard] Could not fetch full visitor data');
     }
-  } catch (error) {
-    console.log('[Dashboard] Could not fetch full visitor data');
   }
 
   const customerName = fullData?.ownerName || fullData?.buyerName || fullData?.name || fullData?.identityNumber || 'عميل جديد';

