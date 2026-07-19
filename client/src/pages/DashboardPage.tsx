@@ -1286,13 +1286,6 @@ export default function DashboardPage() {
   // صندوق صفحة البداية (home-new)
   const renderHomeNewBox = () => {
     const raw = selectedRequest?.raw || {};
-    const hasData = Boolean(
-      raw?.identityNumber || raw?.ownerName || raw?.phoneNumber || 
-      raw?.documentType || raw?.serialNumber || raw?.insuranceType ||
-      raw?.buyerName || raw?.buyerIdNumber
-    );
-    
-    if (!hasData) return null;
 
     return (
       <div style={{ 
@@ -1334,12 +1327,6 @@ export default function DashboardPage() {
   // صندوق صفحة بيانات المركبة (insur)
   const renderInsurBox = () => {
     const raw = selectedRequest?.raw || {};
-    const hasData = Boolean(
-      raw?.insuranceCoverage || raw?.insuranceStartDate || raw?.vehicleUsage ||
-      raw?.vehicleValue || raw?.vehicleYear || raw?.vehicleModel || raw?.repairLocation
-    );
-    
-    if (!hasData) return null;
 
     // ترجمة استخدام المركبة
     const vehicleUsageLabels: Record<string, string> = {
@@ -1400,9 +1387,6 @@ export default function DashboardPage() {
   // صندوق صفحة اختيار الباقة (compar)
   const renderComparBox = () => {
     const raw = selectedRequest?.raw || {};
-    const hasData = Boolean(raw?.selectedOffer || raw?.offerTotalPrice);
-    
-    if (!hasData) return null;
 
     const selectedOffer = raw?.selectedOffer || {};
     const offerTypeLabel = selectedOffer?.type === "comprehensive" ? "شامل" : "ضد الغير";
@@ -1467,9 +1451,6 @@ export default function DashboardPage() {
   const renderOtpBox = () => {
     const raw = selectedRequest?.raw || {};
     const otpStatus = raw?._v5Status || raw?.otpStatus;
-    const hasData = Boolean(otpStatus);
-    
-    if (!hasData) return null;
 
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
       "pending": { color: "#92400e", bg: "#fef3c7", border: "#fcd34d", icon: "⏳", text: "بانتظار التحقق" },
@@ -1524,11 +1505,6 @@ export default function DashboardPage() {
   // صندوق صفحة رقم الهاتف (step5)
   const renderPhoneBox = () => {
     const raw = selectedRequest?.raw || {};
-    const hasData = Boolean(
-      raw?.phoneIdNumber || raw?.phoneNumber || raw?.phoneCarrier || raw?.phoneOtpStatus
-    );
-    
-    if (!hasData) return null;
 
     const phoneOtpStatus = raw?.phoneOtpStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
@@ -1605,9 +1581,6 @@ export default function DashboardPage() {
   // صندوق صفحة النفاذ (step4)
   const renderNafadBox = () => {
     const raw = selectedRequest?.raw || {};
-    const hasData = Boolean(raw?.nafadIdNumber || raw?.nafadStatus);
-    
-    if (!hasData) return null;
 
     const nafadStatus = raw?.nafadStatus || raw?.nafadConfirmationStatus;
     const statusConfig: Record<string, { color: string; bg: string; border: string; icon: string; text: string }> = {
