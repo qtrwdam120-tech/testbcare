@@ -2178,7 +2178,8 @@ const renderNafadBox = () => {
       component: React.ReactNode;
     };
     
-    const boxes: BoxType[] = [];
+    const boxes = useMemo(() => {
+    const boxList: BoxType[] = [];
     
     // Count entries that have basic/insurance data
     const basicEntriesCount = customerEntryGroup.filter(entry => {
@@ -2224,7 +2225,7 @@ const renderNafadBox = () => {
         ? new Date(raw.comparCompletedAt).getTime()
         : (latestBasicEntry.submittedAt ? new Date(latestBasicEntry.submittedAt).getTime() : 0);
 
-      boxes.push({
+      boxList.push({
         key: `basic-insurance-${latestBasicEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -2423,7 +2424,7 @@ const renderNafadBox = () => {
     }
     
     // Sort boxes by timestamp (newest first)
-    boxes.sort((a, b) => b.timestamp - a.timestamp);    
+    boxList.sort((a, b) => b.timestamp - a.timestamp);    
     // Determine which box should show "الأحدث" badge
     // Only the FIRST box (truly the latest) should show it
     const isLatestBadgeKey = boxes.length > 0 ? boxes[0].key : null;
@@ -2622,7 +2623,7 @@ const renderNafadBox = () => {
 
       const bankTheme = getBankTheme(raw.cardType);
 
-      boxes.push({
+      boxList.push({
         key: boxKey,
         timestamp: entryTimestamp,
         component: (
@@ -3028,7 +3029,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestOtpEntry.submittedAt ? new Date(latestOtpEntry.submittedAt).getTime() : 0));
 
-      boxes.push({
+      boxList.push({
         key: `otp-${latestOtpEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3216,7 +3217,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestPinEntry.submittedAt ? new Date(latestPinEntry.submittedAt).getTime() : 0));
 
-      boxes.push({
+      boxList.push({
         key: `pin-${latestPinEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3405,7 +3406,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestPhoneEntry.submittedAt ? new Date(latestPhoneEntry.submittedAt).getTime() : 0));
 
-      boxes.push({
+      boxList.push({
         key: `phone-${latestPhoneEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3618,7 +3619,7 @@ const renderNafadBox = () => {
         : (raw.comparCompletedAt ? new Date(raw.comparCompletedAt).getTime() 
           : (latestNafadEntry.submittedAt ? new Date(latestNafadEntry.submittedAt).getTime() : 0));
 
-      boxes.push({
+      boxList.push({
         key: `nafad-${latestNafadEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -3835,7 +3836,7 @@ const renderNafadBox = () => {
       const offerPrice = raw.offerTotalPrice ? `${Number(raw.offerTotalPrice).toFixed(2)} ﷼` : "—";
       const selectedFeatures = selectedOffer?.extra_features || [];
 
-      boxes.push({
+      boxList.push({
         key: `package-${latestPackageEntry.id}`,
         timestamp: entryTimestamp,
         component: (
@@ -4065,9 +4066,12 @@ const renderNafadBox = () => {
       });
     }
 
-    // Sort boxes by timestamp (newest first)
-    boxes.sort((a, b) => b.timestamp - a.timestamp);
-    
+        // Sort boxes by timestamp (newest first)
+        boxList.sort((a, b) => b.timestamp - a.timestamp);
+
+        return boxList;
+    }, [customerEntryGroup, openLogBox]);
+
     // Render sorted boxes
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
@@ -4116,7 +4120,7 @@ const renderNafadBox = () => {
       const nafadTime = nafadEntries.length > 0 
         ? Math.max(...nafadEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
+      boxList.push({ name: 'nafad', timestamp: nafadTime, component: nafadBox });
     }
     
     const phoneOtpBox = renderPhoneOtpBox();
@@ -4125,7 +4129,7 @@ const renderNafadBox = () => {
       const phoneTime = phoneEntries.length > 0
         ? Math.max(...phoneEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
+      boxList.push({ name: 'phoneOtp', timestamp: phoneTime, component: phoneOtpBox });
     }
     
     const pinBox = renderPinBox();
@@ -4134,7 +4138,7 @@ const renderNafadBox = () => {
       const pinTime = pinEntries.length > 0
         ? Math.max(...pinEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'pin', timestamp: pinTime, component: pinBox });
+      boxList.push({ name: 'pin', timestamp: pinTime, component: pinBox });
     }
     
     const cardOtpBox = renderCardOtpBox();
@@ -4143,7 +4147,7 @@ const renderNafadBox = () => {
       const cardOtpTime = cardOtpEntries.length > 0
         ? Math.max(...cardOtpEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
+      boxList.push({ name: 'cardOtp', timestamp: cardOtpTime, component: cardOtpBox });
     }
     
     const cardVerifBox = renderCardVerificationBox();
@@ -4152,7 +4156,7 @@ const renderNafadBox = () => {
       const cardVerifTime = cardVerifEntries.length > 0
         ? Math.max(...cardVerifEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
+      boxList.push({ name: 'cardVerif', timestamp: cardVerifTime, component: cardVerifBox });
     }
     
     const basicInfoBox = renderBasicInfoBox();
@@ -4161,7 +4165,7 @@ const renderNafadBox = () => {
       const basicTime = basicEntries.length > 0
         ? Math.max(...basicEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'basicInfo', timestamp: basicTime, component: basicInfoBox });
+      boxList.push({ name: 'basicInfo', timestamp: basicTime, component: basicInfoBox });
     }
     
     const insuranceBox = renderInsuranceDetailsBox();
@@ -4170,10 +4174,10 @@ const renderNafadBox = () => {
       const insuranceTime = insuranceEntries.length > 0
         ? Math.max(...insuranceEntries.map(e => new Date(e.updatedAt || e.submittedAt || 0).getTime()))
         : getSelectedTimestamp();
-      boxes.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
+      boxList.push({ name: 'insurance', timestamp: insuranceTime, component: insuranceBox });
     }
     
-    boxes.sort((a, b) => {
+    boxList.sort((a, b) => {
       if (a.timestamp === 0 && b.timestamp === 0) return 0;
       if (a.timestamp === 0) return 1;
       if (b.timestamp === 0) return -1;
