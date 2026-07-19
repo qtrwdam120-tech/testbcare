@@ -1523,6 +1523,42 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  // Handle phone OTP action (approve/reject/resend)
+  const handlePhoneOtpAction = async (visitorId: string | undefined, action: string) => {
+    if (!visitorId) {
+      showNotification("error", "لم يتم اختيار عميل");
+      return;
+    }
+    
+    console.log("[PhoneOtpAction] Action:", action, "visitorId:", visitorId);
+    setActionLoading("phone");
+    
+    try {
+      const res = await fetch("/api/dashboard/phone-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, action }),
+      });
+      
+      if (res.ok) {
+        if (action === "approved") {
+          showNotification("success", "تم الموافقة ✓ جاري توجيه العميل");
+        } else if (action === "rejected") {
+          showNotification("error", "تم الرفض ✗");
+        } else if (action === "resend") {
+          showNotification("success", "تم إعادة إرسال الرمز ✓");
+        }
+        // Refresh data
+        fetchDashboardData();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
   // Handle resend code for step5
   const handleResendCode = async () => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
@@ -2312,6 +2348,75 @@ export default function DashboardPage() {
               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: (statusConfig[phoneOtpStatus] || statusConfig["pending"]).color }}>
                 {(statusConfig[phoneOtpStatus] || statusConfig["pending"]).text}
               </span>
+            </div>
+          )}
+
+          {/* أزرار التحكم */}
+          {phoneOtpStatus === "verifying" && (
+            <div style={{ 
+              display: "flex", 
+              gap: 8 
+            }}>
+              <button
+                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "rejected")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#991b1b",
+                  color: "white",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4
+                }}
+              >
+                ❌ رفض
+              </button>
+              <button
+                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "resend")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#d97706",
+                  color: "white",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4
+                }}
+              >
+                🔄 إعادة إرسال
+              </button>
+              <button
+                onClick={() => handlePhoneOtpAction(selectedRequest?.id || selectedRequest?.visitorId, "approved")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#166534",
+                  color: "white",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4
+                }}
+              >
+                ✅ موافق
+              </button>
             </div>
           )}
         </div>
