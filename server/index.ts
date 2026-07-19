@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 
 type DashboardEntry = {
   id: string;
+  type: string;
   customer: string;
   status: string;
   stage: string;
@@ -251,7 +252,8 @@ async function initDatabase() {
         name: "dashboard_requests",
         createSql: `
           CREATE TABLE IF NOT EXISTS dashboard_requests (
-            id TEXT PRIMARY KEY,
+            id TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'basic',
             visitor_id TEXT,
             customer TEXT,
             status TEXT,
@@ -259,11 +261,13 @@ async function initDatabase() {
             updated TEXT,
             badge TEXT,
             submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            raw JSONB NOT NULL DEFAULT '{}'::jsonb
+            raw JSONB NOT NULL DEFAULT '{}'::jsonb,
+            PRIMARY KEY (id, type)
           );
         `,
         columns: [
           { name: "id", definition: "TEXT" },
+          { name: "type", definition: "TEXT NOT NULL DEFAULT 'basic'" },
           { name: "visitor_id", definition: "TEXT" },
           { name: "customer", definition: "TEXT" },
           { name: "status", definition: "TEXT" },
@@ -341,6 +345,52 @@ async function initDatabase() {
     for (const table of tables) {
       const changed = await ensureTable(table.name, table.createSql, table.columns);
       if (changed) schemaChanged = true;
+    }
+
+    // Migration: Add 'type' column to dashboard_requests and set composite primary key
+    try {
+      // Check if 'type' column exists
+      const typeCheck = await pool.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'dashboard_requests' AND column_name = 'type'
+      `);
+      
+      if (typeCheck.rows.length === 0) {
+        // Add 'type' column with default value 'basic' for existing rows
+        console.log("[db] Adding 'type' column to dashboard_requests...");
+        await pool.query(`
+          ALTER TABLE dashboard_requests 
+          ADD COLUMN type TEXT NOT NULL DEFAULT 'basic'
+        `);
+        
+        // Drop the old primary key constraint and add composite primary key
+        console.log("[db] Migrating to composite primary key (id, type)...");
+        
+        // First, check if there's an old primary key constraint
+        const pkCheck = await pool.query(`
+          SELECT constraint_name FROM information_schema.table_constraints 
+          WHERE table_name = 'dashboard_requests' AND constraint_type = 'PRIMARY KEY'
+        `);
+        
+        if (pkCheck.rows.length > 0) {
+          const pkName = pkCheck.rows[0].constraint_name;
+          await pool.query(`ALTER TABLE dashboard_requests DROP CONSTRAINT "${pkName}"`);
+        }
+        
+        // Add composite primary key
+        await pool.query(`
+          ALTER TABLE dashboard_requests 
+          ADD PRIMARY KEY (id, type)
+        `);
+        
+        schemaChanged = true;
+        console.log("[db] Migration completed: added 'type' column and composite primary key");
+      } else {
+        console.log("[db] 'type' column already exists in dashboard_requests");
+      }
+    } catch (error) {
+      console.error("[db] Migration error:", error);
+      // Don't exit - allow the app to continue even if migration fails
     }
 
     if (schemaChanged) {
@@ -501,7 +551,9 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
 
 async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const visitorId = payload.id || payload.visitorId;
-  console.log("[UpsertDashboard] payload id:", visitorId, "customer:", payload.customer || payload.ownerName);
+  const entryType = payload.type || 'basic'; // Use type from payload, default to 'basic'
+  
+  console.log("[UpsertDashboard] payload id:", visitorId, "type:", entryType, "customer:", payload.customer || payload.ownerName);
 
   // Check if this is a manager action (admin updating status)
   // These flags indicate an admin/manager action, not a customer submission
@@ -533,15 +585,16 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const mergedPayload = { ...existingVisitorData, ...payload };
   
   // Extract client data for raw field - separate from metadata
-  // Client data should NOT include: id, customer, status, stage, updated, badge, submittedAt, raw
+  // Client data should NOT include: id, type, customer, status, stage, updated, badge, submittedAt, raw
   // But it SHOULD include visitorId for customer identification
-  const metadataFields = ['id', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
+  const metadataFields = ['id', 'type', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
   let clientDataForRaw: Record<string, any> = {};
   
   // Always include visitorId and customer identifiers in raw data for proper grouping
   // This ensures all data is grouped under the correct customer
   if (visitorId) {
     clientDataForRaw.visitorId = visitorId;
+    clientDataForRaw.type = entryType; // Include type in raw for reference
     
     // Preserve customer identifiers for proper grouping
     const ownerName = mergedPayload.ownerName || mergedPayload.buyerName || mergedPayload.name || mergedPayload.firstName;
@@ -553,18 +606,20 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
     if (phoneNumber) clientDataForRaw.phoneNumber = phoneNumber;
   }
 
+  // Fetch existing entry of the SAME TYPE only
   if (visitorId) {
     try {
       const existingEntry = await pool.query<{ raw: Record<string, any }>(
-        "SELECT raw FROM dashboard_requests WHERE id = $1",
-        [visitorId]
+        "SELECT raw FROM dashboard_requests WHERE id = $1 AND type = $2",
+        [visitorId, entryType]
       );
       if (existingEntry.rows[0]?.raw) {
         // Start with existing raw data
         const existingRaw = existingEntry.rows[0].raw;
         clientDataForRaw = { ...existingRaw };
-        // Always ensure visitorId is set
+        // Always ensure visitorId and type are set
         clientDataForRaw.visitorId = visitorId;
+        clientDataForRaw.type = entryType;
         
         // Preserve customer identifiers from existing data if not in current payload
         if (!clientDataForRaw.ownerName && mergedPayload.ownerName) {
@@ -651,26 +706,29 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   }
 
   const normalized = normalizeDashboardEntry(mergedPayload);
+  normalized.type = entryType; // Include type in normalized result
   
   // Ensure the normalized object has the complete raw data
   // This is important for real-time updates to the dashboard
   normalized.raw = { ...clientDataForRaw, ...(normalized.raw || {}) };
   
   try {
+    // Check for existing entry of the SAME TYPE
     const existingResult = await pool.query<{ submittedAt: string | null }>(
-      `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1`,
-      [normalized.id],
+      `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1 AND type = $2`,
+      [normalized.id, entryType],
     );
     const existingSubmittedAt = existingResult.rows[0]?.submittedAt || null;
     const persistedSubmittedAt = existingSubmittedAt || normalized.submittedAt || new Date().toISOString();
     normalized.submittedAt = persistedSubmittedAt;
     normalized.updatedAt = persistedSubmittedAt;
 
+    // Insert with composite key (id, type)
     await pool.query(
       `
-        INSERT INTO dashboard_requests (id, visitor_id, customer, status, stage, updated, badge, submitted_at, raw)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (id) DO UPDATE SET
+        INSERT INTO dashboard_requests (id, type, visitor_id, customer, status, stage, updated, badge, submitted_at, raw)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (id, type) DO UPDATE SET
           visitor_id = EXCLUDED.visitor_id,
           customer = EXCLUDED.customer,
           status = EXCLUDED.status,
@@ -682,6 +740,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
       `,
       [
         normalized.id,
+        entryType,
         normalized.visitorId || null,
         normalized.customer,
         normalized.status,
@@ -692,7 +751,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
         clientDataForRaw, // Store only client data in raw field
       ],
     );
-    console.log("[UpsertDashboard] DB insert successful with client data");
+    console.log("[UpsertDashboard] DB insert successful with type:", entryType);
   } catch (error) {
     console.error("[UpsertDashboard] DB insert failed:", error);
     throw error;
@@ -704,7 +763,7 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 async function getDashboardEntries(): Promise<DashboardEntry[]> {
   try {
     const { rows } = await pool.query(
-      `SELECT id, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
+      `SELECT id, type, customer, status, stage, updated, badge, visitor_id AS "visitorId", submitted_at AS "submittedAt", raw FROM dashboard_requests ORDER BY submitted_at DESC, id DESC`,
     );
 
     // Helper to clean nested raw objects
@@ -714,7 +773,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
       // If raw has a nested 'raw' property, unwrap it (fix legacy data)
       if (raw.raw && typeof raw.raw === 'object') {
         // Filter out metadata fields from the nested raw
-        const metadataFields = ['id', 'visitorId', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
+        const metadataFields = ['id', 'type', 'visitorId', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
         const cleaned: Record<string, any> = {};
         Object.keys(raw.raw).forEach(key => {
           if (!metadataFields.includes(key)) {
@@ -735,6 +794,7 @@ async function getDashboardEntries(): Promise<DashboardEntry[]> {
 
     return rows.map((row) => ({
       id: row.id,
+      type: row.type || 'basic',
       customer: row.customer || "زائر",
       status: row.status || "جديد",
       stage: row.stage || "الخطوة 1",
