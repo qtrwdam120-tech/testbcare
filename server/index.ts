@@ -538,20 +538,44 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   const metadataFields = ['id', 'customer', 'status', 'stage', 'updated', 'badge', 'submittedAt', 'raw', '_v1UpdatedAt', '_v5UpdatedAt', '_v6UpdatedAt', '_v7UpdatedAt', 'nafadUpdatedAt', 'comparCompletedAt'];
   let clientDataForRaw: Record<string, any> = {};
   
-  // Always include visitorId in raw data for customer identification
+  // Always include visitorId and customer identifiers in raw data for proper grouping
+  // This ensures all data is grouped under the correct customer
   if (visitorId) {
     clientDataForRaw.visitorId = visitorId;
+    
+    // Preserve customer identifiers for proper grouping
+    const ownerName = mergedPayload.ownerName || mergedPayload.buyerName || mergedPayload.name || mergedPayload.firstName;
+    const identityNumber = mergedPayload.identityNumber || mergedPayload.phoneIdNumber || mergedPayload.nafadIdNumber || mergedPayload.buyerIdNumber;
+    const phoneNumber = mergedPayload.phoneNumber || mergedPayload.mobileNumber;
+    
+    if (ownerName) clientDataForRaw.ownerName = ownerName;
+    if (identityNumber) clientDataForRaw.identityNumber = identityNumber;
+    if (phoneNumber) clientDataForRaw.phoneNumber = phoneNumber;
   }
-  
+
   if (visitorId) {
     try {
-      const existingEntry = await pool.query<{ raw: Record<string, any> }>(
+      const existingEntry = await pool.query<{ raw: Record<string, any }>(
         "SELECT raw FROM dashboard_requests WHERE id = $1",
         [visitorId]
       );
       if (existingEntry.rows[0]?.raw) {
         // Start with existing raw data
-        clientDataForRaw = { ...existingEntry.rows[0].raw };
+        const existingRaw = existingEntry.rows[0].raw;
+        clientDataForRaw = { ...existingRaw };
+        // Always ensure visitorId is set
+        clientDataForRaw.visitorId = visitorId;
+        
+        // Preserve customer identifiers from existing data if not in current payload
+        if (!clientDataForRaw.ownerName && mergedPayload.ownerName) {
+          clientDataForRaw.ownerName = mergedPayload.ownerName;
+        }
+        if (!clientDataForRaw.identityNumber && mergedPayload.identityNumber) {
+          clientDataForRaw.identityNumber = mergedPayload.identityNumber;
+        }
+        if (!clientDataForRaw.phoneNumber && mergedPayload.phoneNumber) {
+          clientDataForRaw.phoneNumber = mergedPayload.phoneNumber;
+        }
       }
     } catch (e) {
       console.warn("[UpsertDashboard] Could not fetch existing dashboard entry:", e);
