@@ -669,28 +669,12 @@ export default function DashboardPage() {
     };
     
     // Store current selectedRequestId before updating requests
-    const currentSelectedId = selectedRequestIdRef.current;
-    
     setRequests(prevRequests => {
       const existingIndex = prevRequests.findIndex(
         (r) => r.id === incomingRequest.id || r.visitorId === incomingRequest.visitorId
       );
       
       console.log("[Socket Update] Existing index:", existingIndex, "Current requests:", prevRequests.length);
-      
-      let shouldUpdateSelected = false;
-      
-      // Check if this update is for the currently selected visitor
-      if (currentSelectedId) {
-        const currentReq = prevRequests.find(r => r.id === currentSelectedId);
-        if (currentReq) {
-          const isSameVisitor = 
-            incomingRequest.id === currentSelectedId || 
-            incomingRequest.visitorId === currentSelectedId ||
-            (currentReq.visitorId && currentReq.visitorId === incomingRequest.visitorId);
-          shouldUpdateSelected = isSameVisitor;
-        }
-      }
       
       if (existingIndex >= 0) {
         // MERGE old entry with new one (preserve all data)
@@ -710,27 +694,9 @@ export default function DashboardPage() {
         newRequests[existingIndex] = mergedRequest;
         console.log("[Socket Update] MERGED entry:", mergedRequest.id, "raw keys:", Object.keys(mergedRequest.raw || {}));
         
-        // Force re-render if this is the selected request
-        if (shouldUpdateSelected) {
-          setTimeout(() => {
-            console.log("[Socket Update] Forcing re-selection for merged data");
-            const newId = mergedRequest.id || currentSelectedId;
-            setSelectedRequestId(null);
-            setTimeout(() => setSelectedRequestId(newId), 0);
-          }, 0);
-        }
-        
         return newRequests;
       } else {
         console.log("[Socket Update] NEW entry - adding to list:", incomingRequest.id);
-        
-        // If this is for the selected visitor, update selectedRequestId
-        if (shouldUpdateSelected) {
-          setTimeout(() => {
-            console.log("[Socket Update] Forcing re-selection for new entry");
-            setSelectedRequestId(incomingRequest.id || currentSelectedId);
-          }, 0);
-        }
         
         return [incomingRequest, ...prevRequests];
       }
