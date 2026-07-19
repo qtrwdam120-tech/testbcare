@@ -631,6 +631,10 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
 
   const normalized = normalizeDashboardEntry(mergedPayload);
   
+  // Ensure the normalized object has the complete raw data
+  // This is important for real-time updates to the dashboard
+  normalized.raw = { ...clientDataForRaw, ...(normalized.raw || {}) };
+  
   try {
     const existingResult = await pool.query<{ submittedAt: string | null }>(
       `SELECT submitted_at AS "submittedAt" FROM dashboard_requests WHERE id = $1`,
