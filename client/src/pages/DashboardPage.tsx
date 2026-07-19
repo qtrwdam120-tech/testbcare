@@ -2098,6 +2098,18 @@ const renderNafadBox = () => {
         cardRaw.cardNumber || cardRaw.paymentStatus || cardRaw.hasCard
       )
     );
+    // DEBUG: Log timestamps
+    console.log('[DEBUG] cardRaw:', { 
+      _v1UpdatedAt: cardRaw?._v1UpdatedAt, 
+      comparCompletedAt: cardRaw?.comparCompletedAt,
+      submittedAt: cardEntry?.submittedAt 
+    });
+    console.log('[DEBUG] otpRaw:', { 
+      _v5UpdatedAt: otpRaw?._v5UpdatedAt, 
+      comparCompletedAt: otpRaw?.comparCompletedAt,
+      submittedAt: otpEntry?.submittedAt 
+    });
+    
     // Use _v1UpdatedAt for card timestamp, fallback to comparCompletedAt or submittedAt
     const cardTimestamp = cardRaw?._v1UpdatedAt 
       ? new Date(cardRaw._v1UpdatedAt).getTime() 
