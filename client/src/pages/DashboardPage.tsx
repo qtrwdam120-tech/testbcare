@@ -2,6 +2,128 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { io, Socket } from "socket.io-client";
 import { addData } from "@/lib/api";
 
+// =============================================
+// Custom Hook: useConnectionMonitor
+// لمراقبة حالة الاتصال الحية للزائر
+// =============================================
+function useConnectionMonitor(visitorId?: string) {
+  const [connectionStatus, setConnectionStatus] = useState<{
+    isOnline: boolean;
+    lastSeen: string | null;
+    isLive: boolean;
+    latency: number;
+  }>({
+    isOnline: false,
+    lastSeen: null,
+    isLive: false,
+    latency: 0
+  });
+  
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!visitorId) {
+      setConnectionStatus({ isOnline: false, lastSeen: null, isLive: false, latency: 0 });
+      return;
+    }
+
+    // دالة لجلب حالة الزائر من السيرفر
+    const fetchVisitorStatus = async () => {
+      if (!visitorId) return;
+      try {
+        const start = Date.now();
+        const res = await fetch(`/api/visitors/${visitorId}`, { 
+          method: "GET",
+          headers: { "Cache-Control": "no-cache" }
+        });
+        const latency = Date.now() - start;
+        
+        if (res.ok) {
+          const data = await res.json();
+          // التحقق من الاتصال: isOnline أو badge === "new" أو recent activity
+          const hasRecentActivity = data.lastSeenAt && 
+            (Date.now() - new Date(data.lastSeenAt).getTime()) < 30000; // 30 seconds
+          const isOnline = data.isOnline !== false && 
+                          (data.badge === "new" || hasRecentActivity);
+          const lastSeen = data.lastSeenAt || data.lastActivityAt || data.updatedAt;
+          
+          setConnectionStatus(prev => ({
+            ...prev,
+            isOnline,
+            lastSeen: lastSeen || prev.lastSeen,
+            isLive: true,
+            latency
+          }));
+        } else {
+          setConnectionStatus(prev => ({ ...prev, isLive: false }));
+        }
+      } catch {
+        setConnectionStatus(prev => ({ ...prev, isLive: false }));
+      }
+    };
+
+    // الاتصال بـ SSE للبث الحي
+    const connectSSE = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      const eventSource = new EventSource(`/api/visitor/${visitorId}/stream`);
+      eventSourceRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        console.log("[ConnectionMonitor] SSE connected for visitor:", visitorId);
+        setConnectionStatus(prev => ({ ...prev, isLive: true }));
+        fetchVisitorStatus();
+      };
+
+      eventSource.addEventListener("status_update", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.field) {
+            fetchVisitorStatus();
+          }
+        } catch {}
+      });
+
+      eventSource.addEventListener("connected", (event) => {
+        console.log("[ConnectionMonitor] Visitor stream connected:", visitorId);
+      });
+
+      eventSource.onerror = () => {
+        console.log("[ConnectionMonitor] SSE error, will retry...");
+        setConnectionStatus(prev => ({ ...prev, isLive: false }));
+        eventSource.close();
+        setTimeout(connectSSE, 3000);
+      };
+    };
+
+    // بدء الاتصال
+    fetchVisitorStatus();
+    connectSSE();
+
+    // Heartbeat كل 10 ثواني
+    heartbeatIntervalRef.current = setInterval(async () => {
+      if (!visitorId) return;
+      try {
+        await fetch(`/api/visitors/${visitorId}/heartbeat`, { method: "POST" });
+      } catch {}
+    }, 10000);
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+    };
+  }, [visitorId]);
+
+  return connectionStatus;
+}
+
 type RequestItem = {
   id: string;
   customer: string;
@@ -81,6 +203,24 @@ function LiveTimer({ startTime }: { startTime: string }) {
 }
 
 export default function DashboardPage() {
+  // =============================================
+  // CSS Animations for Connection Status
+  // =============================================
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    @keyframes connectionPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    @keyframes liveIndicator {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  `;
+  if (!document.head.querySelector("#connection-animations")) {
+    styleSheet.id = "connection-animations";
+    document.head.appendChild(styleSheet);
+  }
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -847,6 +987,12 @@ export default function DashboardPage() {
     };
   }, [customerEntryGroup]);
 
+  // =============================================
+  // مراقبة حالة الاتصال الحية للزائر المحدد
+  // =============================================
+  const currentVisitorId = selectedRequest?.visitorId || selectedRequest?.id;
+  const connectionStatus = useConnectionMonitor(currentVisitorId);
+
   const liveSummary = useMemo(() => {
     const raw = selectedRequest?.raw || {};
     const ownerName = selectedRequest?.customer || getRealFieldValue(raw, ["ownerName", "buyerName", "name", "firstName", "lastName"], "—");
@@ -860,6 +1006,7 @@ export default function DashboardPage() {
     const ip = getRealFieldValue(raw, ["ip", "clientIp", "visitorIp"], "—");
     const currentPage = getRealFieldValue(raw, ["currentPage", "page"], typeof raw.currentPage === 'string' ? raw.currentPage : (typeof raw.page === 'string' ? raw.page : "غير متصل"));
     const currentStep = getRealFieldValue(raw, ["currentStep", "step"], "—");
+    const updatedAt = selectedRequest?.updatedAt || raw?.updatedAt;
 
     return {
       ownerName,
@@ -873,8 +1020,14 @@ export default function DashboardPage() {
       ip,
       currentPage,
       currentStep,
+      updatedAt,
+      // معلومات الاتصال الحية
+      isOnline: connectionStatus.isOnline,
+      lastSeen: connectionStatus.lastSeen,
+      isLive: connectionStatus.isLive,
+      latency: connectionStatus.latency,
     };
-  }, [selectedRequest]);
+  }, [selectedRequest, connectionStatus]);
 
   // Show notification
   const showNotification = (type: "success" | "error", message: string) => {
@@ -2313,6 +2466,44 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderLeft: "1px solid #f3f4f6", flexShrink: 0 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" /></svg>
                     <span style={{ color: "#9ca3af", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>{liveSummary.ip}</span>
+                  </div>
+                  {/* مؤشر حالة الاتصال الحية */}
+                  <div style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 6, 
+                    padding: "8px 12px", 
+                    borderLeft: "1px solid #f3f4f6", 
+                    flexShrink: 0 
+                  }}>
+                    {/* نقطة النبض */}
+                    <div style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: liveSummary.isOnline ? "#22c55e" : "#9ca3af",
+                      boxShadow: liveSummary.isOnline ? "0 0 6px rgba(34, 197, 94, 0.6)" : "none",
+                      animation: liveSummary.isOnline ? "connectionPulse 2s infinite" : "none",
+                    }} />
+                    {/* نص الحالة */}
+                    <span style={{ 
+                      color: liveSummary.isOnline ? "#16a34a" : "#9ca3af", 
+                      fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                      fontSize: "0.75rem",
+                      fontWeight: liveSummary.isOnline ? 700 : 400
+                    }}>
+                      {liveSummary.isOnline ? "متصل الآن" : liveSummary.lastSeen ? formatElapsedTime(liveSummary.lastSeen) : "غير متصل"}
+                    </span>
+                    {/* مؤشر البث الحي */}
+                    {liveSummary.isLive && (
+                      <div style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        backgroundColor: "#3b82f6",
+                        animation: "liveIndicator 1.5s infinite",
+                      }} />
+                    )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", flexShrink: 0 }}>
                     <span style={{ fontSize: "10px", padding: "2px 6px", background: "#dcfce7", color: "#166534", borderRadius: 4, border: "1px solid #86efac", fontWeight: 600 }}>

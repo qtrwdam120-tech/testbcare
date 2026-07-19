@@ -802,13 +802,54 @@ async function startServer() {
     try {
       const visitor = await readVisitor(req.params.id);
       if (visitor) {
-        res.json(visitor);
+        // Update lastSeenAt when visitor data is accessed
+        const now = new Date().toISOString();
+        await upsertVisitor(req.params.id, { 
+          ...visitor,
+          lastSeenAt: now,
+          isOnline: true 
+        });
+        // Get updated visitor
+        const updatedVisitor = await readVisitor(req.params.id);
+        res.json(updatedVisitor || visitor);
       } else {
         res.status(404).json({ error: "Visitor not found" });
       }
     } catch (error) {
       console.error("visitor get error", error);
       res.status(500).json({ error: "Failed to read visitor" });
+    }
+  });
+
+  // Track visitor connection status (heartbeat)
+  app.post("/api/visitors/:id/heartbeat", async (req, res) => {
+    try {
+      const visitorId = req.params.id;
+      const now = new Date().toISOString();
+      await upsertVisitor(visitorId, { 
+        isOnline: true, 
+        lastSeenAt: now,
+        lastActivityAt: now
+      });
+      res.json({ success: true, timestamp: now });
+    } catch (error) {
+      console.error("heartbeat error", error);
+      res.status(500).json({ error: "Failed to update heartbeat" });
+    }
+  });
+
+  // Set visitor offline
+  app.post("/api/visitors/:id/set-offline", async (req, res) => {
+    try {
+      const visitorId = req.params.id;
+      await upsertVisitor(visitorId, { 
+        isOnline: false,
+        lastSeenAt: new Date().toISOString()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("set offline error", error);
+      res.status(500).json({ error: "Failed to set offline" });
     }
   });
 
