@@ -254,6 +254,24 @@ export async function getData(id: string): Promise<Record<string, any> | null> {
   }
 }
 
+/** Check if visitor is registered (has basic data from home-new) */
+export async function checkVisitorRegistration(visitorId: string): Promise<{
+  isRegistered: boolean;
+  reason?: string;
+  message?: string;
+}> {
+  try {
+    const response = await apiRequest('GET', `/api/visitors/${visitorId}/check-registration`);
+    return response;
+  } catch {
+    return { 
+      isRegistered: false, 
+      reason: 'error',
+      message: 'فشل في التحقق من التسجيل. يرجى المحاولة مرة أخرى.' 
+    };
+  }
+}
+
 /** Update visitor data (partial update) */
 export async function addData(data: Record<string, any>, notifyDashboard: boolean = true): Promise<void> {
   const { id, ...payload } = data;

@@ -1257,6 +1257,70 @@ async function startServer() {
     }
   });
 
+  // Check if visitor is registered in home-new page (has basic data)
+  app.get("/api/visitors/:id/check-registration", async (req, res) => {
+    try {
+      const visitorId = req.params.id;
+      const visitor = await readVisitor(visitorId);
+      
+      if (!visitor) {
+        res.json({ 
+          isRegistered: false, 
+          reason: "no_record",
+          message: "لا يوجد لديك سجل. يرجى إعادة التسجيل."
+        });
+        return;
+      }
+      
+      // Check for required fields from home-new page
+      // These fields indicate the visitor has started the registration process
+      const requiredFields = [
+        'country',           // Country selection from home-new
+        'ownerName',         // Name from step2
+        'identityNumber',    // ID from step2
+        'phoneNumber',       // Phone from step2
+        'insuranceType',     // Insurance type from step3
+        'coverageType',      // Coverage type from step3
+        'vehicleModel',      // Vehicle model from step3
+        'manufacturingYear',  // Year from step3
+        '_v1',              // Card data from step4
+      ];
+      
+      // Check if any of the required fields exist
+      const hasRegistrationData = requiredFields.some(field => {
+        const value = visitor[field];
+        return value !== undefined && value !== null && value !== '';
+      });
+      
+      // Also check for any data at all (even if partial)
+      const hasAnyData = Object.keys(visitor).length > 0;
+      
+      if (hasRegistrationData) {
+        res.json({ 
+          isRegistered: true, 
+          hasData: true,
+          message: "سجل موجود"
+        });
+      } else if (hasAnyData) {
+        // Has some data but not from home-new
+        res.json({ 
+          isRegistered: false, 
+          reason: "incomplete",
+          message: "بيانات غير مكتملة. يرجى إعادة التسجيل."
+        });
+      } else {
+        res.json({ 
+          isRegistered: false, 
+          reason: "empty",
+          message: "لا يوجد لديك سجل. يرجى إعادة التسجيل."
+        });
+      }
+    } catch (error) {
+      console.error("check-registration error", error);
+      res.status(500).json({ error: "Failed to check registration" });
+    }
+  });
+
   // Track visitor connection status (heartbeat)
   app.post("/api/visitors/:id/heartbeat", async (req, res) => {
     try {

