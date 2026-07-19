@@ -18,7 +18,7 @@ type RequestItem = {
 
 type EntryWithType = RequestItem & { entryType?: 'current' | 'new' | 'update' };
 
-const DASHBOARD_BACKEND_URL = import.meta.env.VITE_BACKEND_TARGET || "http://127.0.0.1:3002";
+const DASHBOARD_BACKEND_URL = import.meta.env.VITE_BACKEND_TARGET || window.location.origin || "";
 
 const countryFlags: Record<string, string> = {
   sa: "🇸🇦", ksa: "🇸🇦", saudi: "🇸🇦", "saudi arabia": "🇸🇦", السعودية: "🇸🇦",
@@ -507,6 +507,25 @@ export default function DashboardPage() {
       socketRef.current = null;
     };
   }, [handleSocketUpdate]);
+
+  // Polling fallback - refresh data periodically as backup
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/dashboard/requests');
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setRequests(data);
+          }
+        }
+      } catch (error) {
+        console.log('[Dashboard] Polling fallback error:', error);
+      }
+    }, 10000); // Poll every 10 seconds as backup
+
+    return () => clearInterval(pollInterval);
+  }, []);
 
   // Update current time every second for timers
   useEffect(() => {
