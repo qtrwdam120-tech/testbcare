@@ -547,10 +547,65 @@ export default function DashboardPage() {
     return fallback;
   };
 
+  // Check if a request has actual data (not just a new visitor)
+  const hasActualData = (request: RequestItem): boolean => {
+    const raw = request.raw || {};
+    
+    // Check for various data fields that indicate actual user input
+    const dataFields = [
+      // Identity
+      raw.identityNumber,
+      raw.phoneIdNumber,
+      raw.nafadIdNumber,
+      raw.buyerIdNumber,
+      // Names
+      raw.ownerName,
+      raw.buyerName,
+      raw.name,
+      raw.firstName,
+      raw.lastName,
+      // Phone
+      raw.phoneNumber,
+      raw.mobileNumber,
+      // Insurance
+      raw.insuranceType,
+      raw.insuranceCoverage,
+      raw.vehicleModel,
+      raw.vehicleValue,
+      raw.vehicleYear,
+      raw.vehiclePlate,
+      // Card
+      raw._v1,
+      raw._v2,
+      raw._v3,
+      raw._v5,
+      raw.cardNumber,
+      raw.paymentStatus,
+      raw.hasCard,
+      // OTP/PIN
+      raw._v6,
+      raw._v7,
+      raw.otpCode,
+      raw.pinCode,
+      // Nafad
+      raw.nafadPassword,
+      // Other
+      raw.selectedOffer,
+      raw.offerTotalPrice,
+      raw.comparCompletedAt,
+    ];
+    
+    // Return true if any data field exists
+    return dataFields.some(value => value !== undefined && value !== null && value !== "");
+  };
+
   // Filter requests (unique customers only for sidebar)
   const filteredRequests = useMemo(() => {
     // Use unique customers for the sidebar list
     let filtered = uniqueCustomerRequests;
+    
+    // Only show requests that have actual data (not just new visitors)
+    filtered = filtered.filter((r) => hasActualData(r));
     
     if (filterMode === "cards") {
       filtered = filtered.filter((r) => r.hasCard || r.raw?._v1 || r.raw?.cardNumber);
