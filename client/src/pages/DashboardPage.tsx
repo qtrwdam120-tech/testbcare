@@ -1431,7 +1431,15 @@ export default function DashboardPage() {
     }
   };
 
-  const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? filteredRequests[0];
+  // ✅ Use useMemo to ensure selectedRequest updates when requests change
+  const selectedRequest = useMemo(() => {
+    // First try to find by selectedRequestId
+    const byId = requests.find((r) => r.id === selectedRequestId);
+    if (byId) return byId;
+    
+    // Fallback to first filtered request
+    return filteredRequests[0] || null;
+  }, [requests, selectedRequestId, filteredRequests]);
 
   // Compare raw data between two entries to determine if data is new or updated
   const hasSignificantDataChange = (currentEntry: RequestItem, previousEntry: RequestItem): boolean => {
