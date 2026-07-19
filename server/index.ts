@@ -143,7 +143,7 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
   
   const visitorId = String(combinedPayload.visitorId || combinedPayload.id || nestedPayload.visitorId || nestedPayload.id || "").trim();
   
-  // Extract customer name with priority: customer > ownerName > buyerName > name > firstName > identityNumber > phoneNumber
+  // Extract customer name with priority: customer > ownerName > buyerName > name > firstName > identityNumber (phoneNumber is NOT used for display)
   const customerName = String(
     combinedPayload.customer ||
     combinedPayload.ownerName ||
@@ -152,7 +152,6 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     combinedPayload.firstName ||
     combinedPayload.lastName ||
     combinedPayload.identityNumber ||
-    combinedPayload.phoneNumber ||
     nestedPayload.customer ||
     nestedPayload.ownerName ||
     nestedPayload.buyerName ||
@@ -160,13 +159,11 @@ function normalizeDashboardEntry(payload: Record<string, any> = {}): DashboardEn
     nestedPayload.firstName ||
     nestedPayload.lastName ||
     nestedPayload.identityNumber ||
-    nestedPayload.phoneNumber ||
     payload.customer ||
     payload.ownerName ||
     payload.buyerName ||
     payload.name ||
     payload.identityNumber ||
-    payload.phoneNumber ||
     "زائر"
   ).trim() || "زائر";
   
