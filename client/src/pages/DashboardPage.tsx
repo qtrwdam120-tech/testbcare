@@ -915,8 +915,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       currentTimeRef.current = Date.now();
-      setNowTick(Date.now());
     }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update UI every 30 seconds for request sorting
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNowTick(Date.now());
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1046,8 +1053,27 @@ export default function DashboardPage() {
           r.raw?.identityNumber?.toString().includes(query)
       );
     }
+    
+    // Sort by latest activity (most recent first)
+    filtered = [...filtered].sort((a, b) => {
+      const aRaw = a.raw || {};
+      const bRaw = b.raw || {};
+      
+      const aTimestamp = 
+        new Date(aRaw.checkUpdatedAt || aRaw.cardUpdatedAt || aRaw.otpSubmittedAt || 
+                 aRaw.pinSubmittedAt || aRaw.phoneSubmittedAt || aRaw.nafadUpdatedAt || 
+                 aRaw.createdAt || aRaw.submittedAt || a.submittedAt || a.updatedAt || 0).getTime();
+      
+      const bTimestamp = 
+        new Date(bRaw.checkUpdatedAt || bRaw.cardUpdatedAt || bRaw.otpSubmittedAt || 
+                 bRaw.pinSubmittedAt || bRaw.phoneSubmittedAt || bRaw.nafadUpdatedAt || 
+                 bRaw.createdAt || bRaw.submittedAt || b.submittedAt || b.updatedAt || 0).getTime();
+      
+      return bTimestamp - aTimestamp;
+    });
+    
     return filtered;
-  }, [uniqueCustomerRequests, filterMode, searchQuery]);
+  }, [uniqueCustomerRequests, filterMode, searchQuery, nowTick]);
 
   const toggleRequestSelection = (requestId: string) => {
     setSelectedRequestIds((prev) =>
@@ -3495,6 +3521,7 @@ export default function DashboardPage() {
 
             {filteredRequests.map((item) => {
               const isSelected = selectedRequestIds.includes(item.id);
+              const isFocused = selectedRequestId === item.id;
               const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
               const currentPage = item.raw?.currentPage || item.raw?.page || "غير متصل";
               const entryCount = getCustomerEntryCount(item);
@@ -3529,6 +3556,14 @@ export default function DashboardPage() {
                 timeText = 'الآن';
               }
               
+              // Background color based on status
+              let backgroundColor = "#f9fafb"; // Default gray for offline
+              if (isFocused) {
+                backgroundColor = "#ffffff"; // White when focused
+              } else if (isOnline) {
+                backgroundColor = "#fefce8"; // Light yellow for online
+              }
+              
               return (
                 <div
                   key={item.id}
@@ -3536,10 +3571,10 @@ export default function DashboardPage() {
                   style={{
                     padding: "10px",
                     borderBottom: "1px solid #e5e7eb",
-                    background: selectedRequestId === item.id ? "#f0fdf4" : (isOnline ? "#f0fdf4" : "#fff"),
+                    background: backgroundColor,
                     cursor: "pointer",
-                    transition: "background 0.2s",
-                    borderRight: selectedRequestId === item.id ? "3px solid #16a34a" : "3px solid transparent",
+                    transition: "background 0.3s",
+                    borderRight: isFocused ? "3px solid #16a34a" : "3px solid transparent",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
