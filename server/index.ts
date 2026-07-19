@@ -355,10 +355,11 @@ async function readVisitor(visitorId: string): Promise<Record<string, any> | nul
   }
 }
 
-async function upsertVisitor(visitorId: string, payload: Record<string, any> = {}) {
+async function upsertVisitor(visitorId: string, payload: Record<string, any> = {}, options: { preserveTimestamps?: boolean } = {}) {
   console.log("[UpsertVisitor] visitorId:", visitorId);
   console.log("[UpsertVisitor] payload keys:", Object.keys(payload));
   console.log("[UpsertVisitor] payload sample:", JSON.stringify(payload).slice(0, 500));
+  console.log("[UpsertVisitor] preserveTimestamps:", options.preserveTimestamps);
   
   // Read data BEFORE any modifications
   const currentData = (await readVisitor(visitorId)) || {};
@@ -431,7 +432,12 @@ async function upsertVisitor(visitorId: string, payload: Record<string, any> = {
   }
   
   // Now merge with new data
-  const merged = { ...currentData, ...payload, updatedAt: new Date().toISOString() };
+  // If preserveTimestamps is true (from dashboard admin actions), keep existing timestamp
+  // Otherwise, update to current time (normal user submissions)
+  const newUpdatedAt = options.preserveTimestamps 
+    ? (currentData.updatedAt || currentData.submittedAt || new Date().toISOString())
+    : new Date().toISOString();
+  const merged = { ...currentData, ...payload, updatedAt: newUpdatedAt };
   console.log("[UpsertVisitor] merged keys:", Object.keys(merged));
 
   // Save to database
@@ -1116,7 +1122,7 @@ async function startServer() {
         console.log('[PaymentAction] Rejected');
       }
 
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
       
       // Preserve all existing visitor data for dashboard
       await upsertDashboardRequest({ 
@@ -1170,7 +1176,7 @@ async function startServer() {
       }
 
       // Update visitor data so customer can receive the update
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
       
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1214,7 +1220,7 @@ async function startServer() {
         updateData.adminPinCode = pinCode;
       }
 
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
       await upsertDashboardRequest({ id: visitorId, ...updateData, updated: "تم إرسال PIN" });
 
 
@@ -1259,7 +1265,7 @@ async function startServer() {
       }
 
       // Update visitor data so customer can receive the update
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
       
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1339,7 +1345,7 @@ async function startServer() {
       }
 
       // Update visitor data so customer can receive the update
-      await upsertVisitor(resolvedVisitorId, updateData);
+      await upsertVisitor(resolvedVisitorId, updateData, { preserveTimestamps: true });
       
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1387,7 +1393,7 @@ async function startServer() {
       }
 
       // Update visitor data
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
       
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1449,7 +1455,7 @@ async function startServer() {
         updateData.phoneRejectionAt = new Date().toISOString();
       }
 
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
 
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1506,7 +1512,7 @@ async function startServer() {
         _v7: null,
       };
 
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
 
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
@@ -1566,7 +1572,7 @@ async function startServer() {
       }
 
       console.log("[Dashboard Redirect] Saving updateData:", updateData);
-      await upsertVisitor(visitorId, updateData);
+      await upsertVisitor(visitorId, updateData, { preserveTimestamps: true });
 
       // Preserve all existing visitor data for dashboard
       const dashboardData = await upsertDashboardRequest({ 
